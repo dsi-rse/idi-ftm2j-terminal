@@ -5,9 +5,13 @@ import {
   Bebas_Neue,
   Syne,
   DM_Mono,
+  Inter,
+  Inter_Tight,
   Heebo,
 } from "next/font/google";
+
 import "./globals.css";
+import { Providers } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,7 +40,7 @@ const syne = Syne({
 const dmMono = DM_Mono({
   variable: "--font-dm-mono",
   subsets: ["latin"],
-  weight: ["300", "400"],
+  weight: ["300", "400", "500"],
   display: "swap",
 });
 
@@ -44,6 +48,20 @@ const heebo = Heebo({
   variable: "--font-heebo",
   subsets: ["latin"],
   weight: ["400", "600", "700", "800"],
+  display: "swap",
+});
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700"],
+  display: "swap",
+});
+
+const interTight = Inter_Tight({
+  variable: "--font-inter-tight",
+  subsets: ["latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -61,7 +79,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${syne.variable} ${dmMono.variable} ${heebo.variable}`}
+      className={`${interTight.variable} ${inter.variable} ${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${syne.variable} ${dmMono.variable} ${heebo.variable}`}
+      suppressHydrationWarning
     >
       <head>
         <link
@@ -70,7 +89,11 @@ export default function RootLayout({
           type="image/vnd.microsoft.icon"
         ></link>
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased" suppressHydrationWarning>
+        <div className="root grid min-h-screen grid-rows-[auto_1fr_auto]">
+          <Providers>{children}</Providers>
+        </div>
+      </body>
     </html>
   );
 }

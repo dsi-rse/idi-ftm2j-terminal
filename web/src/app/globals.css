@@ -1,26 +1,89 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-	--background: #ffffff;
-	--foreground: #171717;
+	/* COLOR SCALE ENDPOINTS */
+	--ftm2j-white: #ffffff;
+	--ftm2j-black: #000000;
+
+	/* GRAY COLOR PALETTE */
+	--ftm2j-gray-50: #fafafa;
+	--ftm2j-gray-100: #f5f5f5;
+	--ftm2j-gray-200: #e6e6e6;
+	--ftm2j-gray-300: #d3d3d3;
+	--ftm2j-gray-400: #a3a3a3;
+	--ftm2j-gray-500: #727272;
+	--ftm2j-gray-600: #535353;
+	--ftm2j-gray-700: #404040;
+	--ftm2j-gray-800: #272727;
+	--ftm2j-gray-900: #1e1e1e;
+	--ftm2j-gray-950: #0b0b0b;
+
+	/** GOLD COLOR PALETTE */
+	--ftm2j-gold-50: #fffdea;
+	--ftm2j-gold-100: #fffac5;
+	--ftm2j-gold-200: #fff485;
+	--ftm2j-gold-300: #ffe946;
+	--ftm2j-gold-400: #ffd91b;
+	--ftm2j-gold-500: #f7b700;
+	--ftm2j-gold-600: #e29300;
+	--ftm2j-gold-700: #bb6702;
+	--ftm2j-gold-800: #984f08;
+	--ftm2j-gold-900: #7c410b;
+	--ftm2j-gold-950: #482100;
+
+	/* SEMANTIC VARIABLES — LIGHT MODE */
+	--background: var(--ftm2j-white);
+	--foreground: var(--ftm2j-gray-950);
+	--overlay: rgba(0, 0, 0, 0.04);
+	--muted: var(--ftm2j-gray-100);
+	--muted-foreground: var(--ftm2j-gray-600);
+	--primary: var(--ftm2j-gold-600);
+	--primary-hover: var(--ftm2j-gold-500);
+	--primary-foreground: var(--ftm2j-white);
+}
+
+.dark {
+	/* SEMANTIC VARIABLES — DARK MODE */
+	--background: var(--ftm2j-gray-900);
+	--foreground: var(--ftm2j-white);
+	--overlay: rgba(255, 255, 255, 0.035);
+	--muted: var(--ftm2j-gray-400);
+	--muted-foreground: var(--ftm2j-gray-800);
+	--primary: var(--ftm2j-gold-500);
+	--primary-hover: var(--ftm2j-gold-400);
+	--primary-foreground: var(--ftm2j-gold-950);
 }
 
 @theme inline {
 	--color-background: var(--background);
 	--color-foreground: var(--foreground);
-	--font-sans: var(--font-geist-sans);
-	--font-mono: var(--font-geist-mono);
+	--color-overlay: var(--overlay);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-primary: var(--primary);
+	--color-primary-hover: var(--primary-hover);
+	--color-primary-foreground: var(--primary-foreground);
+	--font-inter: var(--font-inter);
+	--font-inter-tight: var(--font-inter-tight);
+	--font-dm-mono: var(--font-dm-mono);
+	--font-heebo: var(--font-heebo);
+	--font-bebas-neue: var(--font-bebas-neue);
+	--font-geist: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-	:root {
-		--background: #0a0a0a;
-		--foreground: #ededed;
-	}
+html {
+	overflow-y: scroll;
+	scrollbar-gutter: stable;
 }
 
 body {
 	background: var(--background);
 	color: var(--foreground);
-	font-family: Arial, Helvetica, sans-serif;
+	font-family: var(--font-inter);
+}
+
+a:hover, button:hover {
+	cursor: pointer;
 }

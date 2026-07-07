@@ -310,10 +310,13 @@ export type PagefindModule = {
   init: () => Promise<void>;
   options: (opts: PagefindIndexOptions) => Promise<void>;
   search: (
-    query: string,
+    query: string | null,
     opts?: PagefindSearchOptions,
   ) => Promise<PagefindSearchResults>;
-  preload: (query: string, opts?: PagefindSearchOptions) => Promise<void>;
+  preload: (
+    query: string | null,
+    opts?: PagefindSearchOptions,
+  ) => Promise<void>;
   filters: () => Promise<PagefindFilterCounts>;
   destroy: () => Promise<void>;
 };
