@@ -1,15 +1,5 @@
-import { Navbar } from "../components/navbar";
-import { Hero } from "../components/hero";
-import { Footer } from "../components/footer";
+import { Landing } from "@/views/landing";
 
-export default function Landing() {
-  return (
-    <div
-      style={{ background: "#000", minHeight: "100vh", position: "relative" }}
-    >
-      <Navbar />
-      <Hero />
-      <Footer />
-    </div>
-  );
+export default function LandingPage() {
+  return <Landing />;
 }

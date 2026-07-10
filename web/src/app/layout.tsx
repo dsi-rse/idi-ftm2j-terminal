@@ -1,58 +1,40 @@
 import type { Metadata } from "next";
-import {
-  Geist,
-  Geist_Mono,
-  Bebas_Neue,
-  Syne,
-  DM_Mono,
-  Heebo,
-} from "next/font/google";
-import "./globals.css";
+import { Geist_Mono, Inter, Inter_Tight } from "next/font/google";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+import "./globals.css";
+import { Providers } from "./providers";
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
 
-const bebasNeue = Bebas_Neue({
-  variable: "--font-bebas-neue",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
-  weight: "400",
+  weight: ["100", "200", "300", "400", "500", "600", "700"],
   display: "swap",
 });
 
-const syne = Syne({
-  variable: "--font-syne",
+const interTight = Inter_Tight({
+  variable: "--font-inter-tight",
   subsets: ["latin"],
-  weight: ["400", "600", "700", "800"],
+  weight: ["100", "200", "300", "400", "500", "600", "700"],
   display: "swap",
 });
 
-const dmMono = DM_Mono({
-  variable: "--font-dm-mono",
-  subsets: ["latin"],
-  weight: ["300", "400"],
-  display: "swap",
-});
-
-const heebo = Heebo({
-  variable: "--font-heebo",
-  subsets: ["latin"],
-  weight: ["400", "600", "700", "800"],
-  display: "swap",
-});
-
+/**
+ * Metadata for the "Home" page.
+ */
 export const metadata: Metadata = {
-  title: "FTM2J Terminal | Inclusive Development International",
+  title: "Home | FTM2J Terminal | Inclusive Development International",
   description:
     "Trace the corporate structures and investment and supply chains of publicly-traded companies.",
 };
 
+/**
+ * The root layout for the application.
+ */
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -61,7 +43,8 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} ${syne.variable} ${dmMono.variable} ${heebo.variable}`}
+      className={`${interTight.variable} ${inter.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
     >
       <head>
         <link
@@ -70,7 +53,11 @@ export default function RootLayout({
           type="image/vnd.microsoft.icon"
         ></link>
       </head>
-      <body className="antialiased">{children}</body>
+      <body className="antialiased" suppressHydrationWarning>
+        <div className="root grid min-h-screen grid-rows-[auto_1fr_auto]">
+          <Providers>{children}</Providers>
+        </div>
+      </body>
     </html>
   );
 }
