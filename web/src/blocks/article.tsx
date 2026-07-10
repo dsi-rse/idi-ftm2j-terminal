@@ -53,7 +53,7 @@ ArticleHeaderRoot.displayName = "Article.Header";
  */
 function ArticleHeaderEyebrow({ children }: PropsWithChildren) {
   return (
-    <p className="font-inter text-primary uppercase tracking-wide text-center text-xs md:text-left">
+    <p className="font-inter text-primary uppercase tracking-wide text-center text-xs md:text-left font-bold dark:font-normal">
       {children}
     </p>
   );
@@ -258,10 +258,7 @@ type ArticleQAProps = {
  * The question renders as an `h3` and the answer as a paragraph,
  * both at a size larger than the standard section paragraph.
  */
-function ArticleQA({
-  question,
-  children,
-}: PropsWithChildren<ArticleQAProps>) {
+function ArticleQA({ question, children }: PropsWithChildren<ArticleQAProps>) {
   return (
     <div className="space-y-3">
       <h3 className="text-lg md:text-xl font-inter-tight tracking-tight font-bold text-foreground">

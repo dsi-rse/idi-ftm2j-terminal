@@ -137,11 +137,6 @@ export default function DownloadsPage() {
               License. If you build on it, please cite Inclusive Development
               International as the source.
             </Article.Body.Section.Paragraph>
-            <Article.Body.Section.Callout>
-              These files aggregate the public record. Verify individual data
-              points against the linked filings before relying on them in
-              published work.
-            </Article.Body.Section.Callout>
           </Article.Body.Section>
         </Article.Body>
       </Article>

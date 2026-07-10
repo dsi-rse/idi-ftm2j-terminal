@@ -35,7 +35,7 @@ function Header() {
           associated with harmful development projects.
         </Article.Header.Lead>
         <div className="flex justify-end text-white hover:text-primary hover:cursor-pointer">
-          <a className="inline-flex items-center gap-1 text-xs">
+          <a className="inline-flex items-center gap-1 text-xs" href="/about">
             Learn More <ChevronRightIcon className="size-2" />
           </a>
         </div>
@@ -48,13 +48,20 @@ function Header() {
       />
       <StatisticGrid stats={stats} />
       <div className="flex gap-4 justify-end font-inter-tight font-semibold mt-8">
-        <Button className="inline-flex items-center gap-1 bg-primary text-black border border-muted/25 hover:bg-primary-hover hover:cursor-pointer text-sm rounded-sm p-2">
-          Browse companies <ChevronRightIcon className="size-4 text-black" />
-        </Button>
-        <Button className="inline-flex items-center gap-1 hover:bg-overlay border border-muted/25 rounded-sm text-sm p-2 hover:cursor-pointer">
+        <a
+          className="inline-flex items-center gap-1 bg-primary text-white dark:text-black border border-muted/25 hover:bg-primary-hover hover:cursor-pointer text-sm rounded-sm p-2"
+          href="/#"
+        >
+          Browse companies{" "}
+          <ChevronRightIcon className="size-4 text-white dark:text-black" />
+        </a>
+        <a
+          className="inline-flex items-center gap-1 hover:bg-overlay border border-muted/25 rounded-sm text-sm p-2 hover:cursor-pointer"
+          href="/methodology"
+        >
           Read the methodology{" "}
-          <ChevronRightIcon className="size-4 text-white" />
-        </Button>
+          <ChevronRightIcon className="size-4 text-black dark:text-white" />
+        </a>
       </div>
     </Article>
   );

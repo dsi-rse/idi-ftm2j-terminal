@@ -7,11 +7,12 @@ import {
 } from "react";
 
 import {
+  BlueskyIcon,
   FacebookIcon,
   GitHubIcon,
   InstagramIcon,
   LinkedInIcon,
-  XIcon,
+  YouTubeIcon,
 } from "@/components/icon";
 
 /**
@@ -20,7 +21,7 @@ import {
  */
 function FooterRoot({ children }: PropsWithChildren) {
   return (
-    <footer className="dark relative text-foreground">
+    <footer className="relative text-foreground">
       <div
         aria-hidden
         className="absolute inset-x-0 top-0 h-px"
@@ -251,12 +252,15 @@ function FooterGitHubButtonLink({
 FooterGitHubButtonLink.displayName = "Footer.GitHubButtonLink";
 
 /**
- * An X (formerly Twitter) button link for the {@link FooterSocialMediaRow}.
+ * A Bluesky button link for the {@link FooterSocialMediaRow}.
  */
-function FooterXButtonLink({ href, label = "X" }: NamedSocialButtonLinkProps) {
-  return <SocialButtonLink href={href} label={label} Icon={XIcon} />;
+function FooterBlueskyButtonLink({
+  href,
+  label = "Bluesky",
+}: NamedSocialButtonLinkProps) {
+  return <SocialButtonLink href={href} label={label} Icon={BlueskyIcon} />;
 }
-FooterXButtonLink.displayName = "Footer.XButtonLink";
+FooterBlueskyButtonLink.displayName = "Footer.BlueskyButtonLink";
 
 /**
  * A LinkedIn button link for the {@link FooterSocialMediaRow}.
@@ -292,6 +296,17 @@ function FooterFacebookButtonLink({
 FooterFacebookButtonLink.displayName = "Footer.FacebookButtonLink";
 
 /**
+ * A YouTube button link for the {@link FooterSocialMediaRow}.
+ */
+function FooterYouTubeButtonLink({
+  href,
+  label = "YouTube",
+}: NamedSocialButtonLinkProps) {
+  return <SocialButtonLink href={href} label={label} Icon={YouTubeIcon} />;
+}
+FooterYouTubeButtonLink.displayName = "Footer.YouTubeButtonLink";
+
+/**
  * The FTM2J wordmark, with the numeral "2" tinted with the primary color.
  */
 function FooterWordmark() {
@@ -304,7 +319,8 @@ function FooterWordmark() {
 FooterWordmark.displayName = "Footer.Wordmark";
 
 type FooterLogoImageProps = {
-  src: string;
+  srcLight: string;
+  srcDark: string;
   alt: string;
   width?: number;
   height?: number;
@@ -312,22 +328,33 @@ type FooterLogoImageProps = {
 
 /**
  * A raster logo image for the {@link Footer} brand column, sized to the
- * footer's vertical rhythm.
+ * footer's vertical rhythm. Swaps between light and dark variants via the
+ * `dark:` class set by `next-themes`.
  */
 function FooterLogoImage({
-  src,
+  srcLight,
+  srcDark,
   alt,
   width = 250,
   height = 100,
 }: FooterLogoImageProps) {
   return (
-    <img
-      src={src}
-      alt={alt}
-      width={width}
-      height={height}
-      className="h-13 w-auto mt-2"
-    />
+    <>
+      <img
+        src={srcLight}
+        alt={alt}
+        width={width}
+        height={height}
+        className="h-13 w-auto mt-2 dark:hidden"
+      />
+      <img
+        src={srcDark}
+        alt={alt}
+        width={width}
+        height={height}
+        className="hidden h-13 w-auto mt-2 dark:block"
+      />
+    </>
   );
 }
 FooterLogoImage.displayName = "Footer.LogoImage";
@@ -369,10 +396,11 @@ export const Footer = Object.assign(FooterRoot, {
   LegalLink: FooterLegalLink,
   SocialMediaRow: FooterSocialMediaRow,
   GitHubButtonLink: FooterGitHubButtonLink,
-  XButtonLink: FooterXButtonLink,
+  BlueskyButtonLink: FooterBlueskyButtonLink,
   LinkedInButtonLink: FooterLinkedInButtonLink,
   InstagramButtonLink: FooterInstagramButtonLink,
   FacebookButtonLink: FooterFacebookButtonLink,
+  YouTubeButtonLink: FooterYouTubeButtonLink,
   Wordmark: FooterWordmark,
   LogoImage: FooterLogoImage,
   LastUpdated: FooterLastUpdated,

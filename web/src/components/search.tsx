@@ -130,7 +130,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                 href={`/companies?q=${encodeURIComponent(trimmed)}`}
                 className="block px-3 py-2 text-sm border-t border-muted/25 text-primary hover:underline"
               >
-                <span className="inline-flex items-center gap-1">
+                <span className="inline-flex items-center gap-1 font-bold dark:font-normal">
                   <span>View all {totalCount} results</span>
                   <ArrowRightIcon className="size-3" />
                 </span>

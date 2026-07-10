@@ -24,10 +24,26 @@ const HUBS: Record<string, [number, number]> = {
 };
 
 const ROUTES: [string, string][] = [
-  ["lon", "nyc"], ["nyc", "hou"], ["lon", "zur"], ["zur", "dxb"], ["lon", "jnb"],
-  ["dxb", "mum"], ["mum", "sin"], ["sin", "sha"], ["sin", "per"], ["per", "syd"],
-  ["hou", "sao"], ["sao", "jnb"], ["sha", "tok"], ["zur", "sin"], ["jnb", "dxb"],
-  ["hkg", "sin"], ["sha", "hkg"], ["nyc", "lon"], ["tok", "syd"], ["dxb", "zur"],
+  ["lon", "nyc"],
+  ["nyc", "hou"],
+  ["lon", "zur"],
+  ["zur", "dxb"],
+  ["lon", "jnb"],
+  ["dxb", "mum"],
+  ["mum", "sin"],
+  ["sin", "sha"],
+  ["sin", "per"],
+  ["per", "syd"],
+  ["hou", "sao"],
+  ["sao", "jnb"],
+  ["sha", "tok"],
+  ["zur", "sin"],
+  ["jnb", "dxb"],
+  ["hkg", "sin"],
+  ["sha", "hkg"],
+  ["nyc", "lon"],
+  ["tok", "syd"],
+  ["dxb", "zur"],
 ];
 
 type Palette = {
@@ -36,19 +52,21 @@ type Palette = {
   atmosphere: string;
   emissive: string;
   arcs: string[];
+  ring: string;
   ambient: string;
   directional: string;
 };
 
 const PALETTES: Record<"light" | "dark", Palette> = {
   light: {
-    globe: "#eceae4",
-    polygon: "#d0d0d0",
-    atmosphere: "#cca700",
-    emissive: "#f2efe8",
-    arcs: ["#c98e00", "#cca700"],
+    globe: "#b4f0ea",
+    polygon: "#087516",
+    atmosphere: "#ffffff",
+    emissive: "#fafafa",
+    arcs: ["#ce6b07", "#f09030", "#ed9b49"],
+    ring: "4,200,181",
     ambient: "#ffffff",
-    directional: "#f0e7cc",
+    directional: "#ffffff",
   },
   dark: {
     globe: "#141414",
@@ -56,6 +74,7 @@ const PALETTES: Record<"light" | "dark", Palette> = {
     atmosphere: "#f7b700",
     emissive: "#0c0c0c",
     arcs: ["#f7b700", "#ffd84a"],
+    ring: "247,183,0",
     ambient: "#3a3a3a",
     directional: "#fff2c4",
   },
@@ -87,16 +106,16 @@ export function HeroGlobe() {
     let ro: ResizeObserver | null = null;
     let renderer: import("three").WebGLRenderer | null = null;
     let scene: import("three").Scene | null = null;
-    let controls: import("three/examples/jsm/controls/OrbitControls.js").OrbitControls | null =
-      null;
+    let controls:
+      | import("three/examples/jsm/controls/OrbitControls.js").OrbitControls
+      | null = null;
     let onContextLost: ((e: Event) => void) | null = null;
     let arcData: ArcDatum[] = [];
 
     (async () => {
       const THREE = await import("three");
-      const { OrbitControls } = await import(
-        "three/examples/jsm/controls/OrbitControls.js"
-      );
+      const { OrbitControls } =
+        await import("three/examples/jsm/controls/OrbitControls.js");
       const ThreeGlobeModule = await import("three-globe");
       const ThreeGlobe = ThreeGlobeModule.default;
 
@@ -130,7 +149,7 @@ export function HeroGlobe() {
       renderer.domElement.addEventListener("webglcontextlost", onContextLost);
 
       const camera = new THREE.PerspectiveCamera(45, 1, 100, 1800);
-      camera.position.z = 320;
+      camera.position.set(0, 130, 290);
 
       const ambient = new THREE.AmbientLight(0xffffff, 0.9);
       const dirL = new THREE.DirectionalLight(0xffffff, 0.7);
@@ -196,7 +215,10 @@ export function HeroGlobe() {
         }));
         globe
           .ringsData(ringHubs)
-          .ringColor(() => (t: number) => `rgba(247,183,0,${Math.sqrt(1 - t)})`)
+          .ringColor(
+            () => (t: number) =>
+              `rgba(${paletteRef.current.ring},${Math.sqrt(1 - t)})`,
+          )
           .ringMaxRadius(4)
           .ringPropagationSpeed(2.2)
           .ringRepeatPeriod(1400);

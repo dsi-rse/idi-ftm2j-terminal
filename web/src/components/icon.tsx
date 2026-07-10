@@ -58,9 +58,9 @@ export function GitHubIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 /**
- * An SVG icon of the X (formerly Twitter) logo.
+ * An SVG icon of the Bluesky logo.
  */
-export function XIcon(props: SVGProps<SVGSVGElement>) {
+export function BlueskyIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -68,7 +68,7 @@ export function XIcon(props: SVGProps<SVGSVGElement>) {
       aria-hidden
       {...props}
     >
-      <path d="M18.24 2h3.28L13.88 9.63 22.5 22h-6.88l-5.44-7.11L4.36 22H1.08l8.2-9.38L.5 2h7.05l4.9 6.48L18.24 2zm-1.15 18h1.82L7.07 3.9H5.12L17.09 20z" />
+      <path d="M6.335 4.708C8.86 6.606 11.577 10.454 12.573 12.52c.997-2.066 3.714-5.914 6.238-7.812 1.822-1.37 4.774-2.43 4.774.937 0 .672-.385 5.648-.611 6.456-.787 2.81-3.65 3.526-6.198 3.092 4.454.758 5.588 3.27 3.14 5.782-4.65 4.769-6.683-1.197-7.204-2.726-.096-.28-.14-.411-.14-.3 0-.111-.045.02-.14.3-.522 1.529-2.555 7.495-7.204 2.726-2.448-2.512-1.314-5.024 3.14-5.782-2.548.434-5.411-.281-6.198-3.092C1.943 11.293 1.558 6.317 1.558 5.645c0-3.367 2.952-2.307 4.777-.937z" />
     </svg>
   );
 }
@@ -168,6 +168,22 @@ export function FacebookIcon(props: SVGProps<SVGSVGElement>) {
       {...props}
     >
       <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  );
+}
+
+/**
+ * An SVG icon of the YouTube logo.
+ */
+export function YouTubeIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden
+      {...props}
+    >
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
     </svg>
   );
 }

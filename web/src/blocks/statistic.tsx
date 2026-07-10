@@ -10,7 +10,9 @@ export function Statistic({ value, description }: StatisticProps) {
   return (
     <div className="flex flex-col items-center text-center md:items-start md:text-left gap-0 w-[150px]">
       <h3 className="text-2xl font-semibold">{value}</h3>
-      <p className="text-primary text-xs font-light">{description}</p>
+      <p className="text-primary text-xs font-normal dark:font-light">
+        {description}
+      </p>
     </div>
   );
 }

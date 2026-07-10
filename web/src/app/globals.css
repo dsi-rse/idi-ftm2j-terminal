@@ -33,14 +33,27 @@
 	--ftm2j-gold-900: #7c410b;
 	--ftm2j-gold-950: #482100;
 
+	/** TEAL COLOR PALETTE */
+	--ftm2j-teal-50: #effefb;
+	--ftm2j-teal-100: #c7fff4;
+	--ftm2j-teal-200: #90ffeb;
+	--ftm2j-teal-300: #51f7df;
+	--ftm2j-teal-400: #1de4cd;
+	--ftm2j-teal-500: #04c8b5;
+	--ftm2j-teal-600: #009d91;
+	--ftm2j-teal-700: #058078;
+	--ftm2j-teal-800: #0a6560;
+	--ftm2j-teal-900: #0d5450;
+	--ftm2j-teal-950: #003332;
+
 	/* SEMANTIC VARIABLES — LIGHT MODE */
 	--background: var(--ftm2j-white);
-	--foreground: var(--ftm2j-gray-950);
+	--foreground: var(--ftm2j-gray-800);
 	--overlay: rgba(0, 0, 0, 0.04);
-	--muted: var(--ftm2j-gray-100);
-	--muted-foreground: var(--ftm2j-gray-600);
-	--primary: var(--ftm2j-gold-600);
-	--primary-hover: var(--ftm2j-gold-500);
+	--muted: var(--ftm2j-gray-600);
+	--muted-foreground: var(--ftm2j-gray-100);
+	--primary: var(--ftm2j-teal-600);
+	--primary-hover: var(--ftm2j-teal-500);
 	--primary-foreground: var(--ftm2j-white);
 }
 
@@ -67,9 +80,6 @@
 	--color-primary-foreground: var(--primary-foreground);
 	--font-inter: var(--font-inter);
 	--font-inter-tight: var(--font-inter-tight);
-	--font-dm-mono: var(--font-dm-mono);
-	--font-heebo: var(--font-heebo);
-	--font-bebas-neue: var(--font-bebas-neue);
 	--font-geist: var(--font-geist-mono);
 }
 

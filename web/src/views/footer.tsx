@@ -1,21 +1,36 @@
 import { Footer as FooterBlock } from "@/blocks";
 
 const SITE_MAP_LINKS = [
-  { label: "Home", href: "#" },
-  { label: "Company Search", href: "#" },
-  { label: "About", href: "#" },
-  { label: "Methodology", href: "#" },
-  { label: "Downloads", href: "#" },
-  { label: "Help", href: "#" },
+  { label: "Home", href: "/" },
+  {
+    label: "Company Search",
+    href: "#",
+  },
+  { label: "About", href: "/about" },
+  { label: "Methodology", href: "/methodology" },
+  { label: "Downloads", href: "/downloads" },
+  { label: "Help", href: "/help" },
 ];
 
 const TOOL_SUITE_LINKS = [
-  { label: "DeBIT", href: "#" },
-  { label: "Shareholder Tracker", href: "#" },
-  { label: "Commercial Debt Tracker", href: "#" },
-  { label: "Follow the Money Toolkit", href: "#" },
+  { label: "DeBIT", href: "https://debit.inclusivedevelopment.net/" },
+  {
+    label: "Shareholder Tracker",
+    href: "https://sharetracker.inclusivedevelopment.net/",
+  },
+  {
+    label: "Commercial Debt Tracker",
+    href: "https://commercial-debt-tracker-dashboard-dev.uchicago-dsi-account.workers.dev/",
+  },
+  {
+    label: "Follow the Money Toolkit",
+    href: "https://www.followingthemoney.org/",
+  },
 ];
 
+/**
+ * The footer of the FTM2J Terminal site.
+ */
 export function Footer() {
   return (
     <FooterBlock.Root>
@@ -27,7 +42,8 @@ export function Footer() {
             accountability.
           </FooterBlock.Tagline>
           <FooterBlock.LogoImage
-            src="/idi_logo_white.webp"
+            srcLight="/idi-logo-teal.webp"
+            srcDark="/idi-logo-white.webp"
             alt="Inclusive Development International"
           />
           <FooterBlock.LastUpdated date="Mar 6, 2026" />
@@ -82,11 +98,12 @@ export function Footer() {
 
       <FooterBlock.Row className="pb-6 flex flex-wrap items-center justify-center md:justify-end gap-6">
         <FooterBlock.SocialMediaRow>
-          <FooterBlock.GitHubButtonLink href="#" />
-          <FooterBlock.XButtonLink href="#" />
-          <FooterBlock.LinkedInButtonLink href="#" />
-          <FooterBlock.InstagramButtonLink href="#" />
-          <FooterBlock.FacebookButtonLink href="#" />
+          <FooterBlock.FacebookButtonLink href="https://www.facebook.com/inclusivedevelopmentinternational" />
+          <FooterBlock.YouTubeButtonLink href="https://www.youtube.com/channel/UCvinYfIrsGw1anP9I1gBE6A" />
+          <FooterBlock.LinkedInButtonLink href="https://www.linkedin.com/company/inclusive-development-international/" />
+          <FooterBlock.InstagramButtonLink href="https://www.instagram.com/inclusivedevt/" />
+          <FooterBlock.BlueskyButtonLink href="https://bsky.app/profile/inclusivedevt.bsky.social" />
+          <FooterBlock.GitHubButtonLink href="https://github.com/dsi-clinic/idi-ftm2j-terminal" />
         </FooterBlock.SocialMediaRow>
         <div className="flex gap-4">
           <FooterBlock.LegalLink href="#">Privacy</FooterBlock.LegalLink>

@@ -20,7 +20,7 @@ export function Switch({ children, className, ...props }: SwitchProps) {
         "border border-muted/40 bg-overlay p-0.5 cursor-pointer",
         "transition-colors duration-200",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-        "data-[checked]:bg-primary/25 data-[checked]:border-primary/50",
+        "bg-primary data-[checked]:bg-primary/25 border-primary/50",
         "data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50",
         className,
       ]
