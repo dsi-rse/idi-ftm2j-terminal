@@ -1,9 +1,12 @@
 import { defineCloudflareConfig } from "@opennextjs/cloudflare";
+import staticAssetsIncrementalCache from "@opennextjs/cloudflare/overrides/incremental-cache/static-assets-incremental-cache";
 
 export default defineCloudflareConfig({
-	// Uncomment to enable R2 cache,
-	// It should be imported as:
-	// `import r2IncrementalCache from "@opennextjs/cloudflare/overrides/incremental-cache/r2-incremental-cache";`
-	// See https://opennext.js.org/cloudflare/caching for more details
-	// incrementalCache: r2IncrementalCache,
+	// Serve the prerendered pages (generateStaticParams for /companies/[id])
+	// from Workers static assets. Required because those routes are
+	// `force-static` + `dynamicParams = false`: without an incremental cache the
+	// worker cannot retrieve them and every company page 404s. The site has no
+	// ISR/revalidation, so the read-only static-assets cache is the right fit.
+	// `opennextjs-cloudflare deploy` populates it automatically.
+	incrementalCache: staticAssetsIncrementalCache,
 });
