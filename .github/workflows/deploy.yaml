@@ -50,6 +50,7 @@ jobs:
         working-directory: project/jobs
         env:
           COMPANY_INFO_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.COMPANY_INFO_FILE_PATH }}
+          CORPORATE_STRUCTURE_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.CORPORATE_STRUCTURE_FILE_PATH }}
           OUTPUT_FILE_PATH: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}/${{ vars.OUTPUT_FILE_NAME }}
 
       - name: Cache dataset
