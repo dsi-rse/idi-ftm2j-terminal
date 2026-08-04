@@ -13,7 +13,7 @@ import {
   CompanyInspectorOpener,
   CompanySearchDrawer,
 } from "@/domains/companies/blocks/search-drawer";
-import { getMockSections } from "@/domains/companies/mock-detail";
+import { getMockSections } from "@/domains/companies/mock-sections";
 import { StandardPageLayout } from "@/layouts";
 import type { Company } from "@/types/domain";
 
@@ -104,7 +104,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
   }
 
   // Tree, Holders, and Debt have no processor yet; everything else on this
-  // page is real. See mock-detail.ts.
+  // page is real. See mock-sections.ts.
   const mock = getMockSections(company);
 
   return (

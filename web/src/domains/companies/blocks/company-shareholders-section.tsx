@@ -11,10 +11,8 @@ import {
   RowIndex,
   Table,
 } from "@/components/table";
-import { formatUsdShortValue } from "@/domains/companies/mock-detail";
-import type {
-  Shareholder,
-} from "@/domains/companies/types";
+import type { Shareholder } from "@/domains/companies/types";
+import { formatUsdShort } from "@/lib/format-currency";
 
 type CompanyShareholdersSectionProps = {
   shareholders: Shareholder[];
@@ -155,7 +153,7 @@ function ShareholdersTable({
                 </Table.Cell>
                 <Table.Cell align="right">
                   <span className="tabular-nums">
-                    {formatUsdShortValue(holder.valueUsd)}
+                    {formatUsdShort(holder.valueUsd)}
                   </span>
                 </Table.Cell>
                 <Table.Cell>

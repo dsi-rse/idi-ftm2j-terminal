@@ -6,10 +6,8 @@ import { SectionCard } from "@/blocks/section-card";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { RowIndex, Table } from "@/components/table";
-import { formatUsdShortValue } from "@/domains/companies/mock-detail";
-import type {
-  DebtInstrument,
-} from "@/domains/companies/types";
+import type { DebtInstrument } from "@/domains/companies/types";
+import { formatUsdShort } from "@/lib/format-currency";
 
 type CompanyDebtSectionProps = {
   debtInstruments: DebtInstrument[];
@@ -115,7 +113,7 @@ function DebtTable({
                 />
                 <Table.Cell
                   align="right"
-                  primary={formatUsdShortValue(instrument.amountUsd)}
+                  primary={formatUsdShort(instrument.amountUsd)}
                   secondary="Outstanding"
                 />
               </Table.Row>
@@ -151,7 +149,7 @@ export function CompanyDebtSection({
     <SectionCard
       id="debt"
       title="Commercial Debt"
-      subtitle={`${debtInstruments.length} instruments · ${formatUsdShortValue(total)} outstanding · illustrative sample`}
+      subtitle={`${debtInstruments.length} instruments · ${formatUsdShort(total)} outstanding · illustrative sample`}
       info="Disclosed commercial debt instruments — revolving facilities, term loans, senior notes, and trade finance. Private debt may not be reflected."
       source={source}
       expanded={

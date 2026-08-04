@@ -48,7 +48,7 @@ export interface DebtInstrument {
 
 /**
  * The illustrative payload for the three company-detail sections that have no
- * processor yet. Produced by `mock-detail.ts`; every field is sample data, and
+ * processor yet. Produced by `mock-sections.ts`; every field is sample data, and
  * the `*Source` strings say so where they render.
  */
 export interface MockSections {

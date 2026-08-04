@@ -179,12 +179,6 @@ function makeDebtInstruments(rng: () => number): DebtInstrument[] {
   });
 }
 
-function formatUsdShort(value: number): string {
-  if (value >= 1e9) return `$${(value / 1e9).toFixed(value >= 10e9 ? 1 : 2)}B`;
-  if (value >= 1e6) return `$${(value / 1e6).toFixed(0)}M`;
-  return `$${value.toLocaleString()}`;
-}
-
 /**
  * Build the deterministic, illustrative payload for the Tree, Holders, and
  * Debt sections. Seeded from `permId`, so the same company always renders the
@@ -201,8 +195,3 @@ export function getMockSections(company: Company): MockSections {
     debtSource: `${ILLUSTRATIVE} Real instruments will come from SEC 8-K filings via the CDT processor.`,
   };
 }
-
-/**
- * Format a large USD figure with a short suffix (`$56.4B`, `$217M`).
- */
-export const formatUsdShortValue = formatUsdShort;
