@@ -1,5 +1,8 @@
+"use client";
+
 import { SectionCard } from "@/blocks/section-card";
 import { SourceCitation } from "@/blocks/source-citation";
+import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
 import type { Company, CurrentCorporateRelationship, Source } from "@/types/domain";
 
@@ -13,7 +16,8 @@ type CompanyOverviewSectionProps = {
  * state rather than a fabricated figure.
  */
 type Gateway = {
-  href: string;
+  /** Target section id, without the `#`. */
+  section: string;
   kicker: string;
   value: string | null;
   unit: string;
@@ -58,7 +62,7 @@ function countJurisdictions(
 function treeGateway(company: Company): Gateway {
   const relationships = company.currentCorporateRelationships;
   const base = {
-    href: "#tree",
+    section: "tree",
     kicker: "Corporate Tree",
     unit: "Subsidiaries traced",
     link: "View corporate tree",
@@ -89,7 +93,7 @@ function treeGateway(company: Company): Gateway {
  */
 const PENDING_GATEWAYS: Gateway[] = [
   {
-    href: "#holders",
+    section: "holders",
     kicker: "Shareholders",
     value: null,
     unit: "Shareholders disclosed",
@@ -97,7 +101,7 @@ const PENDING_GATEWAYS: Gateway[] = [
     link: "View shareholders",
   },
   {
-    href: "#debt",
+    section: "debt",
     kicker: "Commercial Debt",
     value: null,
     unit: "Outstanding debt",
@@ -125,7 +129,13 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
   const unavailable = gateway.value === null;
   return (
     <a
-      href={gateway.href}
+      href={`#${gateway.section}`}
+      onClick={(event) => {
+        // Match the tab bar: smooth-scroll rather than let the browser jump to
+        // the fragment. The href stays so middle-click and open-in-new-tab work.
+        event.preventDefault();
+        scrollToSection(gateway.section);
+      }}
       className="group flex flex-col gap-1 p-4 md:p-6 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
       <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
@@ -156,7 +166,7 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-muted/15 -m-4 md:-m-6">
       {gateways.map((gateway) => (
-        <GatewayCard key={gateway.href} gateway={gateway} />
+        <GatewayCard key={gateway.section} gateway={gateway} />
       ))}
     </div>
   );
