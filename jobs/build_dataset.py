@@ -259,10 +259,28 @@ def load_company_info(company_info_fpath: Path) -> pd.DataFrame:
         The dataset as a Pandas DataFrame.
 
     Raises:
-        `RuntimeError` if the file is missing or cannot be read as parquet.
+        `RuntimeError` if the path is not a single parquet file, or cannot be
+            read as one.
     """
+    path = Path(company_info_fpath)
+    # Insist on a file. Pointed at a directory, pyarrow reads it as a dataset
+    # and schema-unions everything underneath — so a misconfigured path silently
+    # merges unrelated processors' outputs into the company list instead of
+    # failing. That is a data-integrity bug, not a config error, and it is
+    # invisible in the logs.
+    if path.is_dir():
+        raise RuntimeError(
+            f"Expected a parquet file but got a directory: {path}. "
+            "Check that the input path includes the file name — reading a "
+            "directory would merge every dataset beneath it."
+        )
+    if not path.exists():
+        raise RuntimeError(
+            f"The company info parquet file was not found at: {path}"
+        )
+
     try:
-        return pd.read_parquet(company_info_fpath)
+        return pd.read_parquet(path)
     except FileNotFoundError as e:
         raise RuntimeError(
             "The company info parquet file was not found at the given path."
