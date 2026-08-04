@@ -13,6 +13,18 @@ import pandas as pd
 
 SOURCE_NAME = "LSEG PermID"
 
+# SEC CIKs are canonically zero-padded to 10 digits, which is how company-info
+# reports them. The corporate-structure dataset reports them unpadded, so both
+# sides are normalized to this width before joining. Skipping this matches zero
+# rows -- see `attach_relationships`.
+CIK_WIDTH = 10
+
+# Exhibit 21 lists "Subsidiaries of the Registrant"; the 20-F equivalent is
+# "List of Subsidiaries". Neither reports an ownership percentage or a
+# relationship start date, so every emitted relationship is a plain subsidiary
+# with a null percent.
+RELATIONSHIP_TYPE = "Subsidiary"
+
 # LSEG's TRBC taxonomy is label-first and supplies no numeric code, unlike SIC
 # and NAICS. The `Sector.code` field is deliberately empty for these.
 SECTOR_SYSTEM = "TRBC"
@@ -292,11 +304,12 @@ def cik_rows(identifier_types: pd.Series) -> pd.Series:
 # ---------------------------------------------------------------------------
 
 
-def load_company_info(company_info_fpath: Path) -> pd.DataFrame:
-    """Loads the company info dataset produced by the IDI company processor.
+def load_parquet(fpath: str | Path, label: str) -> pd.DataFrame:
+    """Loads one processor's `latest.parquet` into a DataFrame.
 
     Args:
-        company_info_fpath: Path to `company-info/latest.parquet`.
+        fpath: Path to the parquet file.
+        label: Human-readable dataset name, used in error messages.
 
     Returns:
         The dataset as a Pandas DataFrame.
@@ -305,33 +318,43 @@ def load_company_info(company_info_fpath: Path) -> pd.DataFrame:
         `RuntimeError` if the path is not a single parquet file, or cannot be
             read as one.
     """
-    path = Path(company_info_fpath)
+    path = Path(fpath)
     # Insist on a file. Pointed at a directory, pyarrow reads it as a dataset
     # and schema-unions everything underneath — so a misconfigured path silently
-    # merges unrelated processors' outputs into the company list instead of
-    # failing. That is a data-integrity bug, not a config error, and it is
-    # invisible in the logs.
+    # merges unrelated processors' outputs into one table instead of failing.
+    # That is a data-integrity bug, not a config error, and it is invisible in
+    # the logs.
     if path.is_dir():
         raise RuntimeError(
-            f"Expected a parquet file but got a directory: {path}. "
+            f"Expected a parquet file for {label} but got a directory: {path}. "
             "Check that the input path includes the file name — reading a "
             "directory would merge every dataset beneath it."
         )
     if not path.exists():
-        raise RuntimeError(
-            f"The company info parquet file was not found at: {path}"
-        )
+        raise RuntimeError(f"The {label} parquet file was not found at: {path}")
 
     try:
         return pd.read_parquet(path)
     except FileNotFoundError as e:
         raise RuntimeError(
-            "The company info parquet file was not found at the given path."
+            f"The {label} parquet file was not found at the given path."
         ) from e
     except (OSError, ValueError) as e:
         raise RuntimeError(
-            "The company info file could not be read as a parquet dataset."
+            f"The {label} file could not be read as a parquet dataset."
         ) from e
+
+
+def normalize_cik(values: pd.Series) -> pd.Series:
+    """Normalizes a CIK column to the canonical zero-padded 10-digit form.
+
+    Args:
+        values: A column of CIKs, padded or not.
+
+    Returns:
+        The column as zero-padded strings.
+    """
+    return values.astype(str).str.strip().str.zfill(CIK_WIDTH)
 
 
 # ---------------------------------------------------------------------------
@@ -422,6 +445,9 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
             sources,
             as_of,
         ),
+        # Filled by `attach_relationships` once the corporate-structure dataset
+        # is joined; stays empty for companies with no disclosed subsidiaries.
+        "currentCorporateRelationships": [],
         # History — empty until a source supplies real date ranges. Do not
         # populate these by inventing a `from` date.
         "historicNames": [],
@@ -434,6 +460,168 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
         "historicSecurities": [],
         "historicProjectAffiliations": [],
     }
+
+
+def select_latest_filings(structure_df: pd.DataFrame) -> pd.DataFrame:
+    """Reduces the corporate-structure dataset to one filing per company.
+
+    `latest.parquet` is a full historical record, and most registrants appear
+    with more than one filing date. Rows from two filings merged together would
+    describe a corporate structure that no single document supports, so only the
+    most recent filing per CIK survives. Ties on filing date — a handful of
+    registrants amended on the same day — break on the highest accession
+    number, so the output is stable across runs.
+
+    Rows where the registrant lists itself are dropped: that is the tree's root,
+    not one of its own subsidiaries.
+
+    Args:
+        structure_df: The corporate-structure dataset, with a normalized `cik`.
+
+    Returns:
+        The subset of rows belonging to each company's most recent filing.
+    """
+    latest_date = structure_df.groupby("cik")["filing_date"].transform("max")
+    latest = structure_df[structure_df["filing_date"] == latest_date]
+
+    latest_accession = latest.groupby("cik")["accession_number"].transform("max")
+    latest = latest[latest["accession_number"] == latest_accession]
+
+    self_listed = (
+        latest["name"].str.strip().str.casefold()
+        == latest["parent_name"].str.strip().str.casefold()
+    )
+    return latest[~self_listed]
+
+
+def build_source_name(form_type: str | None, exhibit_type: str | None) -> str:
+    """Names the citation after the filing it came from.
+
+    Exhibit 21 is the 10-K's subsidiary list; the 20-F carries the same
+    disclosure as Exhibit 8. Reading both off the row keeps a 20-F from being
+    miscited as a 10-K.
+
+    Args:
+        form_type: The SEC form type, e.g. `"10-K"`.
+        exhibit_type: The exhibit number, e.g. `"21"`.
+
+    Returns:
+        A source name such as `"SEC 10-K Exhibit 21"`.
+    """
+    form = form_type or "filing"
+    if not exhibit_type:
+        return f"SEC {form}"
+    return f"SEC {form} Exhibit {exhibit_type}"
+
+
+def build_relationship(row: pd.Series, company: dict) -> dict:
+    """Builds one CurrentCorporateRelationship from a disclosed subsidiary.
+
+    The parent's name comes from the `Company` record rather than the dataset's
+    own `parent_name` column: company-info is the source for company identity,
+    and taking the name from two places invites them to disagree.
+
+    The child carries no `permId`. Exhibit 21 gives a name and a jurisdiction,
+    never an identifier, and resolving names to PermIDs is a fuzzy-matching
+    problem that belongs upstream rather than in a display join.
+
+    Args:
+        row: One subsidiary row from the corporate-structure dataset.
+        company: The parent's `Company` record.
+
+    Returns:
+        A dict matching the serialized `CurrentCorporateRelationship` type in
+        `web/src/types/domain.ts`.
+    """
+    return {
+        # CitedEntity
+        "sources": [
+            {
+                "name": build_source_name(
+                    _clean(row["form_type"]), _clean(row["exhibit_type"])
+                ),
+                "url": _clean(row["exhibit_url"]),
+                "lastAccessed": parse_iso_date(row["date_added"]),
+            }
+        ],
+        # SnapshotEntity — the date the relationship was disclosed, which is not
+        # the date it began. Do not reuse this as a `from`.
+        "asOf": parse_iso_date(row["filing_date"]),
+        "parent": {"name": company["name"], "permId": company["permId"]},
+        "child": {"name": _clean(row["name"]), "permId": None},
+        "relationshipType": RELATIONSHIP_TYPE,
+        "ownershipPercent": None,
+        "childJurisdiction": _clean(row["location"]),
+    }
+
+
+def attach_relationships(
+    companies: list[dict],
+    structure_df: pd.DataFrame,
+    logger: logging.Logger,
+) -> None:
+    """Attaches disclosed subsidiaries to the companies they belong to.
+
+    Mutates `companies` in place, filling `currentCorporateRelationships`.
+
+    Args:
+        companies: `Company` records, each with a `cik` that may be `None`.
+        structure_df: The raw corporate-structure dataset.
+        logger: A standard logger instance.
+
+    Raises:
+        `RuntimeError` if the CIK join matches no companies at all.
+    """
+    structure = structure_df.copy()
+    structure["cik"] = normalize_cik(structure["parent_cik"])
+    latest = select_latest_filings(structure)
+
+    by_cik = {cik: group for cik, group in latest.groupby("cik", sort=False)}
+
+    # A company with several CIKs carries none, pending the primary-CIK logic
+    # the data spec calls for but does not define. Those companies get no tree
+    # rather than a guessed one.
+    missing_cik = sum(1 for company in companies if not company["cik"])
+    if missing_cik:
+        logger.info(
+            "%d companies have no single CIK and cannot be joined to a "
+            "corporate structure.",
+            missing_cik,
+        )
+
+    matched = 0
+    for company in companies:
+        cik = company["cik"]
+        if not cik or cik not in by_cik:
+            continue
+        group = by_cik[cik]
+        company["currentCorporateRelationships"] = [
+            build_relationship(row, company)
+            for _, row in group.sort_values("name").iterrows()
+        ]
+        matched += 1
+
+    # Both sides must be zero-padded or the join silently matches nothing,
+    # leaving every company page with an empty Corporate Tree and no error. That
+    # is a data-integrity failure that looks exactly like "the processor has no
+    # data yet", so it fails the build instead.
+    if not matched:
+        raise RuntimeError(
+            "The corporate-structure CIK join matched no companies. Sample "
+            f"parent_cik: {structure['cik'].iloc[0] if len(structure) else 'n/a'}; "
+            f"sample company CIK: {companies[0]['cik'] if companies else 'n/a'}. "
+            f"Both must be zero-padded to {CIK_WIDTH} digits."
+        )
+
+    total = sum(len(c["currentCorporateRelationships"]) for c in companies)
+    logger.info(
+        "Attached %d subsidiaries to %d of %d companies; %d have no disclosed "
+        "corporate structure.",
+        total,
+        matched,
+        len(companies),
+        len(companies) - matched,
+    )
 
 
 def build_companies(companies_df: pd.DataFrame, logger: logging.Logger) -> list[dict]:
@@ -525,11 +713,14 @@ def validate_companies(companies: list[dict]) -> None:
 def main(logger: logging.Logger) -> None:
     """Builds the company dataset consumed by the static web application.
 
-    Reads `company-info/latest.parquet` and writes JSON records matching the
+    Reads `company-info/latest.parquet` and
+    `corporate-structure/latest.parquet` and writes JSON records matching the
     serialized `Company` type in `web/src/types/domain.ts`.
 
     Environment variables:
         COMPANY_INFO_FILE_PATH: Path to the company info parquet file.
+        CORPORATE_STRUCTURE_FILE_PATH: Path to the corporate structure parquet
+            file.
         OUTPUT_FILE_PATH: Path to write the output JSON file.
 
     Args:
@@ -545,12 +736,13 @@ def main(logger: logging.Logger) -> None:
     logger.info("Parsing environment variables.")
     try:
         company_info_fpath = os.environ["COMPANY_INFO_FILE_PATH"]
+        corporate_structure_fpath = os.environ["CORPORATE_STRUCTURE_FILE_PATH"]
         output_fpath = os.environ["OUTPUT_FILE_PATH"]
     except KeyError as e:
         raise RuntimeError(f'Missing required environment variable "{e}".') from e
 
     logger.info("Loading company info dataset.")
-    companies_df = load_company_info(company_info_fpath)
+    companies_df = load_parquet(company_info_fpath, "company info")
     logger.info(
         "Loaded %d rows carrying %d resolved PermIDs.",
         len(companies_df),
@@ -558,9 +750,20 @@ def main(logger: logging.Logger) -> None:
     )
     report_unresolved_rows(companies_df, logger)
 
+    logger.info("Loading corporate structure dataset.")
+    structure_df = load_parquet(corporate_structure_fpath, "corporate structure")
+    logger.info(
+        "Loaded %d rows covering %d registrants.",
+        len(structure_df),
+        structure_df["parent_cik"].nunique(),
+    )
+
     logger.info("Transforming to Company records.")
     companies = build_companies(companies_df, logger)
     validate_companies(companies)
+
+    logger.info("Attaching disclosed corporate structures.")
+    attach_relationships(companies, structure_df, logger)
 
     with_ticker = sum(1 for c in companies if (c["currentListing"] or {}).get("ticker"))
     with_exchange = sum(
