@@ -85,7 +85,11 @@
 }
 
 html {
-	overflow-y: scroll;
+	/* `scrollbar-gutter: stable` alone reserves the gutter and prevents the
+	   layout shift between short and tall pages. Forcing `overflow-y: scroll`
+	   as well would paint a permanently disabled document scrollbar beside the
+	   TerminalShell's own pane, which is a second visible scrollbar. */
+	overflow-y: auto;
 	scrollbar-gutter: stable;
 }
 

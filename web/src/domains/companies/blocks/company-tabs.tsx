@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { SCROLL_PANE_ATTR } from "@/layouts";
 import { cn } from "@/lib/utils";
 
 type SectionTab = {
@@ -30,21 +31,55 @@ export function CompanyTabs() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const sections = TABS.map((tab) => document.getElementById(tab.id)).filter(
-      (el): el is HTMLElement => Boolean(el),
-    );
-    if (sections.length === 0) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        if (visible[0]) setActive(visible[0].target.id);
-      },
-      { rootMargin: "-25% 0px -60% 0px", threshold: [0, 0.25, 0.5, 1] },
-    );
-    sections.forEach((section) => observer.observe(section));
-    return () => observer.disconnect();
+
+    /**
+     * The sections scroll inside TerminalShell's pane on desktop and inside the
+     * document below `md`. An observer rooted at the viewport never fires
+     * correctly in the first case, so resolve the root from what is actually
+     * scrolling — checked via computed `overflow-y`, because the breakpoint is
+     * expressed in CSS and this must not duplicate it in JS.
+     */
+    const resolveRoot = (): Element | null => {
+      const pane = document.querySelector(`[${SCROLL_PANE_ATTR}]`);
+      if (!pane) return null;
+      const overflowY = getComputedStyle(pane).overflowY;
+      return overflowY === "auto" || overflowY === "scroll" ? pane : null;
+    };
+
+    let observer: IntersectionObserver | undefined;
+
+    const connect = () => {
+      observer?.disconnect();
+      const sections = TABS.map((tab) => document.getElementById(tab.id)).filter(
+        (el): el is HTMLElement => Boolean(el),
+      );
+      if (sections.length === 0) return;
+      observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+          if (visible[0]) setActive(visible[0].target.id);
+        },
+        {
+          root: resolveRoot(),
+          rootMargin: "-25% 0px -60% 0px",
+          threshold: [0, 0.25, 0.5, 1],
+        },
+      );
+      sections.forEach((section) => observer?.observe(section));
+    };
+
+    connect();
+
+    // Crossing the breakpoint changes which element scrolls, so the observer
+    // has to be rebuilt with the new root.
+    const query = window.matchMedia("(min-width: 768px)");
+    query.addEventListener("change", connect);
+    return () => {
+      query.removeEventListener("change", connect);
+      observer?.disconnect();
+    };
   }, []);
 
   const handleClick = (id: string) => (event: React.MouseEvent) => {

@@ -14,7 +14,7 @@ import {
   CompanySearchDrawer,
 } from "@/domains/companies/blocks/search-drawer";
 import { getMockSections } from "@/domains/companies/mock-sections";
-import { StandardPageLayout } from "@/layouts";
+import { StandardPageLayout, TerminalShell } from "@/layouts";
 import type { Company } from "@/types/domain";
 
 /**
@@ -108,7 +108,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
   const mock = getMockSections(company);
 
   return (
-    <StandardPageLayout>
+    <TerminalShell>
       <RecentlyViewedTracker
         company={{
           permId: company.permId,
@@ -141,7 +141,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
         </main>
         <PagefindIndex company={company} />
       </div>
-    </StandardPageLayout>
+    </TerminalShell>
   );
 };
 
