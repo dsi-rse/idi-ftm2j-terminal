@@ -1,23 +1,13 @@
 /**
  * View models for the company-detail sections that still render illustrative
- * data — Corporate Tree, Holders, and Debt.
+ * data — Holders and Debt.
  *
  * These are NOT domain types. The real, cited versions of these concepts live
- * in `@/types/domain` as `CorporateRelationship`, `HistoricShareholder`, and
- * `HistoricCommercialDebt`; each type here retires when its processor lands and
- * its section switches to the domain model.
+ * in `@/types/domain` as `HistoricShareholder` and `HistoricCommercialDebt`;
+ * each type here retires when its processor lands and its section switches to
+ * the domain model. The Corporate Tree already made that move — it reads
+ * `CurrentCorporateRelationship` from the domain model.
  */
-
-/**
- * A single entity in the corporate tree. `depth` is the indentation level;
- * 0 is the root registrant, positive integers indicate descendants.
- */
-export interface TreeEntity {
-  name: string;
-  country: string;
-  countryCode?: string;
-  depth: number;
-}
 
 /**
  * A single institutional or sovereign shareholder disclosed via 13-F/13-G.
@@ -47,15 +37,13 @@ export interface DebtInstrument {
 }
 
 /**
- * The illustrative payload for the three company-detail sections that have no
+ * The illustrative payload for the two company-detail sections that have no
  * processor yet. Produced by `mock-sections.ts`; every field is sample data, and
  * the `*Source` strings say so where they render.
  */
 export interface MockSections {
-  tree: TreeEntity[];
   shareholders: Shareholder[];
   debtInstruments: DebtInstrument[];
-  treeSource: string;
   shareholdersSource: string;
   debtSource: string;
 }
