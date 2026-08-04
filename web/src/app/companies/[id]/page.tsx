@@ -124,7 +124,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
         <CompanyInspectorOpener />
         <main className="flex-1 min-w-0 flex flex-col gap-4 px-4 md:pl-8 md:pr-4">
           <CompanyHeader company={company} />
-          <CompanyTabs />
+          <CompanyTabs companyName={company.name} />
           <div className="flex flex-col gap-4">
             <CompanyOverviewSection company={company} />
             <CompanyTreeSection tree={mock.tree} source={mock.treeSource} />
