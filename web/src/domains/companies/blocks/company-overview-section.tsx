@@ -1,4 +1,5 @@
 import { SectionCard } from "@/blocks/section-card";
+import { SourceCitation } from "@/blocks/source-citation";
 import { cn } from "@/lib/utils";
 import type { Company, CurrentCorporateRelationship, Source } from "@/types/domain";
 
@@ -105,10 +106,19 @@ const PENDING_GATEWAYS: Gateway[] = [
   },
 ];
 
-function formatSource(sources: Source[]): string | undefined {
-  if (sources.length === 0) return undefined;
+/**
+ * The section's citation. Company-info reports no filing date, so the citation
+ * is dated by when the record was last accessed.
+ */
+function OverviewSource({ sources }: { sources: Source[] }) {
   const [source] = sources;
-  return `${source.name} — ${source.url} (last accessed ${source.lastAccessed}).`;
+  if (!source) return null;
+  return (
+    <SourceCitation
+      source={source}
+      detail={`last accessed ${source.lastAccessed}`}
+    />
+  );
 }
 
 function GatewayCard({ gateway }: { gateway: Gateway }) {
@@ -173,7 +183,7 @@ export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps)
       title="Overview"
       subtitle="Headline counts"
       info="Headline counts for the sections below. Only the corporate tree is sourced from a processor today; shareholder and commercial-debt figures require the shareholder-tracker and CDT processors and are shown as unavailable rather than estimated."
-      source={formatSource(company.sources)}
+      source={<OverviewSource sources={company.sources} />}
       expanded={
         <div className="max-w-3xl mx-auto">
           <Gateways gateways={gateways} />
