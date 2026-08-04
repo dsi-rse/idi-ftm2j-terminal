@@ -50,8 +50,6 @@ jobs:
         working-directory: project/jobs
         env:
           RAW_COMPANIES_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.RAW_COMPANIES_FILE_NAME }}
-          COUNTRY_CODES_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.COUNTRY_CODES_FILE_NAME }}
-          COMPANY_EXTRAS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.COMPANY_EXTRAS_FILE_NAME }}
           OUTPUT_FILE_PATH: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}/${{ vars.OUTPUT_FILE_NAME }}
 
       - name: Cache dataset
