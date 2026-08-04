@@ -31,9 +31,8 @@ const TABS: SectionTab[] = [
  * anchor link that smooth-scrolls to its matching section id (`#overview`,
  * `#tree`, `#holders`, `#debt`).
  *
- * The active tab is highlighted based on which section is currently
- * intersecting the viewport (top-third heuristic). Right-side "Export CSV"
- * and "Cite" buttons are stubs for now.
+ * The active tab is the last section whose top has scrolled past the pinned
+ * bar. Right-side "Export CSV" and "Cite" buttons are stubs for now.
  */
 type CompanyTabsProps = {
   /** Shown alongside the tabs once the bar sticks and the page header is gone. */
@@ -62,28 +61,51 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
       return overflowY === "auto" || overflowY === "scroll" ? pane : null;
     };
 
-    let observer: IntersectionObserver | undefined;
+    /**
+     * Height of the pinned tab bar, which overlaps content. The threshold for
+     * "this section is current" sits just below it, matching `scroll-mt-16` on
+     * the section cards and where tab clicks actually land a section.
+     */
+    const STICKY_OFFSET = 72;
 
+    /**
+     * The active section is the last one whose top has passed the threshold —
+     * the same rule the design uses. Deliberately not an IntersectionObserver
+     * ratio contest: a narrow observation band lets a lower section win while
+     * the visually current one still fills the top of the screen, and leaves
+     * the highlight stale whenever nothing intersects the band at all.
+     */
+    const computeActive = () => {
+      const root = resolveRoot();
+      const referenceTop = root
+        ? root.getBoundingClientRect().top
+        : 0;
+      const threshold = referenceTop + STICKY_OFFSET;
+
+      let current = TABS[0].id;
+      for (const tab of TABS) {
+        const el = document.getElementById(tab.id);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top <= threshold) current = tab.id;
+      }
+      setActive(current);
+    };
+
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        computeActive();
+      });
+    };
+
+    let scroller: Element | Window = window;
     const connect = () => {
-      observer?.disconnect();
-      const sections = TABS.map((tab) => document.getElementById(tab.id)).filter(
-        (el): el is HTMLElement => Boolean(el),
-      );
-      if (sections.length === 0) return;
-      observer = new IntersectionObserver(
-        (entries) => {
-          const visible = entries
-            .filter((entry) => entry.isIntersecting)
-            .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-          if (visible[0]) setActive(visible[0].target.id);
-        },
-        {
-          root: resolveRoot(),
-          rootMargin: "-25% 0px -60% 0px",
-          threshold: [0, 0.25, 0.5, 1],
-        },
-      );
-      sections.forEach((section) => observer?.observe(section));
+      scroller.removeEventListener("scroll", onScroll);
+      scroller = resolveRoot() ?? window;
+      scroller.addEventListener("scroll", onScroll, { passive: true });
+      computeActive();
     };
 
     // A zero-height sentinel sits in normal flow directly above the sticky bar.
@@ -109,13 +131,16 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
 
     connectAll();
 
-    // Crossing the breakpoint changes which element scrolls, so both observers
-    // have to be rebuilt with the new root.
+    // Crossing the breakpoint changes which element scrolls, so the scroll
+    // listener and the sentinel observer both have to be rebound to the new one.
     const query = window.matchMedia("(min-width: 768px)");
     query.addEventListener("change", connectAll);
+    window.addEventListener("resize", onScroll, { passive: true });
     return () => {
       query.removeEventListener("change", connectAll);
-      observer?.disconnect();
+      window.removeEventListener("resize", onScroll);
+      scroller.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
       stuckObserver?.disconnect();
     };
   }, []);
