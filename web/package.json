@@ -7,7 +7,7 @@
 		"build": "next build && pagefind --site .next --output-path public/pagefind",
 		"build:prod": "opennextjs-cloudflare build",
 		"start": "next start",
-		"lint": "next lint",
+		"lint": "eslint src",
 		"deploy": "opennextjs-cloudflare deploy",
 		"upload": "opennextjs-cloudflare upload",
 		"preview": "opennextjs-cloudflare preview",

@@ -3,6 +3,7 @@
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
 import { ArrowRightIcon, Dot, Search } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -112,15 +113,15 @@ export function SearchBar({ placeholder }: SearchBarProps) {
               {trimmed.length > 0 && (
                 <div className="px-3 py-2 text-sm">
                   No matches.{" "}
-                  <a href="/companies" className="text-primary hover:underline">
+                  <Link href="/companies" className="text-primary hover:underline">
                     Browse the full dataset
-                  </a>
+                  </Link>
                 </div>
               )}
             </Autocomplete.Empty>
 
             {totalCount > 3 && (
-              <a
+              <Link
                 href={`/companies?q=${encodeURIComponent(trimmed)}`}
                 className="block px-3 py-2 text-sm border-t border-muted/25 text-primary hover:underline"
               >
@@ -128,7 +129,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                   <span>View all {totalCount} results</span>
                   <ArrowRightIcon className="size-3" />
                 </span>
-              </a>
+              </Link>
             )}
           </Autocomplete.Popup>
         </Autocomplete.Positioner>
