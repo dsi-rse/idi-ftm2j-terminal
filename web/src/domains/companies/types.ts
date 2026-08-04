@@ -1,29 +1,12 @@
 /**
- * The raw company record as it appears in the input JSON payload (see
- * `data/output/companies.json`). This is the minimal shape driving static
- * generation and Pagefind indexing.
+ * View models for the company-detail sections that still render illustrative
+ * data — Corporate Tree, Holders, and Debt.
+ *
+ * These are NOT domain types. The real, cited versions of these concepts live
+ * in `@/types/domain` as `CorporateRelationship`, `HistoricShareholder`, and
+ * `HistoricCommercialDebt`; each type here retires when its processor lands and
+ * its section switches to the domain model.
  */
-export interface CompanyData {
-  permId: string;
-  lei?: string;
-  name: string;
-  country: string;
-  countryCode: string;
-  url?: string;
-  tickers: string[];
-  subsidiaries: string[];
-  sectors: string[];
-}
-
-/**
- * A single Overview bullet on the company detail page. `flag` colors the
- * bullet marker to signal a category (Environmental, Human Rights, Governance).
- */
-export interface OverviewBullet {
-  label: string;
-  text: string;
-  flag?: "environmental" | "human-rights" | "governance";
-}
 
 /**
  * A single entity in the corporate tree. `depth` is the indentation level;
@@ -64,25 +47,15 @@ export interface DebtInstrument {
 }
 
 /**
- * The full company detail payload rendered on the detail page. Extends the
- * raw {@link CompanyData} with illustrative fields (headquarters stats,
- * shareholders, debt, corporate tree, overview bullets).
+ * The illustrative payload for the three company-detail sections that have no
+ * processor yet. Produced by `mock-detail.ts`; every field is sample data, and
+ * the `*Source` strings say so where they render.
  */
-export interface CompanyDetail extends CompanyData {
-  headquarters: string;
-  primaryIndustry: string;
-  marketCapUsd: number;
-  marketCapAsOf: string;
-  revenueUsd: number;
-  revenueFiscalYearEnd: string;
-  employees: number;
-  reconciledAt: string;
-  overviewBullets: OverviewBullet[];
+export interface MockSections {
   tree: TreeEntity[];
   shareholders: Shareholder[];
   debtInstruments: DebtInstrument[];
-  overviewSource?: string;
-  treeSource?: string;
-  shareholdersSource?: string;
-  debtSource?: string;
+  treeSource: string;
+  shareholdersSource: string;
+  debtSource: string;
 }

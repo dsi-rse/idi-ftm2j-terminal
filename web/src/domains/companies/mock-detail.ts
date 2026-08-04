@@ -1,11 +1,20 @@
-import type {
-  CompanyData,
-  CompanyDetail,
-  DebtInstrument,
-  OverviewBullet,
-  Shareholder,
-  TreeEntity,
-} from "./types";
+import type { Company } from "@/types/domain";
+
+import type { DebtInstrument, MockSections, Shareholder, TreeEntity } from "./types";
+
+/**
+ * Illustrative data for the three company-detail sections whose processors do
+ * not exist yet: Corporate Tree, Holders, and Debt.
+ *
+ * NOTHING IN THIS FILE IS REAL. It exists so the page layout can be reviewed
+ * before the corporate-structure, shareholder-tracker, and CDT processors
+ * land, and every section that renders it says so in its source footer. Delete
+ * each generator as its processor ships — do not extend this file to cover new
+ * fields.
+ *
+ * Company info (name, industry, country, ticker, exchange) is real and comes
+ * from the pipeline; it is deliberately absent here.
+ */
 
 /**
  * Deterministic pseudo-random helpers. Everything below is derived from a
@@ -77,91 +86,17 @@ const INSTRUMENTS = [
   "Bridge Loan",
 ] as const;
 
-const INDUSTRY_MAP: Record<string, string> = {
-  Banking: "Banking",
-  "Financial Services": "Financial Services",
-  Mining: "Mining & Metals",
-  "Natural Resources": "Natural Resources",
-  Oil: "Oil & Gas",
-  Energy: "Oil & Gas",
-};
-
-function inferIndustry(sectors: string[]): string {
-  for (const sector of sectors) {
-    if (INDUSTRY_MAP[sector]) return INDUSTRY_MAP[sector];
-  }
-  return sectors[0] ?? "Diversified";
-}
-
-function makeOverviewBullets(
-  rng: () => number,
-  base: CompanyData,
-  primaryIndustry: string,
-  marketCapUsd: number,
-  revenueUsd: number,
-  employees: number,
-  treeCount: number,
-  shareholderTop: string,
-  topStake: number,
-  totalDebt: number,
-  debtInstrumentCount: number,
-): OverviewBullet[] {
-  const bullets: OverviewBullet[] = [
-    {
-      label: "Business",
-      text: `${base.country}-based ${primaryIndustry.toLowerCase()} operator with disclosed footprint across ${1 + Math.floor(rng() * 40)}+ countries.`,
-    },
-    {
-      label: "Headquarters",
-      text: `Domiciled and incorporated in ${base.country}${base.tickers[0] ? `; listed as ${base.tickers[0]}.` : "."}`,
-    },
-    {
-      label: "Scale",
-      text: `${formatUsdShort(revenueUsd)} revenue · ${formatUsdShort(marketCapUsd)} market cap · ${employees.toLocaleString()} employees.`,
-    },
-    {
-      label: "Structure",
-      text: `${treeCount} entities in the reconciled ownership tree${base.subsidiaries.length ? `, including ${base.subsidiaries.slice(0, 3).join(", ")}.` : "."}`,
-    },
-    {
-      label: "Ownership",
-      text: `${shareholderTop} holds the largest disclosed stake (${topStake.toFixed(2)}%); other institutional holders follow per 13-F filings.`,
-    },
-    {
-      label: "Commercial debt",
-      text: `${formatUsdShort(totalDebt)} outstanding across ${debtInstrumentCount} instruments — revolving facilities, term loans, and senior notes.`,
-    },
-  ];
-  const flaggedPool: OverviewBullet[] = [
-    {
-      label: "Environmental",
-      text: "Regional operations flagged for air-quality and water-rights disputes.",
-      flag: "environmental",
-    },
-    {
-      label: "Human Rights",
-      text: "Civil society allegations of forced displacement near active mining operations.",
-      flag: "human-rights",
-    },
-    {
-      label: "Governance",
-      text: "Historical settlement with DOJ and UK SFO over bribery-related charges.",
-      flag: "governance",
-    },
-  ];
-  const flaggedCount = 1 + Math.floor(rng() * flaggedPool.length);
-  return [...bullets, ...flaggedPool.slice(0, flaggedCount)];
-}
+const ILLUSTRATIVE = "Illustrative sample data — not sourced from any filing.";
 
 function makeTree(
   rng: () => number,
-  base: CompanyData,
+  company: Company,
   countryPool: ReadonlyArray<{ name: string; country: string }>,
 ): TreeEntity[] {
+  const rootName = company.name;
   const root: TreeEntity = {
-    name: base.name,
-    country: base.country,
-    countryCode: base.countryCode,
+    name: rootName,
+    country: company.hqCountry ?? "",
     depth: 0,
   };
   const rootCount = 4 + Math.floor(rng() * 4);
@@ -177,7 +112,7 @@ function makeTree(
       "Resources",
       "Agriculture",
     ]);
-    const name = base.subsidiaries[i] ?? `${base.name.split(" ")[0]} ${suffix}`;
+    const name = `${rootName.split(" ")[0]} ${suffix}`;
     entities.push({ name, country: country.country, depth: 1 });
     const childCount = Math.floor(rng() * 3);
     for (let j = 0; j < childCount; j++) {
@@ -251,62 +186,19 @@ function formatUsdShort(value: number): string {
 }
 
 /**
- * Build a deterministic, illustrative {@link CompanyDetail} from the base
- * {@link CompanyData} record. The same input `permId` yields the same
- * output — safe for static generation.
- *
- * Kept isolated in one file so it can be ripped out cleanly once the real
- * pipeline emits shareholders/debt/tree data.
+ * Build the deterministic, illustrative payload for the Tree, Holders, and
+ * Debt sections. Seeded from `permId`, so the same company always renders the
+ * same sample — safe for static generation.
  */
-export function getMockCompanyDetail(base: CompanyData): CompanyDetail {
-  const rng = makeRng(base.permId);
-  const primaryIndustry = inferIndustry(base.sectors);
-  const marketCapUsd = between(rng, 5e9, 200e9);
-  const revenueUsd = between(rng, 3e9, 300e9);
-  const employees = Math.floor(between(rng, 5_000, 250_000));
-  const shareholders = makeShareholders(rng);
-  const tree = makeTree(rng, base, HOLDER_POOL);
-  const debtInstruments = makeDebtInstruments(rng);
-  const totalDebt = debtInstruments.reduce((s, d) => s + d.amountUsd, 0);
-  const overviewBullets = makeOverviewBullets(
-    rng,
-    base,
-    primaryIndustry,
-    marketCapUsd,
-    revenueUsd,
-    employees,
-    tree.length,
-    shareholders[0].name,
-    shareholders[0].stakePct,
-    totalDebt,
-    debtInstruments.length,
-  );
-  const today = new Date();
-  const reconciledAt = new Date(today.getFullYear(), today.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+export function getMockSections(company: Company): MockSections {
+  const rng = makeRng(company.permId);
   return {
-    ...base,
-    headquarters: base.country,
-    primaryIndustry,
-    marketCapUsd,
-    marketCapAsOf: reconciledAt,
-    revenueUsd,
-    revenueFiscalYearEnd: `${today.getFullYear() - 1}-12-31`,
-    employees,
-    reconciledAt,
-    overviewBullets,
-    tree,
-    shareholders,
-    debtInstruments,
-    overviewSource:
-      "Synthesized from company facts, the reconciled ownership graph, SEC 13-F holdings, and FTM2J accountability flags. Figures are illustrative for this mock.",
-    treeSource:
-      "Corporate tree synthesized from ownership graph + EDGAR Exhibit 21 (subsidiaries of registrant) filings, last reconciled with the most recent disclosed filings.",
-    shareholdersSource:
-      "Aggregated from SEC Form 13-F filings (Q4 2025), supplemented by 13-D / 13-G beneficial ownership filings and SC 13G/A amendments. Sovereign holdings via national disclosure registries where available.",
-    debtSource:
-      "Bond filings via EDGAR (8-K material event notices), syndicated loan announcements via SDC Platinum, and supplemented from annual report debt schedules. Private debt may not be reflected.",
+    tree: makeTree(rng, company, HOLDER_POOL),
+    shareholders: makeShareholders(rng),
+    debtInstruments: makeDebtInstruments(rng),
+    treeSource: `${ILLUSTRATIVE} Real subsidiaries will come from EDGAR Exhibit 21 via the corporate-structure processor.`,
+    shareholdersSource: `${ILLUSTRATIVE} Real holdings will come from SEC Form 13-F via the shareholder-tracker processor.`,
+    debtSource: `${ILLUSTRATIVE} Real instruments will come from SEC 8-K filings via the CDT processor.`,
   };
 }
 

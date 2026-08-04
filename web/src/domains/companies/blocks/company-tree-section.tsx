@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 
 import { SectionCard } from "@/blocks/section-card";
 import { Pagination } from "@/components/pagination";
-import type { CompanyDetail, TreeEntity } from "@/domains/companies/types";
+import type { TreeEntity } from "@/domains/companies/types";
 
 type CompanyTreeSectionProps = {
-  detail: CompanyDetail;
+  tree: TreeEntity[];
+  source: string;
 };
 
 const ROOTS_PER_PAGE = 6;
@@ -71,9 +72,9 @@ function TreeLines({ entities }: { entities: TreeEntity[] }) {
  * entities. Paginated by root grouping inline; the fullscreen modal renders
  * every entity unpaginated.
  */
-export function CompanyTreeSection({ detail }: CompanyTreeSectionProps) {
+export function CompanyTreeSection({ tree, source }: CompanyTreeSectionProps) {
   const [page, setPage] = useState(1);
-  const groups = useMemo(() => groupByRoot(detail.tree), [detail.tree]);
+  const groups = useMemo(() => groupByRoot(tree), [tree]);
   const flatPageSize = ROOTS_PER_PAGE;
   const totalGroups = groups.length;
   const totalPages = Math.max(1, Math.ceil(totalGroups / flatPageSize));
@@ -85,18 +86,18 @@ export function CompanyTreeSection({ detail }: CompanyTreeSectionProps) {
     <SectionCard
       id="tree"
       title="Corporate Tree"
-      subtitle={`${detail.tree.length} entities · reconciled ${detail.reconciledAt}`}
+      subtitle={`${tree.length} entities · illustrative sample`}
       info="Controlled subsidiaries and reconciled ownership relationships, sourced from filings that disclose material ownership stakes."
-      source={detail.treeSource}
+      source={source}
       expanded={
         <div className="max-w-3xl mx-auto">
-          <TreeLines entities={detail.tree} />
-          {detail.treeSource ? (
+          <TreeLines entities={tree} />
+          {source ? (
             <p className="mt-8 text-xs text-muted leading-relaxed">
               <span className="uppercase tracking-wider font-medium mr-2">
                 Source.
               </span>
-              {detail.treeSource}
+              {source}
             </p>
           ) : null}
         </div>
