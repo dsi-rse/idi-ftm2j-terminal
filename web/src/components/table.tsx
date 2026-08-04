@@ -99,7 +99,7 @@ function TableHeaderCell({
     <th
       {...props}
       className={cn(
-        "px-3 py-2 text-[10px] uppercase tracking-wider text-muted font-medium",
+        "px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted font-medium",
         alignmentClass,
         className,
       )}
@@ -118,7 +118,7 @@ function TableHeaderCell({
           type="button"
           onClick={onSort}
           className={cn(
-            "inline-flex items-center gap-1 uppercase tracking-wider",
+            "inline-flex items-center gap-1 font-mono uppercase tracking-wider",
             "cursor-pointer hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm",
             align === "right" && "ml-auto",
           )}
@@ -210,7 +210,7 @@ function TableCell({
       >
         <span className="text-foreground">{primary}</span>
         {secondary ? (
-          <span className="text-[10px] uppercase tracking-wider text-muted">
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
             {secondary}
           </span>
         ) : null}
@@ -277,7 +277,7 @@ TableEmpty.displayName = "Table.Empty";
  */
 export function RowIndex({ index }: { index: number }) {
   return (
-    <span className="font-geist text-[10px] text-muted tabular-nums">
+    <span className="font-mono text-[10px] text-muted tabular-nums">
       {String(index).padStart(2, "0")}
     </span>
   );

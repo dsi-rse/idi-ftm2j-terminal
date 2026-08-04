@@ -103,7 +103,7 @@ export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps)
           <FactList facts={facts} />
           {source ? (
             <p className="mt-8 text-xs text-muted leading-relaxed">
-              <span className="uppercase tracking-wider font-medium mr-2">
+              <span className="font-mono uppercase tracking-wider font-medium mr-2">
                 Source.
               </span>
               {source}

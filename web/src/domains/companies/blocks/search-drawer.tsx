@@ -107,7 +107,7 @@ export function CompanySearchDrawer() {
       <Drawer.Header>
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="inline-flex items-center gap-1.5 font-inter font-semibold text-foreground text-xs uppercase tracking-wider">
+            <h2 className="inline-flex items-center gap-1.5 font-mono font-semibold text-foreground text-xs uppercase tracking-wider">
               <Search className="size-3.5" /> Inspector
             </h2>
             <button

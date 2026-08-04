@@ -88,13 +88,13 @@ export function CompanyTabs() {
         {/* TODO: wire export / cite actions */}
         <button
           type="button"
-          className="text-[11px] uppercase tracking-wider text-muted hover:text-foreground px-2 py-1 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="font-mono text-[11px] uppercase tracking-wider text-muted hover:text-foreground px-2 py-1 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           Export CSV
         </button>
         <button
           type="button"
-          className="text-[11px] uppercase tracking-wider text-muted hover:text-foreground px-2 py-1 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          className="font-mono text-[11px] uppercase tracking-wider text-muted hover:text-foreground px-2 py-1 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           Cite
         </button>

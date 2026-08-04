@@ -149,7 +149,7 @@ function ArticleBulkDownload({
         <p className="font-inter text-muted text-sm md:text-base">
           {description}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 font-geist text-xs uppercase tracking-wide text-muted">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 font-mono text-xs uppercase tracking-wide text-muted">
           <span>{format}</span>
           <span aria-hidden>·</span>
           <span>{size}</span>
@@ -211,7 +211,7 @@ function ArticleSectionTitle({
   return (
     <h2 className="text-xl font-inter-tight tracking-tight font-bold">
       {number && (
-        <span className="text-primary mr-2 font-geist text-xs font-medium align-middle">
+        <span className="text-primary mr-2 font-mono text-xs font-medium align-middle">
           {number}
         </span>
       )}
@@ -322,7 +322,7 @@ function ArticleDataset({
         <p className="font-inter text-muted text-sm md:text-base">
           {description}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 font-geist text-xs uppercase tracking-wide text-muted">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 font-mono text-xs uppercase tracking-wide text-muted">
           <span>{size}</span>
           {rows && (
             <>
@@ -339,7 +339,7 @@ function ArticleDataset({
           <a
             key={f.label}
             href={f.href}
-            className="inline-flex items-center rounded-md border border-muted/40 px-3 py-1.5 font-geist text-xs uppercase tracking-wide text-foreground hover:border-primary hover:text-primary transition-colors"
+            className="inline-flex items-center rounded-md border border-muted/40 px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-foreground hover:border-primary hover:text-primary transition-colors"
           >
             {f.label}
           </a>

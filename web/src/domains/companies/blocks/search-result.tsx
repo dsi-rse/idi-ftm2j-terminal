@@ -25,7 +25,7 @@ export function SearchResult({
       className={`grid grid-cols-8 text-sm border-b border-muted/25 p-3 cursor-pointer border-l-2 ${active ? "border-l-primary" : "border-l-transparent"} hover:bg-muted/10`}
       onClick={() => router.push(`/companies/${permId}`)}
     >
-      <div className="col-span-1 text-muted text-xs font-geist leading-none">
+      <div className="col-span-1 text-muted text-xs font-mono leading-none">
         <div className="flex flex-row gap-2 items-start">
           <CompanyBookmark company={company} />
           <p>{index.toString().padStart(2, "0")}</p>
@@ -53,7 +53,7 @@ export function SearchResult({
             {tickers.map((ticker) => (
               <p
                 key={ticker}
-                className="inline-block font-geist bg-muted/25 text-xs px-1 rounded-sm"
+                className="inline-block font-mono bg-muted/25 text-xs px-1 rounded-sm"
               >
                 {ticker}
               </p>

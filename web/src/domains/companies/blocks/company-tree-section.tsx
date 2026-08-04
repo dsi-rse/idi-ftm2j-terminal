@@ -33,30 +33,28 @@ function groupByRoot(entities: TreeEntity[]): TreeEntity[][] {
 
 function TreeLines({ entities }: { entities: TreeEntity[] }) {
   return (
-    <div className="font-geist text-xs md:text-sm text-foreground overflow-x-auto">
+    <div className="font-inter-tight text-[13px] text-foreground overflow-x-auto">
       <ul className="list-none m-0 p-0">
         {entities.map((entity, i) => {
-          const indent = " ".repeat(entity.depth * 4);
           const prefix = entity.depth === 0 ? "" : "└─";
           return (
             <li
               key={`${entity.name}-${i}`}
               className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-0.5 hover:bg-overlay"
             >
-              <span className="truncate">
-                {indent}
+              {/* Indent with padding rather than repeated spaces: entity names
+                  are proportional now, so character-width indentation would no
+                  longer line up. */}
+              <span
+                className="truncate"
+                style={{ paddingLeft: `${entity.depth * 1.5}rem` }}
+              >
                 {prefix ? (
-                  <span className="text-muted mr-2">{prefix}</span>
+                  <span className="font-mono text-muted mr-2">{prefix}</span>
                 ) : null}
-                <span
-                  className={
-                    entity.depth === 0 ? "text-foreground" : "text-foreground"
-                  }
-                >
-                  {entity.name}
-                </span>
+                <span className="text-foreground">{entity.name}</span>
               </span>
-              <span className="text-[10px] uppercase tracking-wider text-muted whitespace-nowrap">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted whitespace-nowrap">
                 {entity.country}
               </span>
             </li>
@@ -94,7 +92,7 @@ export function CompanyTreeSection({ tree, source }: CompanyTreeSectionProps) {
           <TreeLines entities={tree} />
           {source ? (
             <p className="mt-8 text-xs text-muted leading-relaxed">
-              <span className="uppercase tracking-wider font-medium mr-2">
+              <span className="font-mono uppercase tracking-wider font-medium mr-2">
                 Source.
               </span>
               {source}

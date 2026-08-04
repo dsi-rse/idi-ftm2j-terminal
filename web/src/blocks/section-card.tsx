@@ -88,7 +88,7 @@ export function SectionCard({
       <div>{children}</div>
       {source ? (
         <footer className="mt-6 pt-4 border-t border-muted/15 text-[10px] md:text-xs text-muted leading-relaxed">
-          <span className="uppercase tracking-wider font-medium mr-2">
+          <span className="font-mono uppercase tracking-wider font-medium mr-2">
             Source.
           </span>
           {source}

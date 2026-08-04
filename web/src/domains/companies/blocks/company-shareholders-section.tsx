@@ -139,7 +139,7 @@ function ShareholdersTable({
                 </Table.Cell>
                 <Table.Cell primary={holder.name} secondary={holder.type} />
                 <Table.Cell>
-                  <span className="text-[10px] uppercase tracking-wider text-muted">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
                     {holder.country}
                   </span>
                 </Table.Cell>

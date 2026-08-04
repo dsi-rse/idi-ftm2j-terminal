@@ -52,11 +52,11 @@ type LabeledCellProps = {
 function LabeledCell({ label, value, muted }: LabeledCellProps) {
   return (
     <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2 min-w-0">
-      <span className="text-[9px] uppercase tracking-wider text-muted font-medium">
+      <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium">
         {label}
       </span>
       <span
-        className={`text-sm truncate font-inter-tight ${
+        className={`font-mono text-xs truncate ${
           muted ? "text-muted" : "text-foreground"
         }`}
       >
@@ -74,13 +74,13 @@ function LabeledCell({ label, value, muted }: LabeledCellProps) {
 function PendingStatCell({ label }: { label: string }) {
   return (
     <div className="flex flex-col gap-1 border border-dashed border-muted/25 px-4 py-3 min-w-0">
-      <span className="text-[9px] uppercase tracking-wider text-muted font-medium">
+      <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium">
         {label}
       </span>
       <span className="text-sm text-muted font-inter-tight leading-none py-1">
         {PENDING}
       </span>
-      <span className="text-[10px] text-muted">pending company facts</span>
+      <span className="font-mono text-[10px] text-muted">pending company facts</span>
     </div>
   );
 }
