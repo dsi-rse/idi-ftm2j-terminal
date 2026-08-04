@@ -7,14 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useSiteSearch } from "@/hooks/use-site-search";
-
-type Company = {
-  permId: string;
-  companyName: string;
-  countryName?: string;
-  sectors?: string;
-  tickers?: string;
-};
+import type { PagefindCompanyMeta } from "@/types/company-search";
 
 type ResponsivePlaceholder = string | { short: string; long: string };
 
@@ -31,9 +24,10 @@ function parseJsonList(value: string | undefined): string[] {
 export function SearchBar({ placeholder }: SearchBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const { results, totalCount, handleSearch } = useSiteSearch<Company>({
-    limit: 3,
-  });
+  const { results, totalCount, handleSearch } =
+    useSiteSearch<PagefindCompanyMeta>({
+      limit: 3,
+    });
   const isDesktop = useMediaQuery("(min-width: 640px)", {
     defaultMatches: true,
   });
@@ -57,7 +51,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
       mode="none"
       value={query}
       onValueChange={setQuery}
-      itemToStringValue={(company: Company) => company.companyName}
+      itemToStringValue={(company: PagefindCompanyMeta) => company.companyName}
     >
       <div className="relative w-full">
         <Search
@@ -77,7 +71,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
         >
           <Autocomplete.Popup className="bg-background border border-muted/25 rounded-sm shadow-md overflow-hidden">
             <Autocomplete.List className="max-h-64 overflow-y-auto">
-              {(company: Company) => {
+              {(company: PagefindCompanyMeta) => {
                 const sector = parseJsonList(company.sectors)[0];
                 const country = company.countryName;
                 const tickers = parseJsonList(company.tickers);
