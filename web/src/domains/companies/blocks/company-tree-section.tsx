@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { SectionCard } from "@/blocks/section-card";
+import { SourceCitation } from "@/blocks/source-citation";
 import { Pagination } from "@/components/pagination";
 import type { Company, CurrentCorporateRelationship } from "@/types/domain";
 
@@ -79,18 +80,10 @@ function TreeSource({
   const [source] = relationship.sources;
   if (!source) return null;
   return (
-    <>
-      {source.name} —{" "}
-      <a
-        href={source.url}
-        className="underline hover:text-foreground"
-        target="_blank"
-        rel="noreferrer"
-      >
-        {source.url}
-      </a>{" "}
-      (filed {relationship.asOf}, retrieved {source.lastAccessed}).
-    </>
+    <SourceCitation
+      source={source}
+      detail={`filed ${relationship.asOf}, retrieved ${source.lastAccessed}`}
+    />
   );
 }
 
