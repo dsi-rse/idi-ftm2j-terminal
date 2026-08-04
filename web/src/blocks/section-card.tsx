@@ -61,7 +61,7 @@ export function SectionCard({
             {title}
           </h2>
           {subtitle ? (
-            <p className="text-[11px] md:text-xs text-muted">{subtitle}</p>
+            <p className="font-mono text-[11px] text-muted">{subtitle}</p>
           ) : null}
         </div>
         <div className="flex items-center gap-1 shrink-0">
