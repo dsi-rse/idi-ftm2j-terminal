@@ -16,7 +16,7 @@ const DATASETS = [
   {
     name: "Corporate structures",
     description:
-      "Parent–subsidiary edges from GLEIF and SEC Exhibit 21 filings, normalized to a directed ownership graph.",
+      "Parent–subsidiary relationships as disclosed in SEC Exhibit 21 and Exhibit 8 subsidiary lists, taken from each registrant's most recent 10-K or 20-F.",
     size: "128 MB",
     rows: "4.2M",
     updated: "Jul 6, 2026",
