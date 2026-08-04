@@ -51,12 +51,12 @@ type LabeledCellProps = {
 
 function LabeledCell({ label, value, muted }: LabeledCellProps) {
   return (
-    <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2 min-w-0">
-      <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium">
+    <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
+      <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium whitespace-nowrap">
         {label}
       </span>
       <span
-        className={`font-mono text-xs truncate ${
+        className={`font-mono text-xs whitespace-nowrap ${
           muted ? "text-muted" : "text-foreground"
         }`}
       >
@@ -67,27 +67,31 @@ function LabeledCell({ label, value, muted }: LabeledCellProps) {
 }
 
 /**
- * A stat cell whose data source has not been built yet. Renders the label and
- * an explicit pending state rather than a number, so the page never presents a
- * figure it cannot cite.
+ * One column of the stat group. The value is deliberately not a number: market
+ * cap, revenue, and employees are all routed through the company-facts
+ * processor, which does not exist yet. The grouping matches the design so the
+ * shape is already right when real figures arrive, but the muted text keeps it
+ * legible as pending rather than as data.
  */
-function PendingStatCell({ label }: { label: string }) {
+function PendingStat({ label }: { label: string }) {
   return (
-    <div className="flex flex-col gap-1 border border-dashed border-muted/25 px-4 py-3 min-w-0">
+    <div className="flex flex-col gap-1 px-4 py-3 flex-1 min-w-0">
       <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium">
         {label}
       </span>
-      <span className="text-sm text-muted font-inter-tight leading-none py-1">
+      <span className="font-inter-tight text-sm text-muted leading-none py-1">
         {PENDING}
       </span>
-      <span className="font-mono text-[10px] text-muted">pending company facts</span>
+      <span className="font-mono text-[10px] text-muted">
+        pending company facts
+      </span>
     </div>
   );
 }
 
 /**
  * The top-of-page header block for a company: name, primary metadata cells
- * (industry / HQ country / ticker / exchange), and the three financial stat
+ * (industry / HQ country / primary listing / ticker), and the three financial stat
  * cells.
  *
  * Market cap, revenue, and employees have no source in the company-info
@@ -106,7 +110,10 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
         <h1 className="font-inter-tight tracking-tight text-3xl md:text-4xl font-semibold text-foreground leading-none">
           {company.name}
         </h1>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-2xl">
+        {/* Cells size to their content and wrap, rather than sitting in a
+            fixed grid — mono labels vary enough in width that equal columns
+            either clip or force the longest label onto two lines. */}
+        <div className="flex flex-wrap gap-2 max-w-2xl">
           <LabeledCell
             label="Primary Industry"
             value={industry ?? NOT_REPORTED}
@@ -118,21 +125,21 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
             muted={!company.hqCountry}
           />
           <LabeledCell
+            label="Primary Listing"
+            value={exchange}
+            muted={exchange === NOT_REPORTED}
+          />
+          <LabeledCell
             label="Ticker"
             value={ticker ?? NOT_REPORTED}
             muted={!ticker}
           />
-          <LabeledCell
-            label="Exchange"
-            value={exchange}
-            muted={exchange === NOT_REPORTED}
-          />
         </div>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:min-w-[520px]">
-        <PendingStatCell label="Market Cap" />
-        <PendingStatCell label="Revenue" />
-        <PendingStatCell label="Employees" />
+      <div className="flex flex-col sm:flex-row border border-muted/25 divide-y sm:divide-y-0 sm:divide-x divide-muted/25 md:min-w-[520px]">
+        <PendingStat label="Market Cap" />
+        <PendingStat label="Revenue" />
+        <PendingStat label="Employees" />
       </div>
     </header>
   );
