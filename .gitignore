@@ -8,3 +8,6 @@ data
 *.db
 .beads-credential-key
 __pycache__/
+
+# Local planning docs — intermediate step between a GitHub issue and its beads issues
+plans/
