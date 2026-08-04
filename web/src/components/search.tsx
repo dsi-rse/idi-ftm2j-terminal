@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useSiteSearch } from "@/hooks/use-site-search";
+import { parseJsonList } from "@/lib/parse-json-list";
 import type { PagefindCompanyMeta } from "@/types/company-search";
 
 type ResponsivePlaceholder = string | { short: string; long: string };
@@ -15,12 +16,6 @@ type ResponsivePlaceholder = string | { short: string; long: string };
 type SearchBarProps = {
   placeholder: ResponsivePlaceholder;
 };
-
-function parseJsonList(value: string | undefined): string[] {
-  if (!value) return [];
-  const parsed = JSON.parse(value);
-  return Array.isArray(parsed) ? parsed : [];
-}
 
 export function SearchBar({ placeholder }: SearchBarProps) {
   const router = useRouter();
