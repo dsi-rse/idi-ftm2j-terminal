@@ -10,12 +10,12 @@ the contract; if you change the shape here, change it there in the same commit.
 ## Running it
 
 ```bash
-RAW_COMPANIES_FILE_PATH=../data/input/latest_company_info.parquet OUTPUT_FILE_PATH=../data/output/companies.json uv run python build_dataset.py
+COMPANY_INFO_FILE_PATH=../data/input/latest_company_info.parquet OUTPUT_FILE_PATH=../data/output/companies.json uv run python build_dataset.py
 ```
 
 | Variable | Meaning |
 | --- | --- |
-| `RAW_COMPANIES_FILE_PATH` | `company-info/latest.parquet` from the processed layer |
+| `COMPANY_INFO_FILE_PATH` | `company-info/latest.parquet` from the processed layer |
 | `OUTPUT_FILE_PATH` | Where to write the JSON the web build consumes |
 
 In CI both are set by [`deploy.yaml`](../.github/workflows/deploy.yaml), which

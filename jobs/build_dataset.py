@@ -140,8 +140,7 @@ def parse_address_country(
         return candidate
 
     logger.warning(
-        'Address did not end in a recognized country (got "%s"); '
-        "falling back to %s.",
+        'Address did not end in a recognized country (got "%s"); falling back to %s.',
         candidate,
         fallback or "None",
     )
@@ -326,8 +325,12 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
     broader = [
         sector
         for sector in (
-            build_sector(_clean(first["primary_economic_sector_label"]), sources, as_of),
-            build_sector(_clean(first["primary_business_sector_label"]), sources, as_of),
+            build_sector(
+                _clean(first["primary_economic_sector_label"]), sources, as_of
+            ),
+            build_sector(
+                _clean(first["primary_business_sector_label"]), sources, as_of
+            ),
         )
         if sector
     ]
@@ -404,7 +407,7 @@ def main(logger: logging.Logger) -> None:
     serialized `Company` type in `web/src/types/domain.ts`.
 
     Environment variables:
-        RAW_COMPANIES_FILE_PATH: Path to the company info parquet file.
+        COMPANY_INFO_FILE_PATH: Path to the company info parquet file.
         OUTPUT_FILE_PATH: Path to write the output JSON file.
 
     Args:
@@ -419,7 +422,7 @@ def main(logger: logging.Logger) -> None:
     """
     logger.info("Parsing environment variables.")
     try:
-        company_info_fpath = os.environ["RAW_COMPANIES_FILE_PATH"]
+        company_info_fpath = os.environ["COMPANY_INFO_FILE_PATH"]
         output_fpath = os.environ["OUTPUT_FILE_PATH"]
     except KeyError as e:
         raise RuntimeError(f'Missing required environment variable "{e}".') from e

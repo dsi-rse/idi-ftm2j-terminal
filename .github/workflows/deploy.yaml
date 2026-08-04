@@ -49,7 +49,7 @@ jobs:
         run: uv run python build_dataset.py
         working-directory: project/jobs
         env:
-          RAW_COMPANIES_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.RAW_COMPANIES_FILE_NAME }}
+          COMPANY_INFO_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.RAW_COMPANIES_FILE_NAME }}
           OUTPUT_FILE_PATH: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}/${{ vars.OUTPUT_FILE_NAME }}
 
       - name: Cache dataset
