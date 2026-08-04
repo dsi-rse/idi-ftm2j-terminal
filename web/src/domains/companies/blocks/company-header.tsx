@@ -19,7 +19,7 @@ const NOT_REPORTED = "Not reported";
 const PENDING = "Awaiting source";
 
 /** ISO 10383 MICs appearing in the company-info dataset. */
-const EXCHANGE_LABELS: Record<string, string> = {
+const MIC_LABELS: Record<string, string> = {
   XNYS: "NYSE",
   XNGS: "Nasdaq GS",
   XNMS: "Nasdaq GM",
@@ -30,15 +30,52 @@ const EXCHANGE_LABELS: Record<string, string> = {
 };
 
 /**
+ * The source's proprietary exchange codes, kept in a separate table from
+ * {@link MIC_LABELS} so it stays obvious which namespace a key belongs to.
+ * Separate tables rather than one merged map: the two namespaces happen not to
+ * collide today, but nothing upstream guarantees that.
+ *
+ * Labels deliberately repeat the MIC labels rather than being more precise. In
+ * the dataset each code co-occurs with exactly one MIC — `PNK` only ever
+ * appears alongside `OTCM`, `NSM` alongside `XNGS` — so giving the code a
+ * finer label ("OTC Pink") would print two different names for one exchange
+ * depending on which field happened to be populated.
+ */
+const CODE_LABELS: Record<string, string> = {
+  NYS: "NYSE", // XNYS
+  NYQ: "NYSE", // no MIC in the data; RICs carry no suffix, so NYSE
+  ASE: "NYSE American", // XASE
+  NSM: "Nasdaq GS", // XNGS
+  NMS: "Nasdaq GM", // XNMS
+  NAS: "Nasdaq CM", // XNCM
+  // NAQ/NMQ/NSQ never co-occur with a MIC; their RICs end in `.O`, which
+  // places them on Nasdaq but says nothing about the tier. The Yahoo-style
+  // reading of these codes disagrees with this source — here NMS is the Global
+  // Market, where Yahoo uses it for Global Select — so the tier is left off
+  // rather than guessed.
+  NAQ: "Nasdaq",
+  NMQ: "Nasdaq",
+  NSQ: "Nasdaq",
+  PNK: "OTC Markets", // OTCM
+  OTC: "OTC Markets", // OTCM
+  TOR: "Toronto", // XTSE
+  ASX: "ASX", // no MIC in the data; RIC `.AX`. Already the colloquial name.
+};
+
+/**
  * Resolve a listing to a display label. Prefers the MIC because it is a
  * standard identifier, falling back to the source's proprietary code, which
  * has better coverage (179 rows vs 163).
+ *
+ * Both lookups fall through to the raw value: coverage is best-effort against
+ * the exchanges seen so far, and an unrecognized code from a wider company
+ * universe should still show something a reader can look up.
  */
 function formatExchange(listing: CurrentListing | null): string {
   if (!listing) return NOT_REPORTED;
   const { exchangeMic, exchangeCode } = listing;
-  if (exchangeMic) return EXCHANGE_LABELS[exchangeMic] ?? exchangeMic;
-  if (exchangeCode) return exchangeCode;
+  if (exchangeMic) return MIC_LABELS[exchangeMic] ?? exchangeMic;
+  if (exchangeCode) return CODE_LABELS[exchangeCode] ?? exchangeCode;
   return NOT_REPORTED;
 }
 
