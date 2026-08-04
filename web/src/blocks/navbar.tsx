@@ -5,6 +5,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { NavigationMenu } from "@base-ui/react/navigation-menu";
 import { Menu, X } from "lucide-react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import React, {
   createContext,
   type Dispatch,
@@ -199,18 +200,28 @@ NavbarListItem.displayName = "Navbar.List.Item";
  */
 function NavbarLink({ href, children }: PropsWithChildren<NavbarLinkProps>) {
   const { close } = useNavbar();
+  const pathname = usePathname();
+  // Match the section, not just the exact page, so /companies/<id> still marks
+  // Companies as current. "/" would prefix-match everything, so it is exact.
+  const isCurrent =
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
+  const state = isCurrent
+    ? "text-foreground border-primary"
+    : "text-muted border-transparent hover:text-primary";
   return (
     <>
       <NavigationMenu.Link
         render={<Link href={href} />}
-        className="hidden lg:block py-1 text-muted hover:text-primary"
+        aria-current={isCurrent ? "page" : undefined}
+        className={`hidden lg:block py-1 border-b-2 ${state}`}
       >
         {children}
       </NavigationMenu.Link>
       <NavigationMenu.Link
         render={<Link href={href} />}
         onClick={close}
-        className="block py-1 text-muted hover:text-primary lg:hidden"
+        aria-current={isCurrent ? "page" : undefined}
+        className={`block py-1 border-b-2 ${state} lg:hidden`}
       >
         {children}
       </NavigationMenu.Link>
