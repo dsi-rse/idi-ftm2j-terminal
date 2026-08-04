@@ -103,8 +103,8 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
     );
   }
 
-  // Tree, Holders, and Debt have no processor yet; everything else on this
-  // page is real. See mock-sections.ts.
+  // Holders and Debt have no processor yet; everything else on this page is
+  // real. See mock-sections.ts.
   const mock = getMockSections(company);
 
   return (
@@ -127,7 +127,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
           <CompanyTabs companyName={company.name} />
           <div className="flex flex-col gap-4">
             <CompanyOverviewSection company={company} />
-            <CompanyTreeSection tree={mock.tree} source={mock.treeSource} />
+            <CompanyTreeSection company={company} />
             <CompanyShareholdersSection
               shareholders={mock.shareholders}
               source={mock.shareholdersSource}

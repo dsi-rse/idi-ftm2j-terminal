@@ -4,51 +4,45 @@ import { useMemo, useState } from "react";
 
 import { SectionCard } from "@/blocks/section-card";
 import { Pagination } from "@/components/pagination";
-import type { TreeEntity } from "@/domains/companies/types";
+import type { Company, CurrentCorporateRelationship } from "@/types/domain";
 
 type CompanyTreeSectionProps = {
-  tree: TreeEntity[];
-  source: string;
+  company: Company;
 };
 
-const ROOTS_PER_PAGE = 6;
+const SUBSIDIARIES_PER_PAGE = 25;
 
 /**
- * Group the flat tree entity list into contiguous chunks whose first entry
- * has depth 0 or 1 (roots). Each group is displayed as one page.
+ * A row in the rendered tree. The registrant is depth 0 and every disclosed
+ * subsidiary is depth 1: Exhibit 21 as the corporate-structure processor emits
+ * it is a flat list, with no nesting to recover. `depth` stays because GLEIF and
+ * 10-K body extraction are named future sources that would introduce real
+ * hierarchy.
  */
-function groupByRoot(entities: TreeEntity[]): TreeEntity[][] {
-  const groups: TreeEntity[][] = [];
-  let current: TreeEntity[] = [];
-  for (const entity of entities) {
-    if (entity.depth <= 1 && current.length > 0) {
-      groups.push(current);
-      current = [];
-    }
-    current.push(entity);
-  }
-  if (current.length > 0) groups.push(current);
-  return groups;
-}
+type TreeRow = {
+  name: string;
+  jurisdiction: string | null;
+  depth: number;
+};
 
 /**
  * Guide prefix for a row at `depth`, matching the design's tree: one
- * `\u2502` channel per ancestor level, then the `\u2514\u2500\u2500` branch for
+ * `│` channel per ancestor level, then the `└──` branch for
  * this one. Rendered as monospaced preformatted text so the columns line up by
  * character, independent of the proportional font used for entity names.
  */
 function guidePrefix(depth: number): string {
   if (depth === 0) return "";
-  return "   \u2502  ".repeat(depth - 1) + "\u2514\u2500\u2500 ";
+  return "   │  ".repeat(depth - 1) + "└── ";
 }
 
-function TreeLines({ entities }: { entities: TreeEntity[] }) {
+function TreeLines({ rows }: { rows: TreeRow[] }) {
   return (
     <div className="font-inter-tight text-[13px] text-foreground">
       <ul className="list-none m-0 p-0">
-        {entities.map((entity, i) => (
+        {rows.map((row, i) => (
           <li
-            key={`${entity.name}-${i}`}
+            key={`${row.name}-${i}`}
             className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-0.5 hover:bg-overlay"
           >
             {/* Guides are a fixed-width prefix that does not shrink, so a name
@@ -59,12 +53,12 @@ function TreeLines({ entities }: { entities: TreeEntity[] }) {
                 aria-hidden
                 className="shrink-0 whitespace-pre font-mono text-muted"
               >
-                {guidePrefix(entity.depth)}
+                {guidePrefix(row.depth)}
               </span>
-              <span className="min-w-0">{entity.name}</span>
+              <span className="min-w-0">{row.name}</span>
             </span>
             <span className="font-mono text-[10px] uppercase tracking-wider text-muted whitespace-nowrap">
-              {entity.country}
+              {row.jurisdiction ?? ""}
             </span>
           </li>
         ))}
@@ -74,44 +68,114 @@ function TreeLines({ entities }: { entities: TreeEntity[] }) {
 }
 
 /**
- * The "Corporate Tree" section — indented, monospaced list of controlled
- * entities. Paginated by root grouping inline; the fullscreen modal renders
- * every entity unpaginated.
+ * The citation for the section. Every relationship in a company's list comes
+ * from the same filing, so one source covers all of them.
  */
-export function CompanyTreeSection({ tree, source }: CompanyTreeSectionProps) {
+function TreeSource({
+  relationship,
+}: {
+  relationship: CurrentCorporateRelationship;
+}) {
+  const [source] = relationship.sources;
+  if (!source) return null;
+  return (
+    <>
+      {source.name} —{" "}
+      <a
+        href={source.url}
+        className="underline hover:text-foreground"
+        target="_blank"
+        rel="noreferrer"
+      >
+        {source.url}
+      </a>{" "}
+      (filed {relationship.asOf}, retrieved {source.lastAccessed}).
+    </>
+  );
+}
+
+/**
+ * The "Corporate Tree" section — indented, monospaced list of the subsidiaries
+ * a company disclosed in its most recent Exhibit 21 (10-K) or Exhibit 8 (20-F).
+ *
+ * The jurisdiction column is the jurisdiction of incorporation exactly as
+ * filed. It is deliberately not normalized and deliberately not a country:
+ * "Delaware", "DE", and "United Kingdom" all occur in the source.
+ */
+export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
   const [page, setPage] = useState(1);
-  const groups = useMemo(() => groupByRoot(tree), [tree]);
-  const flatPageSize = ROOTS_PER_PAGE;
-  const totalGroups = groups.length;
-  const totalPages = Math.max(1, Math.ceil(totalGroups / flatPageSize));
-  const start = (page - 1) * flatPageSize;
-  const visibleGroups = groups.slice(start, start + flatPageSize);
-  const visible = visibleGroups.flat();
+  const relationships = company.currentCorporateRelationships;
+
+  const rows = useMemo<TreeRow[]>(
+    () => [
+      { name: company.name, jurisdiction: null, depth: 0 },
+      ...relationships.map((r) => ({
+        name: r.child.name,
+        jurisdiction: r.childJurisdiction,
+        depth: 1,
+      })),
+    ],
+    [company.name, relationships],
+  );
+
+  if (relationships.length === 0) {
+    return (
+      <SectionCard
+        id="tree"
+        title="Corporate Tree"
+        subtitle="No disclosed subsidiaries"
+        info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F. Only companies that have filed one of those since the corporate-structure processor's coverage window have a tree."
+      >
+        <p className="text-sm text-muted leading-relaxed m-0">
+          No subsidiary disclosure is available for this company. A corporate
+          tree requires an Exhibit 21 or Exhibit 8 subsidiary list attached to a
+          10-K or 20-F, and none is in scope for this registrant.
+        </p>
+      </SectionCard>
+    );
+  }
+
+  // Every relationship for a company comes from one filing, so any of them
+  // carries the section's date and citation.
+  const [first] = relationships;
+  const totalPages = Math.max(
+    1,
+    Math.ceil(relationships.length / SUBSIDIARIES_PER_PAGE),
+  );
+  // The registrant heads page 1 only; subsidiaries paginate beneath it.
+  const start = (page - 1) * SUBSIDIARIES_PER_PAGE;
+  const visible: TreeRow[] = [
+    ...(page === 1 ? [rows[0]] : []),
+    ...rows.slice(1 + start, 1 + start + SUBSIDIARIES_PER_PAGE),
+  ];
+
+  const subsidiaryCount = relationships.length;
 
   return (
     <SectionCard
       id="tree"
       title="Corporate Tree"
-      subtitle={`${tree.length} entities · illustrative sample`}
-      info="Controlled subsidiaries and reconciled ownership relationships, sourced from filings that disclose material ownership stakes."
-      source={source}
+      subtitle={`${rows.length} entities · filed ${first.asOf}`}
+      info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F, taken from this company's most recent such filing. The right-hand column is the jurisdiction of incorporation as disclosed, reproduced verbatim — it may name a US state or a country, and is not normalized. Exhibit 21 reports no ownership percentages, so no stake is shown."
+      source={<TreeSource relationship={first} />}
       expanded={
         <div className="max-w-3xl mx-auto">
-          <TreeLines entities={tree} />
-          {source ? (
-            <p className="mt-8 text-xs text-muted leading-relaxed">
-              <span className="font-mono uppercase tracking-wider font-medium mr-2">
-                Source.
-              </span>
-              {source}
-            </p>
-          ) : null}
+          <TreeLines rows={rows} />
+          <p className="mt-8 text-xs text-muted leading-relaxed">
+            <span className="font-mono uppercase tracking-wider font-medium mr-2">
+              Source.
+            </span>
+            <TreeSource relationship={first} />
+          </p>
         </div>
       }
     >
-      <TreeLines entities={visible} />
+      <TreeLines rows={visible} />
       {totalPages > 1 ? (
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex items-center justify-between gap-4">
+          <p className="font-mono text-[10px] uppercase tracking-wider text-muted m-0">
+            {subsidiaryCount} subsidiaries
+          </p>
           <Pagination
             variant="subtle"
             currentPage={page}

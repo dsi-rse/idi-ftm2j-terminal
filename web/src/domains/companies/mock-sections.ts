@@ -1,19 +1,18 @@
 import type { Company } from "@/types/domain";
 
-import type { DebtInstrument, MockSections, Shareholder, TreeEntity } from "./types";
+import type { DebtInstrument, MockSections, Shareholder } from "./types";
 
 /**
- * Illustrative data for the three company-detail sections whose processors do
- * not exist yet: Corporate Tree, Holders, and Debt.
+ * Illustrative data for the two company-detail sections whose processors do
+ * not exist yet: Holders and Debt.
  *
  * NOTHING IN THIS FILE IS REAL. It exists so the page layout can be reviewed
- * before the corporate-structure, shareholder-tracker, and CDT processors
- * land, and every section that renders it says so in its source footer. Delete
- * each generator as its processor ships — do not extend this file to cover new
- * fields.
+ * before the shareholder-tracker and CDT processors land, and every section
+ * that renders it says so in its source footer. Delete each generator as its
+ * processor ships — do not extend this file to cover new fields.
  *
- * Company info (name, industry, country, ticker, exchange) is real and comes
- * from the pipeline; it is deliberately absent here.
+ * Company info and the corporate tree are real and come from the pipeline; they
+ * are deliberately absent here.
  */
 
 /**
@@ -88,48 +87,6 @@ const INSTRUMENTS = [
 
 const ILLUSTRATIVE = "Illustrative sample data — not sourced from any filing.";
 
-function makeTree(
-  rng: () => number,
-  company: Company,
-  countryPool: ReadonlyArray<{ name: string; country: string }>,
-): TreeEntity[] {
-  const rootName = company.name;
-  const root: TreeEntity = {
-    name: rootName,
-    country: company.hqCountry ?? "",
-    depth: 0,
-  };
-  const rootCount = 4 + Math.floor(rng() * 4);
-  const entities: TreeEntity[] = [root];
-  for (let i = 0; i < rootCount; i++) {
-    const country = pick(rng, countryPool);
-    const suffix = pick(rng, [
-      "Holdings",
-      "Corp",
-      "Mines Ltd",
-      "Trading SA",
-      "Energy",
-      "Resources",
-      "Agriculture",
-    ]);
-    const name = `${rootName.split(" ")[0]} ${suffix}`;
-    entities.push({ name, country: country.country, depth: 1 });
-    const childCount = Math.floor(rng() * 3);
-    for (let j = 0; j < childCount; j++) {
-      const child = pick(rng, countryPool);
-      const childName = `${name.split(" ")[0]} ${pick(rng, [
-        "Mining Ltd",
-        "Sarl",
-        "Plc",
-        "Coal Limited",
-        "Copper Mines",
-      ])}`;
-      entities.push({ name: childName, country: child.country, depth: 2 });
-    }
-  }
-  return entities;
-}
-
 function makeShareholders(rng: () => number): Shareholder[] {
   const count = 6 + Math.floor(rng() * 4);
   const shuffled = [...HOLDER_POOL].sort(() => rng() - 0.5).slice(0, count);
@@ -180,17 +137,15 @@ function makeDebtInstruments(rng: () => number): DebtInstrument[] {
 }
 
 /**
- * Build the deterministic, illustrative payload for the Tree, Holders, and
- * Debt sections. Seeded from `permId`, so the same company always renders the
- * same sample — safe for static generation.
+ * Build the deterministic, illustrative payload for the Holders and Debt
+ * sections. Seeded from `permId`, so the same company always renders the same
+ * sample — safe for static generation.
  */
 export function getMockSections(company: Company): MockSections {
   const rng = makeRng(company.permId);
   return {
-    tree: makeTree(rng, company, HOLDER_POOL),
     shareholders: makeShareholders(rng),
     debtInstruments: makeDebtInstruments(rng),
-    treeSource: `${ILLUSTRATIVE} Real subsidiaries will come from EDGAR Exhibit 21 via the corporate-structure processor.`,
     shareholdersSource: `${ILLUSTRATIVE} Real holdings will come from SEC Form 13-F via the shareholder-tracker processor.`,
     debtSource: `${ILLUSTRATIVE} Real instruments will come from SEC 8-K filings via the CDT processor.`,
   };
