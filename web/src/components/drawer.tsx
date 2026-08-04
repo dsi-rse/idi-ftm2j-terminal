@@ -33,6 +33,13 @@ type DrawerRootProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   className?: string;
+  /**
+   * Width applied at `md` and above while open. Kept a prop rather than a
+   * constant because the width is a layout decision belonging to the caller —
+   * passing it through `className` instead would collide with the collapsed
+   * `md:w-0` under tailwind-merge and break the closed state.
+   */
+  openWidthClassName?: string;
 };
 
 /**
@@ -49,6 +56,7 @@ function DrawerRoot({
   open: controlledOpen,
   onOpenChange,
   className,
+  openWidthClassName = "md:w-1/4",
   children,
 }: PropsWithChildren<DrawerRootProps>) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
@@ -86,7 +94,7 @@ function DrawerRoot({
           // `md:min-w-0` overrides flexbox's default `min-width: auto`,
           // which would otherwise keep the aside sized to its min-content
           // and prevent the closed state from truly collapsing to zero.
-          open ? "md:w-1/4" : "md:w-0 md:min-w-0",
+          open ? openWidthClassName : "md:w-0 md:min-w-0",
           // Desktop min-height fills the visible page area even when the
           // surrounding flex row is content-sized; drawer can grow taller
           // if content demands it.

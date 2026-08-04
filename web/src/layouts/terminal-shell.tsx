@@ -12,9 +12,10 @@ export const SCROLL_PANE_ATTR = "data-scroll-pane";
 
 type TerminalShellProps = {
   /**
-   * Fixed-width column rendered to the left of the content pane on desktop,
-   * hidden below the breakpoint. Callers are expected to provide their own
-   * narrow-viewport affordance (the companies route uses a drawer).
+   * Column rendered to the left of the content pane, outside the scrolling
+   * area so it stays put. The slot does not impose responsive visibility — the
+   * child decides, since the companies route's panel is an inline column on
+   * desktop and an overlay on mobile.
    */
   sidebar?: ReactNode;
 };
@@ -46,9 +47,7 @@ export function TerminalShell({
         <Navbar />
       </div>
       <div className="flex flex-1 md:min-h-0">
-        {sidebar ? (
-          <aside className="hidden shrink-0 md:block">{sidebar}</aside>
-        ) : null}
+        {sidebar ? <div className="shrink-0">{sidebar}</div> : null}
         {/* `tabIndex` is load-bearing, not decoration. Once the document stops
             scrolling, a keyboard user with focus on <body> has nothing to
             scroll — PageDown and the arrow keys do nothing. Making the pane

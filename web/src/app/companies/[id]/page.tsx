@@ -108,7 +108,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
   const mock = getMockSections(company);
 
   return (
-    <TerminalShell>
+    <TerminalShell sidebar={<CompanySearchDrawer />}>
       <RecentlyViewedTracker
         company={{
           permId: company.permId,
@@ -121,7 +121,6 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
         }}
       />
       <div className="relative flex flex-1 w-full">
-        <CompanySearchDrawer />
         <CompanyInspectorOpener />
         <main className="flex-1 min-w-0 flex flex-col gap-4 px-4 md:pl-8 md:pr-4">
           <CompanyHeader company={company} />
