@@ -75,7 +75,7 @@ domains/companies/
   hooks/       domain-specific hooks
   stores/      Zustand stores
   types.ts     domain types
-  mock-detail.ts / other domain-owned data helpers
+  mock-sections.ts / other domain-owned data helpers
 ```
 
 - A domain may import: `components/`, top-level `blocks/`, `lib/`, `types/`,
@@ -256,8 +256,14 @@ manually (Base UI forwards refs internally).
 Quick spot-checks that the codebase still matches this doc:
 
 ```bash
-# No cross-domain imports
-grep -rn "@/domains/" web/src/domains
+# No cross-domain imports. A domain referencing its OWN path alias is fine, so
+# each domain is checked against everything except itself — a bare
+# `grep -rn "@/domains/" web/src/domains` reports every intra-domain import as a
+# false positive.
+for d in web/src/domains/*/; do
+  n=$(basename "$d")
+  grep -rn "@/domains/" "$d" | grep -v "@/domains/$n/"
+done
 
 # No default exports outside app/
 grep -rn "export default" web/src/{components,blocks,domains,views,layouts,hooks,lib,types}

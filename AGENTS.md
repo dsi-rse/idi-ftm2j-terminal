@@ -2,6 +2,40 @@
 
 This project uses **bd** (beads) for issue tracking. Run `bd onboard` to get started.
 
+## Web app architecture — read before editing `web/`
+
+`web/src/` has codified architectural conventions in
+[.claude/ARCHITECTURE.md](.claude/ARCHITECTURE.md). **Read it before writing,
+moving, or adding any file under `web/src/`, and follow it.**
+
+Note the path: it lives in `.claude/`, not the repo root. Do not conclude the
+project has no conventions just because there is no top-level
+`ARCHITECTURE.md` — that mistake has already been made.
+
+The doc is normative, not descriptive. In its own words: *"When a rule and the
+code disagree, the rule is the target — bring the code back rather than the
+doc."* So a violation you find in existing code is a bug to be fixed or filed,
+not a precedent to copy.
+
+Read it in full before adding a folder, a hook, or your first component. The
+rules that break most often all follow from imports flowing strictly downward:
+
+- A file in `components/` must not import from another file in `components/`.
+- A file in `blocks/` must not import from another file in `blocks/`.
+- A file in `domains/a/` must not import from `domains/b/`.
+
+When two peers need the same logic, it moves **down** a layer (`lib/`, `hooks/`,
+`types/`) — never sideways. A hook or helper starts inside its domain and is
+promoted to top level only once a caller from another layer actually exists.
+
+Also load-bearing, and easy to violate without noticing: every class string goes
+through `cn()`, colors come from semantic tokens rather than hex, exports are
+named (no `export default` outside the files Next requires), and the site is
+fully static — there is no server runtime and no request-time fetching.
+
+The doc's **Verification** section has grep commands that confirm the codebase
+still complies. Run them after any structural change.
+
 ## Quick Reference
 
 ```bash
