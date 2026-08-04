@@ -187,6 +187,33 @@ export type CorporateRelationship = CitedEntity &
     ownershipPercent: number | null;
   };
 
+/**
+ * A parent→child relationship as disclosed in a single filing. Exhibit 21 gives
+ * the date the relationship was *disclosed*, not the date it began — a
+ * subsidiary listed in a 2017 10-K may have been acquired decades earlier — so
+ * this is a {@link SnapshotEntity}. See {@link CorporateRelationship} for the
+ * date-ranged form, which needs a source that reports real start dates.
+ *
+ * `relationshipType` is always `"Subsidiary"` for Exhibit 21 data, whose
+ * heading is "Subsidiaries of the Registrant", and `ownershipPercent` is always
+ * null because the exhibit reports no percentages. Both fields are kept for
+ * GLEIF, which supplies them.
+ */
+export type CurrentCorporateRelationship = CitedEntity &
+  SnapshotEntity & {
+    parent: CompanyReference;
+    child: CompanyReference;
+    relationshipType: "Subsidiary" | "Division" | "JointVenture";
+    ownershipPercent: number | null;
+    /**
+     * Jurisdiction of incorporation as disclosed, verbatim. Mixed granularity
+     * and formatting — "Delaware", "DE", and "United Kingdom" all occur. This
+     * is deliberately not a country and deliberately not normalized: the value
+     * is what the filing says.
+     */
+    childJurisdiction: string | null;
+  };
+
 // ---------------------------------------------------------------------------
 // Equity securities
 // ---------------------------------------------------------------------------
@@ -310,6 +337,12 @@ export type Company = CitedEntity & {
   /** Broader classifications, e.g. TRBC economic and business sector. */
   currentSectors: CurrentSector[];
   currentListing: CurrentListing | null;
+  /**
+   * Subsidiaries as disclosed in this company's most recent Exhibit 21 (10-K)
+   * or Exhibit 8 (20-F). A snapshot rather than a date range — see
+   * {@link CurrentCorporateRelationship}.
+   */
+  currentCorporateRelationships: CurrentCorporateRelationship[];
 
   // History. Every entry needs a real `from` date; leave these empty rather
   // than inventing one. To get the current CEO, find the HistoricLeader with
