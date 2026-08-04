@@ -17,19 +17,16 @@ import {
 
 /**
  * The root of the {@link Footer} compound component. Renders a `footer` tag
- * with a tapered, primary-colored gradient border along the top edge.
+ * with a solid, primary-colored rule along the top edge.
+ *
+ * The rule follows `--primary` rather than being hard-coded gold: the design
+ * only specifies dark mode, where `--primary` already resolves to exactly the
+ * gold it uses, and following the token keeps the rule teal in light mode
+ * alongside every other primary-colored accent.
  */
 function FooterRoot({ children }: PropsWithChildren) {
   return (
-    <footer className="relative text-foreground">
-      <div
-        aria-hidden
-        className="absolute inset-x-0 top-0 h-px"
-        style={{
-          background:
-            "linear-gradient(90deg, transparent 0%, var(--primary) 30%, var(--primary-hover) 50%, var(--primary) 70%, transparent 100%)",
-        }}
-      />
+    <footer className="relative border-t-2 border-primary text-foreground">
       {children}
     </footer>
   );
