@@ -11,7 +11,7 @@ type CompanyTreeSectionProps = {
   company: Company;
 };
 
-const SUBSIDIARIES_PER_PAGE = 25;
+const SUBSIDIARIES_PER_PAGE = 10;
 
 /**
  * A row in the rendered tree. The registrant is depth 0 and every disclosed
