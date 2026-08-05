@@ -61,6 +61,30 @@ US_STATES: frozenset[str] = frozenset(
 # fall through to that rather than being treated as missing.
 UNKNOWN_MIC = "XXXX"
 
+# Company-level columns, all read off one winning row. Rows sharing an
+# (input_source, last_processed) partition were built from a single
+# `permid_data.json`, so these must agree inside a partition -- see
+# `warn_on_snapshot_divergence`.
+#
+# Deliberately excluded: `identifier`, `entity_name` and `standard_identifier`
+# are per-CIK and are *supposed* to differ; `ticker` is excluded because one
+# snapshot can legitimately report several for a genuinely multi-ticker company.
+SCALAR_COMPANY_FIELDS: tuple[str, ...] = (
+    "permid_url",
+    "investor_name",
+    "lei",
+    "founded_date",
+    "hq_address",
+    "incorporated_in",
+    "domiciled_in",
+    "url",
+    "exchange",
+    "exchange_code",
+    "primary_industry_group_label",
+    "primary_economic_sector_label",
+    "primary_business_sector_label",
+)
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -82,6 +106,29 @@ def _clean(value: object) -> str | None:
     return text or None
 
 
+def parse_last_processed_timestamp(value: object) -> pd.Timestamp:
+    """Parses LSEG's `last_processed` stamp to a comparable timestamp.
+
+    Used for ordering snapshots, which needs the time component that
+    `parse_last_processed` drops. The compact basic ISO form
+    ("20260801T033040") happens to string-sort correctly, but the upstream
+    format is unsettled, so it is parsed rather than compared as text.
+
+    Args:
+        value: A raw `last_processed` cell.
+
+    Returns:
+        A `pd.Timestamp`, or `pd.NaT` if it could not be parsed.
+    """
+    text = _clean(value)
+    if not text:
+        return pd.NaT
+    parsed = pd.to_datetime(text, format="%Y%m%dT%H%M%S", errors="coerce")
+    if pd.isna(parsed):
+        parsed = pd.to_datetime(text, errors="coerce")
+    return parsed
+
+
 def parse_last_processed(value: object) -> str | None:
     """Converts LSEG's `last_processed` stamp to an ISO-8601 date.
 
@@ -95,12 +142,7 @@ def parse_last_processed(value: object) -> str | None:
     Returns:
         An ISO-8601 date string, or `None` if it could not be parsed.
     """
-    text = _clean(value)
-    if not text:
-        return None
-    parsed = pd.to_datetime(text, format="%Y%m%dT%H%M%S", errors="coerce")
-    if pd.isna(parsed):
-        parsed = pd.to_datetime(text, errors="coerce")
+    parsed = parse_last_processed_timestamp(value)
     if pd.isna(parsed):
         return None
     return parsed.strftime("%Y-%m-%d")
@@ -343,13 +385,99 @@ def normalize_cik(values: pd.Series) -> pd.Series:
 # ---------------------------------------------------------------------------
 
 
+def select_latest_snapshot(group: pd.DataFrame) -> pd.DataFrame:
+    """Reduces a PermID's rows to those of its most recent snapshot.
+
+    A PermID gets one row per (source, entity, identifier) link, and rows
+    multiply two ways. Several CIKs under one source all read the same
+    `permid_data.json`, so every company field including `last_processed` is
+    identical. One CIK under several sources was fetched once per source --
+    caches are per-source -- so `last_processed` differs and the company fields
+    can differ with it, if LSEG changed between runs.
+
+    That second case is what makes `group.iloc[0]` wrong: it picks a snapshot by
+    row order. Recency is the discriminator, tie-broken on `input_source` so the
+    choice is stable across runs rather than dependent on parquet row order.
+
+    Rows whose `last_processed` cannot be parsed sort as oldest, so any row with
+    a real stamp beats them.
+
+    Args:
+        group: All source rows for a single PermID.
+
+    Returns:
+        The subset of `group` sharing the winning
+        `(last_processed, input_source)` partition. Never empty.
+    """
+    order = pd.DataFrame(
+        {
+            "ts": group["last_processed"].map(parse_last_processed_timestamp),
+            "src": group["input_source"].map(lambda v: _clean(v) or ""),
+        },
+        index=group.index,
+    )
+    ranked = order.sort_values(
+        ["ts", "src"], ascending=[False, True], na_position="last"
+    )
+    win_ts = ranked["ts"].iloc[0]
+    win_src = ranked["src"].iloc[0]
+
+    if pd.isna(win_ts):
+        matches = order["ts"].isna()
+    else:
+        matches = order["ts"] == win_ts
+    return group[matches & (order["src"] == win_src)]
+
+
+def warn_on_snapshot_divergence(
+    group: pd.DataFrame, perm_id: str | None, logger: logging.Logger
+) -> None:
+    """Warns when rows of a single snapshot disagree on a company-level field.
+
+    Rows sharing an `(input_source, last_processed)` partition were all built
+    from one `permid_data.json`, so a disagreement between them should be
+    impossible and means something upstream is wrong.
+
+    Divergence *across* snapshots is expected -- that is exactly what
+    `select_latest_snapshot` resolves -- and is deliberately not reported here.
+    Warning on it would fire for every company reached by more than one source,
+    which is noise rather than signal.
+
+    Args:
+        group: All source rows for a single PermID.
+        perm_id: The PermID, named in the warning.
+        logger: A standard logger instance.
+    """
+    for (source, stamp), partition in group.groupby(
+        ["input_source", "last_processed"], dropna=False, sort=False
+    ):
+        if len(partition) < 2:
+            continue
+        for column in SCALAR_COMPANY_FIELDS:
+            if column not in partition.columns:
+                continue
+            values = {_clean(value) for value in partition[column]}
+            if len(values) > 1:
+                logger.warning(
+                    'PermID %s: field "%s" holds %d distinct values within one '
+                    "snapshot (input_source=%s, last_processed=%s): %s. Rows of "
+                    "one snapshot come from a single upstream record, so they "
+                    "should agree; the most recent row still wins.",
+                    perm_id,
+                    column,
+                    len(values),
+                    source,
+                    stamp,
+                    ", ".join(repr(v) for v in sorted(values, key=str)),
+                )
+
+
 def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
     """Builds one Company record from all rows sharing a PermID.
 
     The grain of the source is one row per (identifier_type, identifier), so a
-    PermID may eventually carry several CIKs — the Shareholder Tracker will
-    introduce these. Scalar fields take the first value; identifiers are
-    collected into lists.
+    PermID may carry several CIKs. Company-level fields are read off the most
+    recent snapshot; identifiers are collected across every row.
 
     Args:
         group: All source rows for a single PermID.
@@ -359,13 +487,25 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
         A dict matching the serialized `Company` type in
         `web/src/types/domain.ts`.
     """
-    first = group.iloc[0]
+    perm_id = _clean(group.iloc[0]["permid_id"])
+    warn_on_snapshot_divergence(group, perm_id, logger)
 
-    perm_id = _clean(first["permid_id"])
+    latest = select_latest_snapshot(group)
+    first = latest.iloc[0]
+
     as_of = parse_last_processed(first["last_processed"])
     sources = build_sources(_clean(first["permid_url"]), as_of)
 
-    tickers = _collect(group["ticker"])
+    # Tickers come from the winning snapshot only. Collecting across the whole
+    # group would surface both sides of a ticker change between runs, producing
+    # a listing no single fetch ever reported. Within one snapshot `_collect`
+    # still handles a genuinely multi-ticker company.
+    tickers = _collect(latest["ticker"])
+
+    # CIKs are the one field collected across ALL rows regardless of recency.
+    # company-info is the record of every CIK that rolls up to a PermID, and
+    # recency decides field *values*, not which registrants exist -- filtering
+    # here would drop a CIK that arrived from a different source.
     ciks = _collect(group.loc[group["identifier_type"] == "cik", "identifier"])
 
     # Only claim a CIK when it is unambiguous. The data spec calls for Primary
