@@ -404,6 +404,85 @@ def normalize_cik(values: pd.Series) -> pd.Series:
 # ---------------------------------------------------------------------------
 
 
+def select_primary_cik(ciks: list[str]) -> str | None:
+    """Chooses the primary CIK for a company.
+
+    STUB, pending the company-facts processor. Lowest CIK is deterministic --
+    CIKs are zero-padded, so string order is numeric order -- but it is
+    demonstrably wrong for some registrant groups: it picks Entergy Arkansas
+    over Entergy Corp, and NSTAR Electric over Eversource Energy.
+
+    TODO: replace once company-facts lands. The replacement is the
+    accession-number prefix, which is the transmitting CIK. Across the 203
+    co-registrant accessions in corporate-structure it is one of the group's
+    own CIKs 140 times (69%), correctly naming the parent -- including the two
+    groups this stub gets wrong. The other 31% are agent-filed, where the
+    prefix belongs to the filing agent (mostly 0001047469, Toppan Merrill), so
+    it needs a guard: use the prefix only when it matches one of `ciks`.
+    Lowest CIK stays the terminal fallback, both for the agent-filed 31% and
+    for companies with no filing at all.
+
+    Do NOT reach for the SEC's <FILER> ordering. It looks like an exact
+    answer -- one block per co-registrant, apparently parent first, and it
+    holds for Huntsman, AEP and Brixmor -- but across 25 self-filed
+    co-registrant accessions the first block matches the transmitting CIK only
+    18 times (72%), and where it disagrees the real parent sits at position 2,
+    3, or 7 of 7 (Southern Co). The ordering is arbitrary, not hierarchical.
+
+    Args:
+        ciks: Every CIK rolling up to one PermID.
+
+    Returns:
+        The primary CIK, or `None` if the company has no CIK at all.
+    """
+    return min(ciks) if ciks else None
+
+
+def build_registrants(
+    group: pd.DataFrame, ciks: list[str], primary: str | None, company_as_of: str | None
+) -> list[dict]:
+    """Builds one Registrant per CIK rolling up to this PermID.
+
+    Each registrant is read off its own CIK's most recent row, so
+    `registrantName` is the name last reported against that CIK rather than the
+    PermID's name -- "Brixmor Operating Partnership LP" against a company named
+    "Brixmor Property Group Inc."
+
+    Args:
+        group: All source rows for a single PermID.
+        ciks: Every CIK for the PermID, already cleaned and de-duplicated.
+        primary: The CIK to mark primary, from `select_primary_cik`.
+        company_as_of: The company's observation date, used only as a floor when
+            a CIK's own rows carry no parseable stamp.
+
+    Returns:
+        Registrant dicts, primary first then ascending by CIK.
+    """
+    identifiers = group["identifier"].map(_clean)
+    is_cik = group["identifier_type"] == "cik"
+
+    registrants = []
+    for cik in ciks:
+        rows = group[is_cik & (identifiers == cik)]
+        newest = select_latest_snapshot(rows).iloc[0]
+        # A CIK whose rows carry no parseable stamp still has to appear --
+        # dropping a registrant over a missing date would lose the join key
+        # that a whole section depends on.
+        as_of = parse_last_processed(newest["last_processed"]) or company_as_of
+        registrants.append(
+            {
+                "sources": build_sources(_clean(newest["permid_url"]), as_of),
+                "asOf": as_of,
+                "cik": cik,
+                "registrantName": _clean(newest["entity_name"]),
+                "isPrimary": cik == primary,
+            }
+        )
+
+    registrants.sort(key=lambda r: (not r["isPrimary"], r["cik"]))
+    return registrants
+
+
 def select_latest_snapshot(group: pd.DataFrame) -> pd.DataFrame:
     """Reduces a PermID's rows to those of its most recent snapshot.
 
@@ -527,16 +606,8 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
     # here would drop a CIK that arrived from a different source.
     ciks = _collect(group.loc[cik_rows(group["identifier_type"]), "identifier"])
 
-    # Only claim a CIK when it is unambiguous. The data spec calls for Primary
-    # CIK selection logic but does not define it, and guessing a tie-break
-    # would silently attach the wrong filings to a company.
-    cik = ciks[0] if len(ciks) == 1 else None
-    if len(ciks) > 1:
-        logger.info(
-            "PermID %s has %d CIKs; leaving cik null pending primary-CIK logic.",
-            perm_id,
-            len(ciks),
-        )
+    primary_cik = select_primary_cik(ciks)
+    registrants = build_registrants(group, ciks, primary_cik, as_of)
 
     incorporated_country = _clean(first["incorporated_in"])
     hq_country = parse_address_country(first["hq_address"], logger)
@@ -562,7 +633,8 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
         "sources": sources,
         # Stable identifiers
         "permId": perm_id,
-        "cik": cik,
+        "cik": primary_cik,
+        "registrants": registrants,
         "ein": None,
         "lei": _clean(first["lei"]),
         # Core identity

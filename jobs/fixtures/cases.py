@@ -238,6 +238,115 @@ def divergence_across_snapshots_is_silent() -> None:
     assert not divergence, f"cross-snapshot drift should be silent: {divergence}"
 
 
+# ---------------------------------------------------------------------------
+# Registrants -- every CIK survives, exactly one is primary
+# ---------------------------------------------------------------------------
+
+
+def registrants_three_ciks_one_source() -> None:
+    """Case 1: three CIKs under one source become three registrants."""
+    result = run_build(
+        company_rows(
+            {"identifier": "0000000004", "entity_name": "FIXTURE CO C"},
+            {"identifier": "0000000001", "entity_name": "FIXTURE CO A"},
+            {"identifier": "0000000003", "entity_name": "FIXTURE CO B"},
+            COMPANION,
+        ),
+        structure_rows({}, COMPANION_STRUCTURE),
+    )
+
+    record = result.by_permid("5000000001")
+    registrants = record["registrants"]
+    assert len(registrants) == 3, f"expected 3 registrants, got {len(registrants)}"
+
+    primaries = [r for r in registrants if r["isPrimary"]]
+    assert len(primaries) == 1, f"expected exactly 1 primary, got {len(primaries)}"
+    assert registrants[0]["isPrimary"], "registrants must be sorted primary-first"
+    assert record["cik"] == registrants[0]["cik"] == "0000000001", record["cik"]
+
+    # registrantName is the name reported against that CIK, not the PermID name.
+    by_cik = {r["cik"]: r for r in registrants}
+    assert by_cik["0000000003"]["registrantName"] == "FIXTURE CO B", by_cik
+    assert record["name"] == "Fixture Co", record["name"]
+    assert all(r["sources"] for r in registrants), "registrant missing a citation"
+
+
+def registrants_survive_across_sources() -> None:
+    """Case 3: CIK A from one source, CIK B from another. Both survive.
+
+    This is the case where filtering identifiers by recency -- rather than only
+    field values -- would silently drop a registrant.
+    """
+    result = run_build(
+        company_rows(
+            {**OLDER, "identifier": "0000000001", "entity_name": "FIXTURE CO A"},
+            {**NEWER, "identifier": "0000000003", "entity_name": "FIXTURE CO B"},
+            COMPANION,
+        ),
+        structure_rows({}, COMPANION_STRUCTURE),
+    )
+
+    registrants = result.by_permid("5000000001")["registrants"]
+    assert {r["cik"] for r in registrants} == {"0000000001", "0000000003"}, registrants
+
+
+def registrants_primary_is_lowest_cik_for_aep() -> None:
+    """The AEP group: lowest CIK happens to be right."""
+    result = run_build(
+        company_rows(
+            *[
+                {"identifier": cik, "entity_name": f"AEP UNIT {cik}"}
+                for cik in (
+                    "0000004904",
+                    "0000006879",
+                    "0000050172",
+                    "0000073986",
+                    "0000081027",
+                    "0000092487",
+                )
+            ],
+            COMPANION,
+        ),
+        structure_rows({"parent_cik": "4904"}, COMPANION_STRUCTURE),
+    )
+
+    record = result.by_permid("5000000001")
+    assert record["cik"] == "0000004904", record["cik"]
+    assert len(record["registrants"]) == 6, len(record["registrants"])
+
+
+def registrants_primary_is_lowest_cik_for_entergy() -> None:
+    """The Entergy group: lowest CIK is WRONG, and asserted anyway.
+
+    0000007323 is Entergy Arkansas; the real parent is Entergy Corp
+    (0000065984). Pinning the wrong answer makes replacing `select_primary_cik`
+    a visible, deliberate diff rather than a silent behavior change.
+    """
+    result = run_build(
+        company_rows(
+            *[
+                {"identifier": cik, "entity_name": f"ENTERGY UNIT {cik}"}
+                for cik in (
+                    "0000065984",
+                    "0000007323",
+                    "0000044570",
+                    "0000055259",
+                    "0000071508",
+                    "0000202584",
+                    "0001999371",
+                )
+            ],
+            COMPANION,
+        ),
+        structure_rows({"parent_cik": "65984"}, COMPANION_STRUCTURE),
+    )
+
+    record = result.by_permid("5000000001")
+    assert record["cik"] == "0000007323", (
+        f"expected the documented-wrong stub answer 0000007323, got {record['cik']}"
+    )
+
+
 CASES = [
     smoke_single_cik,
     smoke_unmatched_cik_fails_the_build,
@@ -249,4 +358,8 @@ CASES = [
     divergence_identical_rows_of_one_snapshot_are_silent,
     divergence_within_one_snapshot_warns,
     divergence_across_snapshots_is_silent,
+    registrants_three_ciks_one_source,
+    registrants_survive_across_sources,
+    registrants_primary_is_lowest_cik_for_aep,
+    registrants_primary_is_lowest_cik_for_entergy,
 ]
