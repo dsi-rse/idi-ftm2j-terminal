@@ -212,6 +212,12 @@ export type CurrentCorporateRelationship = CitedEntity &
      * is what the filing says.
      */
     childJurisdiction: string | null;
+    /**
+     * The registrant CIK whose filing disclosed this. Joins to
+     * {@link Company.registrants}. A company with several registrants renders
+     * one flat tree, so this is what says which of them is speaking.
+     */
+    disclosedByCik: string;
   };
 
 // ---------------------------------------------------------------------------
@@ -299,6 +305,35 @@ export type HistoricProjectAffiliation = CitedEntity &
   };
 
 // ---------------------------------------------------------------------------
+// SEC registrants
+// ---------------------------------------------------------------------------
+
+/**
+ * One SEC registrant rolling up to a company. A PermID may cover several —
+ * holdco/opco pairs, REIT/operating-partnership pairs, and utility groups all
+ * file under multiple CIKs that LSEG resolves to one entity.
+ *
+ * Company-facts fields are the intended next addition here. Facts are scalars
+ * reported per registrant — an operating partnership and its REIT have
+ * genuinely different market caps — so unlike the list-shaped sections they
+ * cannot be collapsed into one array.
+ */
+export type Registrant = CitedEntity &
+  SnapshotEntity & {
+    /** Zero-padded to 10 digits, the canonical SEC form. */
+    cik: string;
+    /**
+     * Legal name as reported against this CIK, from company-info's
+     * `entity_name`. Differs from the PermID entity name — "Brixmor Operating
+     * Partnership LP" against a company named "Brixmor Property Group Inc." —
+     * so it is what labels rows grouped by registrant.
+     */
+    registrantName: string | null;
+    /** True for exactly one registrant per company. */
+    isPrimary: boolean;
+  };
+
+// ---------------------------------------------------------------------------
 // Company
 // ---------------------------------------------------------------------------
 
@@ -306,10 +341,19 @@ export type Company = CitedEntity & {
   // Stable identifiers
   permId: string;
   /**
-   * Null when the company has no CIK, or when it has several and no primary
-   * has been selected — never guess a primary CIK.
+   * The primary registrant's CIK, mirroring the {@link Registrant} entry whose
+   * `isPrimary` is true. Null only when the company has no CIK at all.
+   *
+   * This is a denormalized convenience for display code that wants one CIK
+   * without scanning `registrants`. It is *not* the join key for per-CIK
+   * datasets — those join on every entry in `registrants`.
    */
   cik: string | null;
+  /**
+   * Every SEC registrant for this company, primary first. Empty if the company
+   * has no CIK.
+   */
+  registrants: Registrant[];
   ein: string | null;
   lei: string | null;
 
