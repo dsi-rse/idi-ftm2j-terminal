@@ -29,6 +29,35 @@ via `INPUT_DATA_FILE_PATH`.
 `data/` is gitignored, so the parquet and the JSON are local artifacts — not
 fixtures committed to the repo.
 
+## Fixtures
+
+```bash
+uv run python -m fixtures            # every case
+uv run python -m fixtures multi_cik  # cases whose name contains "multi_cik"
+```
+
+Exits non-zero if any case fails. There is no test framework in this repo, and
+[`fixtures/`](fixtures/) is not one — it is a runner over synthetic inputs,
+built because some `build_dataset` behavior **cannot be exercised against
+production data at all**. No PermID currently carries more than one CIK, so
+every multi-CIK path is covered by these cases or by nothing.
+
+A case declares only the columns it cares about and inherits the rest from
+`DEFAULT_COMPANY_ROW` / `DEFAULT_STRUCTURE_ROW`, so adding one is a few lines in
+[`fixtures/cases.py`](fixtures/cases.py) and never touches the harness. An
+override naming a column the real schema lacks raises rather than being
+ignored — otherwise a typo'd column silently disables the assertion it was
+written to drive.
+
+Cases run the pipeline end to end through `build_dataset.main`, writing real
+parquet to a temp dir, because the failures worth catching are in how the stages
+compose. `run_build` returns the emitted records plus the captured log, so a
+case can assert on a WARNING as easily as on a field.
+
+These live under `jobs/` rather than `data/fixtures/` for the reason stated
+above: `data/` is gitignored, and a fixture that is not committed is not
+coverage.
+
 ## Input 1 — company info
 
 `s3://{bucket}/database/company-info/latest.parquet`, produced by the IDI
