@@ -347,6 +347,185 @@ def registrants_primary_is_lowest_cik_for_entergy() -> None:
     )
 
 
+# ---------------------------------------------------------------------------
+# Corporate structure -- union across CIKs, one extraction per accession
+# ---------------------------------------------------------------------------
+
+BRIXMOR_ACCESSION = "0001581068-17-000005"
+
+
+def _brixmor_rows(shared: int, only_holdco: int, only_opco: int) -> list[dict]:
+    """Two co-registrant extractions of one exhibit that disagree on row count.
+
+    Mirrors the real Brixmor shape: both CIKs are attributed accession
+    0001581068-17-000005, but the processor read a different set of names under
+    each. Scaled down from 619/633 -- the ratio is not what the collapse turns
+    on, the divergence is.
+    """
+    rows = []
+    for cik in ("1581068", "1630031"):
+        rows += [
+            {
+                "parent_cik": cik,
+                "accession_number": BRIXMOR_ACCESSION,
+                "name": f"Shared Sub {n} LLC",
+                "parent_name": "BRIXMOR",
+            }
+            for n in range(shared)
+        ]
+    rows += [
+        {
+            "parent_cik": "1581068",
+            "accession_number": BRIXMOR_ACCESSION,
+            "name": f"Holdco Only Sub {n} LLC",
+            "parent_name": "BRIXMOR",
+        }
+        for n in range(only_holdco)
+    ]
+    rows += [
+        {
+            "parent_cik": "1630031",
+            "accession_number": BRIXMOR_ACCESSION,
+            "name": f"Opco Only Sub {n} LLC",
+            "parent_name": "BRIXMOR",
+        }
+        for n in range(only_opco)
+    ]
+    return rows
+
+
+def structure_one_extraction_per_accession() -> None:
+    """Brixmor: both CIKs share one accession, so exactly one parse is kept.
+
+    The primary's copy wins. Merging the two would produce a list neither parse
+    returned -- the real-world version of that number is 634, which no
+    extraction of the exhibit ever contained.
+    """
+    result = run_build(
+        company_rows(
+            {"identifier": "0001581068", "entity_name": "BRIXMOR PROPERTY GROUP INC"},
+            {"identifier": "0001630031", "entity_name": "BRIXMOR OPERATING PTNSHP LP"},
+            COMPANION,
+        ),
+        structure_rows(*_brixmor_rows(shared=6, only_holdco=2, only_opco=4)),
+    )
+
+    record = result.by_permid("5000000001")
+    relationships = record["currentCorporateRelationships"]
+
+    # Primary is the lower CIK, 0001581068, whose parse holds 6 + 2 = 8 names.
+    assert record["cik"] == "0001581068", record["cik"]
+    assert len(relationships) == 8, (
+        f"expected the primary's 8-name parse, got {len(relationships)} "
+        "(12 would mean the two parses were merged, 10 the wrong copy)"
+    )
+    assert not any("Opco Only" in r["child"]["name"] for r in relationships), (
+        "rows from the non-chosen co-registrant's parse leaked in"
+    )
+    assert {r["disclosedByCik"] for r in relationships} == {"0001581068"}, (
+        "every row should be attributed to the registrant whose parse was kept"
+    )
+
+
+def structure_co_registrants_collapse_to_one_list() -> None:
+    """AEP: six CIKs carrying identical parses of one accession become one list.
+
+    This is the case the accession collapse exists for -- a naive union renders
+    132 rows describing 22 subsidiaries.
+    """
+    ciks = ("4904", "6879", "50172", "73986", "81027", "92487")
+    rows = [
+        {
+            "parent_cik": cik,
+            "accession_number": "0000004904-17-000019",
+            "name": f"AEP Subsidiary {n} LLC",
+            "parent_name": "AMERICAN ELECTRIC POWER CO INC",
+        }
+        for cik in ciks
+        for n in range(22)
+    ]
+    result = run_build(
+        company_rows(
+            *[
+                {"identifier": cik.zfill(10), "entity_name": f"AEP UNIT {cik}"}
+                for cik in ciks
+            ],
+            COMPANION,
+        ),
+        structure_rows(*rows, COMPANION_STRUCTURE),
+    )
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    assert len(relationships) == 22, (
+        f"expected 22 subsidiaries, got {len(relationships)} (132 means no collapse)"
+    )
+
+
+def structure_separate_filings_are_not_deduped() -> None:
+    """Two registrants filing separately both contribute, duplicates included.
+
+    Cross-accession dedup is deliberately deferred. This pins the current
+    behavior so adding it later is a visible change rather than a silent one.
+    """
+    rows = [
+        {
+            "parent_cik": "1581068",
+            "accession_number": "0001581068-17-000005",
+            "name": name,
+            "parent_name": "HOLDCO",
+        }
+        for name in ("Shared Sub LLC", "Holdco Only LLC")
+    ] + [
+        {
+            "parent_cik": "1630031",
+            "accession_number": "0001630031-17-000009",
+            "name": name,
+            "parent_name": "OPCO",
+        }
+        for name in ("Shared Sub LLC", "Opco Only LLC")
+    ]
+    result = run_build(
+        company_rows(
+            {"identifier": "0001581068", "entity_name": "HOLDCO"},
+            {"identifier": "0001630031", "entity_name": "OPCO"},
+            COMPANION,
+        ),
+        structure_rows(*rows),
+    )
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    names = [r["child"]["name"] for r in relationships]
+    assert len(relationships) == 4, f"expected 4 rows, got {len(relationships)}: {names}"
+    assert names.count("Shared Sub LLC") == 2, (
+        f"the subsidiary named in both filings should appear twice: {names}"
+    )
+
+    # Two distinct disclosing registrants, two distinct source documents, so the
+    # tree can be grouped by registrant from the record alone.
+    shared = [r for r in relationships if r["child"]["name"] == "Shared Sub LLC"]
+    assert {r["disclosedByCik"] for r in shared} == {
+        "0001581068",
+        "0001630031",
+    }, shared
+    assert len({r["sources"][0]["url"] for r in relationships}) >= 1
+    assert all(r["disclosedByCik"] for r in relationships), "missing disclosedByCik"
+
+
+def structure_disclosed_by_cik_matches_a_registrant() -> None:
+    """Every row's disclosedByCik resolves to one of the company's registrants."""
+    result = run_build(
+        company_rows({}, COMPANION),
+        structure_rows({}, COMPANION_STRUCTURE),
+    )
+
+    for record in result.records:
+        known = {r["cik"] for r in record["registrants"]}
+        for relationship in record["currentCorporateRelationships"]:
+            assert relationship["disclosedByCik"] in known, (
+                f"{relationship['disclosedByCik']} not in {known}"
+            )
+
+
 CASES = [
     smoke_single_cik,
     smoke_unmatched_cik_fails_the_build,
@@ -362,4 +541,8 @@ CASES = [
     registrants_survive_across_sources,
     registrants_primary_is_lowest_cik_for_aep,
     registrants_primary_is_lowest_cik_for_entergy,
+    structure_one_extraction_per_accession,
+    structure_co_registrants_collapse_to_one_list,
+    structure_separate_filings_are_not_deduped,
+    structure_disclosed_by_cik_matches_a_registrant,
 ]

@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+from collections import Counter
 from pathlib import Path
 
 # Third-party imports
@@ -764,6 +765,10 @@ def build_relationship(row: pd.Series, company: dict) -> dict:
         "relationshipType": RELATIONSHIP_TYPE,
         "ownershipPercent": None,
         "childJurisdiction": _clean(row["location"]),
+        # Which of the company's registrants disclosed this. A multi-registrant
+        # company renders one flat tree, so without this the rows lose track of
+        # who said what.
+        "disclosedByCik": _clean(row["cik"]),
     }
 
 
@@ -777,7 +782,7 @@ def attach_relationships(
     Mutates `companies` in place, filling `currentCorporateRelationships`.
 
     Args:
-        companies: `Company` records, each with a `cik` that may be `None`.
+        companies: `Company` records, each carrying a `registrants` list.
         structure_df: The raw corporate-structure dataset.
         logger: A standard logger instance.
 
@@ -790,26 +795,73 @@ def attach_relationships(
 
     by_cik = {cik: group for cik, group in latest.groupby("cik", sort=False)}
 
-    # A company with several CIKs carries none, pending the primary-CIK logic
-    # the data spec calls for but does not define. Those companies get no tree
-    # rather than a guessed one.
-    missing_cik = sum(1 for company in companies if not company["cik"])
-    if missing_cik:
+    no_registrants = sum(1 for company in companies if not company["registrants"])
+    if no_registrants:
         logger.info(
-            "%d companies have no single CIK and cannot be joined to a "
+            "%d companies have no CIK at all and cannot be joined to a "
             "corporate structure.",
-            missing_cik,
+            no_registrants,
         )
 
     matched = 0
+    multi_registrant = 0
+    dropped_to_accession_collapse = 0
+    duplicate_names_across_accessions = 0
+
     for company in companies:
-        cik = company["cik"]
-        if not cik or cik not in by_cik:
+        groups = [
+            by_cik[registrant["cik"]]
+            for registrant in company["registrants"]
+            if registrant["cik"] in by_cik
+        ]
+        if not groups:
             continue
-        group = by_cik[cik]
+        if len(groups) > 1:
+            multi_registrant += 1
+
+        rows = pd.concat(groups)
+        primary = company["cik"]
+
+        # Co-registrants on a combined filing are each attributed the same
+        # exhibit, so a naive union multiplies rows -- AEP's six CIKs carry the
+        # same 22 names for 132 rows. Worse, the extractions are not identical:
+        # on 68 of the 203 shared accessions the processor reports different row
+        # counts per CIK (Brixmor reads 619 under one CIK and 633 under the
+        # other from one `exhibit_url`). These are LLM parses of a single
+        # document with no basis for judging which is more faithful, so take one
+        # whole copy rather than merging -- a merge yields a list neither parse
+        # produced.
+        kept = []
+        for _, block in rows.groupby("accession_number", sort=False):
+            present = sorted(block["cik"].unique())
+            chosen = primary if primary in present else present[0]
+            copy = block[block["cik"] == chosen]
+            dropped_to_accession_collapse += len(block) - len(copy)
+            kept.append(copy)
+
+        surviving = pd.concat(kept)
+
+        # Surviving accessions are concatenated as-is: two registrants who filed
+        # separately both contribute in full, so a subsidiary named in both
+        # appears twice. Deduping that is deferred until a real multi-CIK
+        # company exists to reason against -- name alone over-merges genuinely
+        # distinct subsidiaries, and (name, jurisdiction) splits one subsidiary
+        # in two wherever a parse left the jurisdiction blank. Counting them is
+        # the evidence that decision needs.
+        if surviving["accession_number"].nunique() > 1:
+            names = [
+                text
+                for text in (_clean(value) for value in surviving["name"])
+                if text
+            ]
+            folded = Counter(name.casefold() for name in names)
+            duplicate_names_across_accessions += sum(
+                count - 1 for count in folded.values() if count > 1
+            )
+
         company["currentCorporateRelationships"] = [
             build_relationship(row, company)
-            for _, row in group.sort_values("name").iterrows()
+            for _, row in surviving.sort_values("name").iterrows()
         ]
         matched += 1
 
@@ -833,6 +885,18 @@ def attach_relationships(
         matched,
         len(companies),
         len(companies) - matched,
+    )
+    # Reported unconditionally so the collapse is visible rather than assumed --
+    # a silent 0 is itself the useful signal that no company is multi-registrant
+    # yet.
+    logger.info(
+        "%d companies joined more than one registrant; the accession collapse "
+        "dropped %d duplicate rows; %d duplicate child names survive across "
+        "separate accessions (not deduped -- see the join contract in "
+        "jobs/README.md).",
+        multi_registrant,
+        dropped_to_accession_collapse,
+        duplicate_names_across_accessions,
     )
 
 
