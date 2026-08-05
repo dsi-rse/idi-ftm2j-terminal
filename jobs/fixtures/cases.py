@@ -511,6 +511,46 @@ def structure_separate_filings_are_not_deduped() -> None:
     assert all(r["disclosedByCik"] for r in relationships), "missing disclosedByCik"
 
 
+def structure_registrants_may_file_on_different_dates() -> None:
+    """Two registrants filing on different days give one record two `asOf`s.
+
+    This is the data precondition for the tree subtitle's filing range. Each row
+    keeps its own correct `asOf`; nothing is normalized to a single date.
+    """
+    rows = [
+        {
+            "parent_cik": "1581068",
+            "accession_number": "0001581068-17-000005",
+            "filing_date": "2017-02-13",
+            "name": "Holdco Sub LLC",
+            "parent_name": "HOLDCO",
+        },
+        {
+            "parent_cik": "1630031",
+            "accession_number": "0001630031-17-000009",
+            "filing_date": "2017-03-01",
+            "name": "Opco Sub LLC",
+            "parent_name": "OPCO",
+        },
+    ]
+    result = run_build(
+        company_rows(
+            {"identifier": "0001581068", "entity_name": "HOLDCO"},
+            {"identifier": "0001630031", "entity_name": "OPCO"},
+            COMPANION,
+        ),
+        structure_rows(*rows),
+    )
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    dates = {r["asOf"] for r in relationships}
+    assert dates == {"2017-02-13", "2017-03-01"}, dates
+
+    by_name = {r["child"]["name"]: r for r in relationships}
+    assert by_name["Holdco Sub LLC"]["asOf"] == "2017-02-13", by_name
+    assert by_name["Opco Sub LLC"]["asOf"] == "2017-03-01", by_name
+
+
 def structure_disclosed_by_cik_matches_a_registrant() -> None:
     """Every row's disclosedByCik resolves to one of the company's registrants."""
     result = run_build(
@@ -544,5 +584,6 @@ CASES = [
     structure_one_extraction_per_accession,
     structure_co_registrants_collapse_to_one_list,
     structure_separate_filings_are_not_deduped,
+    structure_registrants_may_file_on_different_dates,
     structure_disclosed_by_cik_matches_a_registrant,
 ]

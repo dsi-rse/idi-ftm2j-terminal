@@ -69,8 +69,29 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
 }
 
 /**
- * The citation for the section. Every relationship in a company's list comes
- * from the same filing, so one source covers all of them.
+ * The span of filing dates a tree draws on.
+ *
+ * A single-registrant company has exactly one distinct `asOf`, because its rows
+ * all come from one document. A company with several registrants can be built
+ * from filings made on different days, so the section reports a range rather
+ * than claiming a date it does not have.
+ */
+function filingRange(relationships: CurrentCorporateRelationship[]) {
+  // ISO-8601 dates sort lexicographically, which is why these are plain strings
+  // throughout the domain model.
+  const dates = relationships
+    .map((relationship) => relationship.asOf)
+    .filter(Boolean)
+    .sort();
+  const earliest = dates[0];
+  const latest = dates[dates.length - 1];
+  return { earliest, latest, spansFilings: Boolean(earliest && latest && earliest !== latest) };
+}
+
+/**
+ * The citation for the section. Rows from one registrant share a filing, so one
+ * source covers them; a multi-registrant tree cites the first and relies on
+ * each row carrying its own `sources`.
  */
 function TreeSource({
   relationship,
@@ -128,9 +149,8 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
     );
   }
 
-  // Every relationship for a company comes from one filing, so any of them
-  // carries the section's date and citation.
   const [first] = relationships;
+  const { earliest, latest, spansFilings } = filingRange(relationships);
   const totalPages = Math.max(
     1,
     Math.ceil(relationships.length / SUBSIDIARIES_PER_PAGE),
@@ -148,7 +168,11 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
     <SectionCard
       id="tree"
       title="Corporate Tree"
-      subtitle={`${rows.length} entities · filed ${first.asOf}`}
+      subtitle={
+        spansFilings
+          ? `${rows.length} entities · filed ${earliest} – ${latest}`
+          : `${rows.length} entities · filed ${earliest}`
+      }
       info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F, taken from this company's most recent such filing. The right-hand column is the jurisdiction of incorporation as disclosed, reproduced verbatim — it may name a US state or a country, and is not normalized. Exhibit 21 reports no ownership percentages, so no stake is shown."
       source={<TreeSource relationship={first} />}
       expanded={
