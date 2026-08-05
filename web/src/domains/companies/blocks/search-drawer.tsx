@@ -79,6 +79,7 @@ function PanelBody({
         <SearchResult
           key={company.permId}
           index={startIndex + i + 1}
+          rankWidth={end.toString().length}
           company={company}
           viewedAt={company.viewedAt}
           active={company.permId === activeCompanyId}
