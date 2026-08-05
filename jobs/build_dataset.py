@@ -18,25 +18,29 @@ SOURCE_NAME = "LSEG PermID"
 SECTOR_SYSTEM = "TRBC"
 SECTOR_CODE = ""
 
-# Countries seen in the company-info dataset. Used to validate the country
-# parsed off the end of a free-text address block: if the last line is not a
-# recognized country the address did not end with one, and the value would
-# otherwise be a state or a postal code presented to users as a country.
-KNOWN_COUNTRIES: frozenset[str] = frozenset(
-    {
-        "Australia",
-        "Canada",
-        "Cayman Islands",
-        "Greece",
-        "Ireland",
-        "Israel",
-        "Jersey",
-        "Marshall Islands",
-        "Puerto Rico",
-        "South Korea",
-        "Switzerland",
-        "United Kingdom",
-        "United States",
+# US states and DC, used to reject an address that was truncated before its
+# country line. LSEG formats addresses street / city / STATE / ZIP / country, so
+# a truncated one ends on the ZIP (caught by the digit test) or on the state.
+#
+# Deliberately a closed set of states rather than an open one of countries.
+# States are finite and stable; the set of countries LSEG can emit is neither,
+# and an allowlist of them silently replaces any country it has not been told
+# about. Territories LSEG reports as countries in their own right -- Puerto
+# Rico, U.S. Virgin Islands, Guam -- are absent on purpose: they are legitimate
+# values for this field and must pass through.
+US_STATES: frozenset[str] = frozenset(
+    state.casefold()
+    for state in {
+        "Alabama", "Alaska", "Arizona", "Arkansas", "California", "Colorado",
+        "Connecticut", "Delaware", "District of Columbia", "Florida", "Georgia",
+        "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky",
+        "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan",
+        "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
+        "New Hampshire", "New Jersey", "New Mexico", "New York",
+        "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon",
+        "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota",
+        "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington",
+        "West Virginia", "Wisconsin", "Wyoming",
     }
 )
 
@@ -110,41 +114,61 @@ def parse_iso_date(value: object) -> str | None:
 
 def parse_address_country(
     address: object,
-    fallback: str | None,
     logger: logging.Logger,
 ) -> str | None:
-    """Extracts the country from a newline-delimited address block.
+    """Extracts the country of headquarters from a newline-delimited address.
 
-    The country is the last non-empty line. This is positional parsing of
-    free-text, so the result is validated against `KNOWN_COUNTRIES` and falls
-    back rather than presenting a state or postal code as a country.
+    The country is the last non-empty line. Because that is positional parsing
+    of free text, the candidate is screened for the ways a truncated address
+    fails -- a postal code, a state, a bare code -- and rejected if it looks
+    like one. Anything else is trusted as written.
+
+    Screening, not matching. An earlier version validated against an allowlist
+    of countries built from the then-known company universe, and when the
+    universe grew it replaced every country it had not been told about with the
+    company's country of incorporation: Chinese and Hong Kong companies were
+    shown as headquartered in the Cayman Islands and the British Virgin Islands.
+    That is the specific claim this project exists to contradict, asserted as
+    sourced fact. An allowlist of an open set fails that way by construction, so
+    the check now names what a country is *not*.
+
+    There is no fallback. A failed parse returns None and the UI renders "Not
+    reported", because substituting the country of incorporation answers a
+    different question than the one the field asks.
 
     Args:
         address: The raw address block.
-        fallback: Country to use when parsing fails.
         logger: A standard logger instance.
 
     Returns:
-        A country name, or the fallback, or `None`.
+        The country of headquarters, or `None` if the address does not state one.
     """
     text = _clean(address)
     if not text:
-        return fallback
+        return None
 
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
-        return fallback
+        return None
 
     candidate = lines[-1]
-    if candidate in KNOWN_COUNTRIES:
+
+    if any(character.isdigit() for character in candidate):
+        reason = "looks like a postal code"
+    elif len(candidate) <= 2:
+        reason = "too short to be a country name"
+    elif candidate.casefold() in US_STATES:
+        reason = "is a US state, so the address stops before its country"
+    else:
         return candidate
 
     logger.warning(
-        'Address did not end in a recognized country (got "%s"); falling back to %s.',
+        'Address does not end in a country (%s): "%s". Leaving the HQ country '
+        "unset rather than guessing.",
+        reason,
         candidate,
-        fallback or "None",
     )
-    return fallback
+    return None
 
 
 def build_sources(permid_url: str | None, last_accessed: str | None) -> list[dict]:
@@ -333,9 +357,7 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
         )
 
     incorporated_country = _clean(first["incorporated_in"])
-    hq_country = parse_address_country(
-        first["hq_address"], incorporated_country, logger
-    )
+    hq_country = parse_address_country(first["hq_address"], logger)
 
     industry = build_sector(
         _clean(first["primary_industry_group_label"]), sources, as_of
