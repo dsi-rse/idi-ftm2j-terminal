@@ -74,7 +74,9 @@ a 1:1 grain.
 | `Company` field | Source column |
 | --- | --- |
 | `permId` | `permid_id` |
-| `cik` | `identifier` where `identifier_type == "cik"` |
+| `cik` | the primary of `registrants`, via `select_primary_cik` |
+| `registrants[].cik` | every `identifier` where `identifier_type == "cik"` |
+| `registrants[].registrantName` | `entity_name`, from that CIK's most recent row |
 | `lei` | `lei` |
 | `name` | `investor_name` |
 | `foundedOn` | `founded_date` |
@@ -90,7 +92,14 @@ a 1:1 grain.
 | `sources[].url` | `permid_url` |
 | `sources[].lastAccessed` | `last_processed` |
 
-Unused columns: `entity_name`, `input_source`, `identifier_type` and
+`input_source` and `last_processed` together partition a PermID's rows into
+snapshots. Company-level scalars come from the most recent one rather than from
+whichever row parquet happened to put first; `registrants` unions across all of
+them, because recency decides field *values*, not which registrants exist. Rows
+of a single snapshot disagreeing on a scalar raises a WARNING — they were all
+built from one upstream record, so they should agree.
+
+Unused columns: `identifier_type` and
 `standard_identifier` (routing only), `registered_address`, `fax_number`,
 `phone_number`, `activity_status`, `ric`, and the three `*_comment` fields
 (taxonomy descriptions, not company facts).
@@ -139,10 +148,19 @@ normalizes to `None` for `exchangeMic` while `exchangeCode` still carries the
 value, so those companies are not silently delisted. Coverage: 163 rows have a
 MIC, 179 have a code, and the code set is a superset of the MIC set.
 
-**`cik` is null unless unambiguous.** The data spec calls for Primary CIK
-selection logic but does not define it. Guessing a tie-break would attach the
-wrong filings to a company, so a PermID with several CIKs gets `null` and a log
-line.
+**`cik` is the primary registrant, and every CIK is kept.** A PermID may cover
+several SEC registrants — holdco/opco pairs, REIT/operating-partnership pairs,
+utility groups. All of them land in `registrants`; `cik` mirrors the one marked
+`isPrimary` and is null only when the company has no CIK at all. An earlier
+version nulled `cik` whenever a PermID carried more than one, which also cost
+those companies their corporate tree.
+
+Primary selection is a **stub** in `select_primary_cik`: lowest CIK, which is
+deterministic and demonstrably wrong for some groups — it picks Entergy Arkansas
+over Entergy Corp, and NSTAR Electric over Eversource Energy. The docstring
+carries the evidence and the intended replacement. It matters only for joining
+per-CIK datasets and for choosing one extraction per accession; it does not
+decide displayed identity.
 
 **HQ country is positional parsing of free text.** The country is the last line
 of `hq_address`. All 219 rows currently end in a country, but nothing guarantees
@@ -193,12 +211,71 @@ it was the *only* row, so it correctly ends up with no disclosed structure.
 
 **`location` is a jurisdiction, not a country, and is not normalized.** 317
 distinct values mixing US states and countries, with `Delaware`, `DE`, and
-`DELAWARE` all present, and 493 blanks. Blank becomes `None`. Do not "clean" this
-into a country field; the value is what the filing says.
+`DELAWARE` all present, and 493 blanks — both figures over the 8,807 rows that
+actually render, not the whole file. Dataset-wide it is 3,205 distinct values
+and 32,076 blanks. Blank becomes `None`. Do not "clean" this into a country
+field; the value is what the filing says.
 
 **`last_processed` is compact basic ISO** (`20260801T033040`), unlike the
 `YYYY-MM-DD` used elsewhere in the spec. Parsed defensively because the upstream
 format is unsettled.
+
+## The per-CIK join contract
+
+Corporate structure is the first per-CIK dataset to land. Shareholders and
+commercial debt are both coming, and both join the same way. The rule is written
+down once here so those two processors do not each invent their own.
+
+**1. Join on every registrant, not on `Company.cik`.** The join key is all of
+`Company.registrants[].cik`. `cik` is a display convenience naming the primary;
+using it as the join key silently drops every filing made by a company's other
+registrants.
+
+**2. One extraction per `accession_number`.** Co-registrants on a combined
+filing are each attributed the same document, so a union across CIKs multiplies
+rows — AEP's six CIKs carry the same 22 names, for 132 rows describing 22
+subsidiaries. Keep exactly one CIK's rows per accession: the primary's if it is
+among them, else the lowest.
+
+Take one *whole* copy rather than merging. The extractions are not identical —
+on 68 of the 203 shared accessions the processor reports different row counts
+per CIK, and Brixmor reads 619 rows under one CIK and 633 under the other from
+one `exhibit_url`. These are LLM parses of a single document with no basis for
+ranking them, and merging produces a list neither parse returned (634, in
+Brixmor's case).
+
+**3. Stamp `disclosedByCik` on every row.** A company renders one flat list, so
+without it the rows lose track of which registrant disclosed them.
+
+**4. Cite the disclosing registrant's document, not the primary's.** Each row's
+`sources` points at the exhibit it actually came from.
+
+**Not in the contract: deduping by entity name across documents.** Two
+registrants who file separately both contribute in full, so a subsidiary named
+in both appears twice. This is deferred rather than decided, because both
+obvious keys are wrong in opposite directions. Measured over the rows that
+render today:
+
+| Key | Failure |
+| --- | --- |
+| case-folded `name` | over-merges the **214** duplicate-name groups carrying two genuinely different non-blank jurisdictions |
+| `(name, jurisdiction)` | under-merges the **252** groups where one row has a jurisdiction and the other is blank, splitting one subsidiary in two |
+
+Blanks are common enough to matter — 493 of the 8,807 rendered rows, 32,076 of
+445,818 file-wide — so any rule keying on the pair has to say what a blank
+means. Folding a blank into a filled row of the same name avoids both failures
+on this data and is the current front-runner, but it is not a decision.
+
+Two caveats for whoever takes it: those counts are measured *within* one
+accession, because that is where duplicate names are observable today, while the
+deferred case is *across* accessions where two independent parses also disagree
+on spelling and punctuation — a strict key will under-merge more than these
+numbers suggest. And extraction noise is already in the counts: both Brixmor
+parses carry a literal `Legal Entity Name` row, the exhibit's table header read
+as a subsidiary.
+
+`attach_relationships` logs the duplicate-name count surviving across accessions
+on every run, so the evidence accumulates without anyone re-deriving it.
 
 ## Scope
 
