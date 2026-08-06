@@ -71,6 +71,7 @@ DEFAULT_COMPANY_ROW: dict[str, Any] = {
 DEFAULT_STRUCTURE_ROW: dict[str, Any] = {
     "parent_cik": "1",
     "filing_date": "2017-02-13",
+    "report_date": "2016-12-31",
     "form_type": "10-K",
     "exhibit_type": "EX-21",
     "accession_number": "0000000001-17-000001",

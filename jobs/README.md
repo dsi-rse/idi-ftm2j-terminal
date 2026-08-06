@@ -122,7 +122,7 @@ Populates `Company.currentCorporateRelationships`:
 | `sources[].url` | `exhibit_url` |
 | `sources[].lastAccessed` | `date_added`, date component |
 | (join key) | `parent_cik` |
-| (tie-break only) | `accession_number` |
+| (tie-break only) | `report_date`, then `accession_number` |
 
 `parent` comes from the `Company` record, not from the dataset's `parent_name`.
 `child.permId` is always `None`: Exhibit 21 gives a name and a jurisdiction,
@@ -191,8 +191,24 @@ empty join fails the build rather than shipping 219 blank sections.
 
 **Only the most recent filing per company contributes subsidiaries.** 111 of the
 133 matched companies have more than one filing date. Merging rows across filings
-would describe a structure no single document supports. Ties on filing date break
-on the highest `accession_number` so runs are reproducible.
+would describe a structure no single document supports. Filings are ordered by
+`filing_date`, then `report_date`, then `accession_number`.
+
+**Same-day ties are catch-up filings, not amendments, so `report_date` breaks
+them.** All three CIKs carrying more than one accession on their latest
+`filing_date` are delinquent registrants that filed several years of 10-Ks at
+once. Accession number cannot order those: it follows the filer agent and
+submission sequence, not the fiscal period. DOC DR, LLC (CIK 1583994) filed its
+FY2014 and FY2016 10-Ks on 2017-02-24 through different agents, and the higher
+accession is FY2014 — 94 subsidiaries where FY2016 discloses 261. Accession
+number stays as the last tie-break, for reproducibility when two filings share
+both dates.
+
+`filing_date` stays the primary sort rather than `report_date`, so "most recent
+filing" keeps meaning what it says and matches the date shown to users. The two
+would disagree only for a 10-K filed late for a period older than an on-time
+earlier filing; no CIK in the dataset does that. Blank `report_date` (seven
+20FR12B rows) loses to any real date and otherwise falls through to accession.
 
 **No recency filter is applied to `filing_date`.** The tech spec says "filings
 from the past 2 years", which would currently yield *zero* companies — every

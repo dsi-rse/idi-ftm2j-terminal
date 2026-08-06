@@ -681,9 +681,23 @@ def select_latest_filings(structure_df: pd.DataFrame) -> pd.DataFrame:
     `latest.parquet` is a full historical record, and most registrants appear
     with more than one filing date. Rows from two filings merged together would
     describe a corporate structure that no single document supports, so only the
-    most recent filing per CIK survives. Ties on filing date — a handful of
-    registrants amended on the same day — break on the highest accession
-    number, so the output is stable across runs.
+    most recent filing per CIK survives.
+
+    Same-day ties are not amendments. All three CIKs that carry more than one
+    accession on their latest `filing_date` are delinquent registrants that
+    caught up by filing several years of 10-Ks at once, so the tie is between
+    fiscal periods and `report_date` decides it. Accession number cannot: it
+    orders by filer agent and submission sequence, not by period. DOC DR, LLC
+    (CIK 1583994) filed its FY2014 and FY2016 10-Ks on 2017-02-24 through
+    different agents, and the higher accession is the FY2014 one — 94 disclosed
+    subsidiaries where FY2016 has 261. Accession number stays as the final
+    tie-break so the output is still stable across runs when two filings share
+    both dates.
+
+    `filing_date` remains the primary sort rather than `report_date`, so "most
+    recent filing" keeps meaning what it says and matches the date rendered to
+    users. That distinction only bites for a late-filed 10-K covering an older
+    period than an on-time earlier filing, which no CIK in the dataset does.
 
     Rows where the registrant lists itself are dropped: that is the tree's root,
     not one of its own subsidiaries.
@@ -694,11 +708,16 @@ def select_latest_filings(structure_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         The subset of rows belonging to each company's most recent filing.
     """
-    latest_date = structure_df.groupby("cik")["filing_date"].transform("max")
-    latest = structure_df[structure_df["filing_date"] == latest_date]
-
-    latest_accession = latest.groupby("cik")["accession_number"].transform("max")
-    latest = latest[latest["accession_number"] == latest_accession]
+    latest = structure_df
+    for column in ("filing_date", "report_date", "accession_number"):
+        # Blanks lose to any real value in the same group — seven 20FR12B rows
+        # carry an empty `report_date`. Nulls are filled first because NaN does
+        # not equal itself, so a group of all-null values would match no row and
+        # silently cost that CIK its whole tree instead of falling through to
+        # the next tie-break.
+        values = latest[column].fillna("")
+        winner = values.groupby(latest["cik"]).transform("max")
+        latest = latest[values == winner]
 
     self_listed = (
         latest["name"].str.strip().str.casefold()

@@ -566,6 +566,66 @@ def structure_disclosed_by_cik_matches_a_registrant() -> None:
             )
 
 
+def structure_same_day_filings_break_on_report_date() -> None:
+    """Two 10-Ks filed the same day: the later fiscal period wins, not the
+    higher accession.
+
+    Modeled on DOC DR, LLC (CIK 1583994), which filed its FY2014 and FY2016
+    10-Ks on 2017-02-24 through different filer agents. The accessions are
+    arranged as they are in production -- the FY2014 one sorts higher -- so this
+    case fails if accession number is the tie-break.
+    """
+    rows = [
+        {
+            "accession_number": "0001583994-17-000009",
+            "filing_date": "2017-02-24",
+            "report_date": "2014-12-31",
+            "name": "Stale Period Sub LLC",
+        },
+        {
+            "accession_number": "0001574540-17-000007",
+            "filing_date": "2017-02-24",
+            "report_date": "2016-12-31",
+            "name": "Latest Period Sub LLC",
+        },
+    ]
+    result = run_build(company_rows({}), structure_rows(*rows))
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    names = [r["child"]["name"] for r in relationships]
+    assert names == ["Latest Period Sub LLC"], (
+        f"expected only the FY2016 filing's subsidiary, got {names}"
+    )
+
+
+def structure_same_day_filings_without_report_date_still_resolve() -> None:
+    """A blank `report_date` falls through to the accession tie-break.
+
+    Seven 20FR12B rows carry no `report_date`. Comparing a null against itself
+    is false, so a group with nothing to compare must fall through rather than
+    match no row at all and cost the company its tree.
+    """
+    rows = [
+        {
+            "accession_number": "0000000001-17-000005",
+            "report_date": None,
+            "name": "Lower Accession Sub LLC",
+        },
+        {
+            "accession_number": "0000000001-17-000009",
+            "report_date": None,
+            "name": "Higher Accession Sub LLC",
+        },
+    ]
+    result = run_build(company_rows({}), structure_rows(*rows))
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    names = [r["child"]["name"] for r in relationships]
+    assert names == ["Higher Accession Sub LLC"], (
+        f"expected the highest accession to win, got {names}"
+    )
+
+
 CASES = [
     smoke_single_cik,
     smoke_unmatched_cik_fails_the_build,
@@ -585,5 +645,7 @@ CASES = [
     structure_co_registrants_collapse_to_one_list,
     structure_separate_filings_are_not_deduped,
     structure_registrants_may_file_on_different_dates,
+    structure_same_day_filings_break_on_report_date,
+    structure_same_day_filings_without_report_date_still_resolve,
     structure_disclosed_by_cik_matches_a_registrant,
 ]
