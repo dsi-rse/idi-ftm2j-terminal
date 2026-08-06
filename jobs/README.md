@@ -210,6 +210,19 @@ would disagree only for a 10-K filed late for a period older than an on-time
 earlier filing; no CIK in the dataset does that. Blank `report_date` (seven
 20FR12B rows) loses to any real date and otherwise falls through to accession.
 
+**`asOf` is the filing date, and `report_date` is deliberately not surfaced.** A
+subsidiary list describes the registrant as of its fiscal period end, so
+`report_date` has a claim to being the truer as-of. Filing date wins anyway: it
+is the date a reader verifies against EDGAR, and it is what the tree's subtitle
+range and the same-day tie-break already sort on. Surfacing both was considered
+and dropped as a field the UI would have to explain twice.
+
+That makes the *wording* load-bearing. The gap between the two dates runs 34 to
+238 days, median 58, and 113 of the 134 companies with a tree report a fiscal
+year different from the year they filed in — FY2016 structures under a 2017
+date. So every rendered date says "filed on", never a bare date that a reader
+could take for a period end. See `SourceCitation`'s `detail` prop.
+
 **No recency filter is applied to `filing_date`.** The tech spec says "filings
 from the past 2 years", which would currently yield *zero* companies — every
 matched company's most recent filing is 2016–2018, because the dataset is a
