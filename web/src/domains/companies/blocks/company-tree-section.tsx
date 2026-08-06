@@ -5,7 +5,11 @@ import { useMemo, useState } from "react";
 import { SectionCard } from "@/blocks/section-card";
 import { SourceCitation } from "@/blocks/source-citation";
 import { Pagination } from "@/components/pagination";
-import type { Company, CurrentCorporateRelationship } from "@/types/domain";
+import type {
+  Company,
+  CurrentCorporateRelationship,
+  Source,
+} from "@/types/domain";
 
 type CompanyTreeSectionProps = {
   company: Company;
@@ -89,22 +93,73 @@ function filingRange(relationships: CurrentCorporateRelationship[]) {
 }
 
 /**
- * The citation for the section. Rows from one registrant share a filing, so one
- * source covers them; a multi-registrant tree cites the first and relies on
- * each row carrying its own `sources`.
+ * The distinct documents a tree draws on, in the order their rows appear.
+ *
+ * Rows from one registrant share one filing, so a single-registrant company has
+ * exactly one document here. A company with several registrants unions each
+ * registrant's most recent filing, so the section can be built from two exhibits
+ * — and citing only the first left the footer disagreeing with the subtitle's
+ * filing range.
  */
-function TreeSource({
-  relationship,
+function distinctDocuments(relationships: CurrentCorporateRelationship[]) {
+  const byUrl = new Map<
+    string,
+    { source: Source; asOf: string; disclosedByCik: string }
+  >();
+  for (const relationship of relationships) {
+    const [source] = relationship.sources;
+    if (!source || byUrl.has(source.url)) continue;
+    byUrl.set(source.url, {
+      source,
+      asOf: relationship.asOf,
+      disclosedByCik: relationship.disclosedByCik,
+    });
+  }
+  return [...byUrl.values()];
+}
+
+/**
+ * The citation for the section — one entry per document the tree draws on.
+ *
+ * Two registrants filing separately produce two citations with the same source
+ * name ("SEC 10-K Exhibit 21"), so each is attributed to the registrant that
+ * disclosed it. A single-document tree carries no attribution: the whole section
+ * is that one filing, and naming the registrant would only repeat the company.
+ */
+function TreeSources({
+  company,
+  relationships,
 }: {
-  relationship: CurrentCorporateRelationship;
+  company: Company;
+  relationships: CurrentCorporateRelationship[];
 }) {
-  const [source] = relationship.sources;
-  if (!source) return null;
+  const documents = distinctDocuments(relationships);
+  if (documents.length === 0) return null;
+
+  const registrantNames = new Map(
+    company.registrants.map((registrant) => [
+      registrant.cik,
+      registrant.registrantName,
+    ]),
+  );
+
   return (
-    <SourceCitation
-      source={source}
-      detail={`filed ${relationship.asOf}, retrieved ${source.lastAccessed}`}
-    />
+    <>
+      {documents.map((document, i) => {
+        const registrant = registrantNames.get(document.disclosedByCik);
+        const attribution =
+          documents.length > 1 && registrant ? `${registrant}, ` : "";
+        return (
+          <span key={document.source.url}>
+            {i > 0 ? " " : null}
+            <SourceCitation
+              source={document.source}
+              detail={`${attribution}filed ${document.asOf}, retrieved ${document.source.lastAccessed}`}
+            />
+          </span>
+        );
+      })}
+    </>
   );
 }
 
@@ -149,7 +204,6 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
     );
   }
 
-  const [first] = relationships;
   const { earliest, latest, spansFilings } = filingRange(relationships);
   const totalPages = Math.max(
     1,
@@ -174,7 +228,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
           : `${rows.length} entities · filed ${earliest}`
       }
       info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F, taken from this company's most recent such filing. The right-hand column is the jurisdiction of incorporation as disclosed, reproduced verbatim — it may name a US state or a country, and is not normalized. Exhibit 21 reports no ownership percentages, so no stake is shown."
-      source={<TreeSource relationship={first} />}
+      source={<TreeSources company={company} relationships={relationships} />}
       expanded={
         <div className="max-w-3xl mx-auto">
           <TreeLines rows={rows} />
@@ -182,7 +236,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
             <span className="font-mono uppercase tracking-wider font-medium mr-2">
               Source.
             </span>
-            <TreeSource relationship={first} />
+            <TreeSources company={company} relationships={relationships} />
           </p>
         </div>
       }
