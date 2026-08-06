@@ -82,7 +82,7 @@ function treeGateway(company: Company): Gateway {
   return {
     ...base,
     value: String(relationships.length),
-    meta: `${plural(jurisdictions, "jurisdiction")} · ${citation} · filed ${first.asOf}`,
+    meta: `${plural(jurisdictions, "jurisdiction")} · ${citation} · filed on ${first.asOf}`,
   };
 }
 

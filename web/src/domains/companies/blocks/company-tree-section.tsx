@@ -154,7 +154,7 @@ function TreeSources({
             {i > 0 ? " " : null}
             <SourceCitation
               source={document.source}
-              detail={`${attribution}filed ${document.asOf}, retrieved ${document.source.lastAccessed}`}
+              detail={`${attribution}filed on ${document.asOf}, retrieved ${document.source.lastAccessed}`}
             />
           </span>
         );
@@ -223,9 +223,14 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
       id="tree"
       title="Corporate Tree"
       subtitle={
+        // "filed on" names the kind of date: an Exhibit 21 reaches EDGAR
+        // months after the fiscal period it describes, so a bare date reads as
+        // whichever the reader assumes. The range branch says "filings from"
+        // rather than gluing the endpoints together with "and" — a company with
+        // more than two registrants has dates between them.
         spansFilings
-          ? `${rows.length} entities · filed ${earliest} – ${latest}`
-          : `${rows.length} entities · filed ${earliest}`
+          ? `${rows.length} entities · filings from ${earliest} to ${latest}`
+          : `${rows.length} entities · filed on ${earliest}`
       }
       info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F, taken from this company's most recent such filing. The right-hand column is the jurisdiction of incorporation as disclosed, reproduced verbatim — it may name a US state or a country, and is not normalized. Exhibit 21 reports no ownership percentages, so no stake is shown."
       source={<TreeSources company={company} relationships={relationships} />}
