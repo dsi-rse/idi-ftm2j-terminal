@@ -455,6 +455,69 @@ def build_companies(companies_df: pd.DataFrame, logger: logging.Logger) -> list[
 
 
 # ---------------------------------------------------------------------------
+# Validate
+# ---------------------------------------------------------------------------
+
+
+def report_unresolved_rows(companies_df: pd.DataFrame, logger: logging.Logger) -> None:
+    """Reports source rows that cannot become a company record.
+
+    `groupby` drops null keys, so a row with no `permid_id` produces no record
+    and appears in no count -- `nunique()` excludes nulls too, so a plain
+    row-vs-PermID tally reads as full coverage while nearly half the file is
+    absent. These rows carry a `permid_url`, an `entity_name` and a CIK but no
+    entity facts at all, so they are dropped rather than rejected: an
+    unresolved lookup is a known upstream state, not a corrupt file.
+
+    Args:
+        companies_df: The raw company info dataset.
+        logger: A standard logger instance.
+    """
+    unresolved = companies_df["permid_id"].isna() | (
+        companies_df["permid_id"].astype(str).str.strip() == ""
+    )
+    if not unresolved.any():
+        return
+
+    by_source = companies_df.loc[unresolved, "input_source"].value_counts()
+    logger.warning(
+        "%d of %d rows have no permid_id and produce no company record (%s). "
+        "The upstream processor resolved a permid_url for these but returned "
+        "no entity facts.",
+        int(unresolved.sum()),
+        len(companies_df),
+        ", ".join(f"{source}: {count}" for source, count in by_source.items()),
+    )
+
+
+def validate_companies(companies: list[dict]) -> None:
+    """Fails the build if a record violates a non-nullable `Company` field.
+
+    `web/src/app/companies/[id]/page.tsx` asserts the output JSON is
+    `Company[]` without checking it, so a null `name` reaches the DOM as an
+    empty heading and a null `permId` becomes a bogus static route segment.
+
+    Checks the two fields a broken value breaks a page through. It is not a
+    full schema check: `sources` is also declared non-nullable but an empty
+    list satisfies the type and only costs a citation footer, so that stays a
+    warning in `main`.
+
+    Args:
+        companies: The transformed company records.
+
+    Raises:
+        `RuntimeError` if any record has no `permId` or no `name`.
+    """
+    for field in ("permId", "name"):
+        bad = [company["permId"] for company in companies if not company[field]]
+        if bad:
+            raise RuntimeError(
+                f"{len(bad)} records have no {field}, which `Company.{field}` "
+                f"declares non-nullable. First few PermIDs: {bad[:3]}"
+            )
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -489,13 +552,15 @@ def main(logger: logging.Logger) -> None:
     logger.info("Loading company info dataset.")
     companies_df = load_company_info(company_info_fpath)
     logger.info(
-        "Loaded %d rows covering %d PermIDs.",
+        "Loaded %d rows carrying %d resolved PermIDs.",
         len(companies_df),
         companies_df["permid_id"].nunique(),
     )
+    report_unresolved_rows(companies_df, logger)
 
     logger.info("Transforming to Company records.")
     companies = build_companies(companies_df, logger)
+    validate_companies(companies)
 
     with_ticker = sum(1 for c in companies if (c["currentListing"] or {}).get("ticker"))
     with_exchange = sum(
