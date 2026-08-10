@@ -49,6 +49,9 @@ US_STATES: frozenset[str] = frozenset(
 # fall through to that rather than being treated as missing.
 UNKNOWN_MIC = "XXXX"
 
+# Value of `identifier_type` marking a row whose `identifier` holds a CIK.
+IDENTIFIER_TYPE_CIK = "cik"
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -268,6 +271,22 @@ def _collect(series: pd.Series) -> list[str]:
     return list(seen)
 
 
+def cik_rows(identifier_types: pd.Series) -> pd.Series:
+    """Boolean mask selecting the rows whose `identifier` holds a CIK.
+
+    Matched case- and whitespace-insensitively: a mismatch here yields no CIK
+    at all rather than an error, so it would be invisible if upstream ever
+    changed the casing of this column.
+
+    Args:
+        identifier_types: The `identifier_type` column of a group of rows.
+
+    Returns:
+        A boolean mask aligned to `identifier_types`.
+    """
+    return identifier_types.str.strip().str.casefold() == IDENTIFIER_TYPE_CIK
+
+
 # ---------------------------------------------------------------------------
 # Load
 # ---------------------------------------------------------------------------
@@ -343,7 +362,7 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
     sources = build_sources(_clean(first["permid_url"]), as_of)
 
     tickers = _collect(group["ticker"])
-    ciks = _collect(group.loc[group["identifier_type"] == "cik", "identifier"])
+    ciks = _collect(group.loc[cik_rows(group["identifier_type"]), "identifier"])
 
     # Only claim a CIK when it is unambiguous. The data spec calls for Primary
     # CIK selection logic but does not define it, and guessing a tie-break
