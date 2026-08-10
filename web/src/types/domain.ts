@@ -1,15 +1,40 @@
+/**
+ * The FTM2J domain model. `Company` is the central concept — everything else
+ * here either identifies a company, cites a fact about one, or describes a
+ * relationship between two.
+ *
+ * **Serialization.** These types describe records as they exist *after*
+ * `JSON.parse`. The site is statically generated and reads its data from
+ * `INPUT_DATA_FILE_PATH` at build time, so there are no `Date` or `URL`
+ * instances anywhere in this file — every date is an ISO-8601 string and every
+ * URL is a plain string. Declaring them otherwise would type-check while being
+ * false at runtime.
+ *
+ * **Provenance.** Every substantive fact carries `sources`. FTM2J is a
+ * research tool for advocacy; an uncited claim is not usable, so the type
+ * system requires the citation rather than trusting callers to remember it.
+ *
+ * **Current state vs. history.** Some sources (LSEG PermID) report only what
+ * is true *now*, with no start date. Those facts use {@link SnapshotEntity}
+ * (`asOf`) — see the `current*` fields on {@link Company}. The `historic*`
+ * arrays use {@link LonglivedEntity} and are for facts where a real date range
+ * is known. Do not populate a `historic*` array by inventing a `from` date.
+ */
+
 // ---------------------------------------------------------------------------
 // Provenance
 // ---------------------------------------------------------------------------
 
-type Source = {
+export type Source = {
   name: string;
-  url: URL;
-  lastAccessed: Date;
+  /** Absolute URL. */
+  url: string;
+  /** ISO-8601 date, `YYYY-MM-DD`. */
+  lastAccessed: string;
 };
 
 /** Every substantive entity must cite one or more sources. */
-type CitedEntity = {
+export type CitedEntity = {
   sources: Source[];
 };
 
@@ -17,22 +42,29 @@ type CitedEntity = {
 // Temporal patterns
 // ---------------------------------------------------------------------------
 
-/** An entity that persists over a date range. `to` is null if still current. */
-type LonglivedEntity = {
-  from: Date;
-  to: Date | null;
+/**
+ * An entity that persists over a known date range. `to` is null if still
+ * current. Use this only when `from` is genuinely known — if the source
+ * reports current state without a start date, use {@link SnapshotEntity}.
+ */
+export type LonglivedEntity = {
+  /** ISO-8601 date. */
+  from: string;
+  /** ISO-8601 date, or null if still current. */
+  to: string | null;
 };
 
-/** An entity that represents a point-in-time snapshot. */
-type SnapshotEntity = {
-  asOf: Date;
+/** An entity that represents a point-in-time observation. */
+export type SnapshotEntity = {
+  /** ISO-8601 timestamp or date for when this was observed. */
+  asOf: string;
 };
 
 // ---------------------------------------------------------------------------
 // Primitives
 // ---------------------------------------------------------------------------
 
-type SnapshotAmount = CitedEntity &
+export type SnapshotAmount = CitedEntity &
   SnapshotEntity & {
     value: number;
   };
@@ -45,7 +77,7 @@ type SnapshotAmount = CitedEntity &
  * A lightweight reference to a company by name and permId.
  * permId is null when the company cannot yet be resolved to a known entity.
  */
-type CompanyReference = {
+export type CompanyReference = {
   name: string;
   permId: string | null;
 };
@@ -54,48 +86,76 @@ type CompanyReference = {
 // Name
 // ---------------------------------------------------------------------------
 
-type NameChangeReason =
+export type NameChangeReason =
   | "Rebrand"
   | "Merger"
   | "Acquisition"
   | "Spinoff"
   | "LegalSettlement";
 
-type Name = CitedEntity & {
+export type Name = CitedEntity & {
   value: string;
   changeReason: NameChangeReason | null;
 };
 
-type HistoricName = Name & LonglivedEntity;
+export type HistoricName = Name & LonglivedEntity;
 
 // ---------------------------------------------------------------------------
 // Leadership
 // ---------------------------------------------------------------------------
 
-type Leader = CitedEntity & {
+export type Leader = CitedEntity & {
   fullName: string;
   title: string;
 };
 
-type HistoricLeader = Leader & LonglivedEntity;
+export type HistoricLeader = Leader & LonglivedEntity;
 
 // ---------------------------------------------------------------------------
 // Sectors
 // ---------------------------------------------------------------------------
 
-type Sector = CitedEntity & {
+/**
+ * A sector classification. `system` identifies the taxonomy: SIC and NAICS are
+ * code-first, TRBC (LSEG's classification) is label-first and supplies no
+ * code, so `code` is empty for TRBC sectors.
+ */
+export type Sector = CitedEntity & {
   name: string;
+  /** Empty string when the taxonomy provides no code — always so for TRBC. */
   code: string;
-  system: "SIC" | "NAICS";
+  system: "SIC" | "NAICS" | "TRBC";
 };
 
-type HistoricSector = Sector & LonglivedEntity;
+export type HistoricSector = Sector & LonglivedEntity;
+
+/** A classification reported as current state, with no known start date. */
+export type CurrentSector = Sector & SnapshotEntity;
+
+// ---------------------------------------------------------------------------
+// Listings
+// ---------------------------------------------------------------------------
+
+/**
+ * A company's current public listing. Both exchange fields are kept because
+ * coverage differs: the MIC is the standard identifier but is absent more
+ * often than the source's proprietary code, which serves as a display
+ * fallback.
+ */
+export type CurrentListing = CitedEntity &
+  SnapshotEntity & {
+    ticker: string | null;
+    /** ISO 10383 MIC, e.g. `"XNYS"`. */
+    exchangeMic: string | null;
+    /** Source-proprietary exchange code, e.g. `"NYS"`. Display fallback. */
+    exchangeCode: string | null;
+  };
 
 // ---------------------------------------------------------------------------
 // Addresses
 // ---------------------------------------------------------------------------
 
-type Address = CitedEntity & {
+export type Address = CitedEntity & {
   street1: string;
   street2: string | null;
   city: string;
@@ -107,7 +167,7 @@ type Address = CitedEntity & {
   countryCode: string;
 };
 
-type HistoricAddress = Address & LonglivedEntity;
+export type HistoricAddress = Address & LonglivedEntity;
 
 // ---------------------------------------------------------------------------
 // Corporate structure
@@ -119,7 +179,7 @@ type HistoricAddress = Address & LonglivedEntity;
  * it possible to query all relationships for a company across time without
  * loading every company record.
  */
-type CorporateRelationship = CitedEntity &
+export type CorporateRelationship = CitedEntity &
   LonglivedEntity & {
     parent: CompanyReference;
     child: CompanyReference;
@@ -131,20 +191,20 @@ type CorporateRelationship = CitedEntity &
 // Equity securities
 // ---------------------------------------------------------------------------
 
-type HistoricShareholder = CitedEntity &
+export type HistoricShareholder = CitedEntity &
   SnapshotEntity &
   CompanyReference & {
     sharesOwned: number;
     sharesMarketValue: number;
   };
 
-type HistoricPublicEquityValue = CitedEntity &
+export type HistoricPublicEquityValue = CitedEntity &
   SnapshotEntity & {
     outstandingShares: number;
     shareholders: HistoricShareholder[];
   };
 
-type HistoricPublicEquitySecurity = CitedEntity &
+export type HistoricPublicEquitySecurity = CitedEntity &
   LonglivedEntity & {
     symbol: string;
     class: string;
@@ -155,19 +215,19 @@ type HistoricPublicEquitySecurity = CitedEntity &
 // Debt securities
 // ---------------------------------------------------------------------------
 
-type HistoricDebtHolder = CitedEntity &
+export type HistoricDebtHolder = CitedEntity &
   SnapshotEntity &
   CompanyReference & {
     debtMarketValue: number;
   };
 
-type HistoricDebtSecurityValue = CitedEntity &
+export type HistoricDebtSecurityValue = CitedEntity &
   SnapshotEntity & {
     principalAmount: number;
     debtHolders: HistoricDebtHolder[];
   };
 
-type HistoricDebtSecurity = CitedEntity &
+export type HistoricDebtSecurity = CitedEntity &
   LonglivedEntity & {
     symbol: string;
     class: string;
@@ -179,13 +239,14 @@ type HistoricDebtSecurity = CitedEntity &
 // Commercial debt instruments
 // ---------------------------------------------------------------------------
 
-type HistoricCommercialDebt = CitedEntity &
+export type HistoricCommercialDebt = CitedEntity &
   LonglivedEntity & {
     instrumentName: string;
     debtHolder: CompanyReference;
     amount: number;
     interestRate: number;
-    maturityDate: Date;
+    /** ISO-8601 date. */
+    maturityDate: string;
     jurisdiction: string | null;
     type: "Bond" | "Convertible" | "Credit Facility";
   };
@@ -198,14 +259,14 @@ type HistoricCommercialDebt = CitedEntity &
  * A reference to a harmful development project this company is affiliated
  * with. The full project record lives in its own data structure.
  */
-type ProjectReference = {
+export type ProjectReference = {
   projectId: string;
   name: string;
   /** The nature of the company's involvement, e.g. "Lead Contractor" */
   role: string;
 };
 
-type HistoricProjectAffiliation = CitedEntity &
+export type HistoricProjectAffiliation = CitedEntity &
   LonglivedEntity & {
     project: ProjectReference;
   };
@@ -214,9 +275,13 @@ type HistoricProjectAffiliation = CitedEntity &
 // Company
 // ---------------------------------------------------------------------------
 
-type Company = CitedEntity & {
+export type Company = CitedEntity & {
   // Stable identifiers
   permId: string;
+  /**
+   * Null when the company has no CIK, or when it has several and no primary
+   * has been selected — never guess a primary CIK.
+   */
   cik: string | null;
   ein: string | null;
   lei: string | null;
@@ -225,13 +290,30 @@ type Company = CitedEntity & {
   name: string;
   aliases: string[];
   description: string;
-  foundedOn: Date | null;
-  website: URL | null;
+  /** ISO-8601 date. */
+  foundedOn: string | null;
+  /** Absolute URL. */
+  website: string | null;
 
-  // Current state is always derived from the history arrays below.
-  // To get the current CEO, find the HistoricLeader with to === null.
+  // Country of record. Held as scalar names rather than Addresses because the
+  // source reports bare country names; a partial Address would weaken that
+  // type for the real addresses arriving later. HQ country and country of
+  // incorporation genuinely differ — offshore incorporation is exactly what
+  // this project exists to surface — so both are kept.
+  hqCountry: string | null;
+  incorporatedCountry: string | null;
+  domiciledCountry: string | null;
 
-  // History
+  // Current state, as reported by sources that supply no start date.
+  /** Primary industry — the most specific classification available. */
+  currentIndustry: CurrentSector | null;
+  /** Broader classifications, e.g. TRBC economic and business sector. */
+  currentSectors: CurrentSector[];
+  currentListing: CurrentListing | null;
+
+  // History. Every entry needs a real `from` date; leave these empty rather
+  // than inventing one. To get the current CEO, find the HistoricLeader with
+  // to === null.
   historicNames: HistoricName[];
   historicLeadership: HistoricLeader[];
   historicSectors: HistoricSector[];

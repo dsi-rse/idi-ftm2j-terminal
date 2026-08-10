@@ -4,10 +4,11 @@ import { useMemo, useState } from "react";
 
 import { SectionCard } from "@/blocks/section-card";
 import { Pagination } from "@/components/pagination";
-import type { CompanyDetail, TreeEntity } from "@/domains/companies/types";
+import type { TreeEntity } from "@/domains/companies/types";
 
 type CompanyTreeSectionProps = {
-  detail: CompanyDetail;
+  tree: TreeEntity[];
+  source: string;
 };
 
 const ROOTS_PER_PAGE = 6;
@@ -30,37 +31,43 @@ function groupByRoot(entities: TreeEntity[]): TreeEntity[][] {
   return groups;
 }
 
+/**
+ * Guide prefix for a row at `depth`, matching the design's tree: one
+ * `\u2502` channel per ancestor level, then the `\u2514\u2500\u2500` branch for
+ * this one. Rendered as monospaced preformatted text so the columns line up by
+ * character, independent of the proportional font used for entity names.
+ */
+function guidePrefix(depth: number): string {
+  if (depth === 0) return "";
+  return "   \u2502  ".repeat(depth - 1) + "\u2514\u2500\u2500 ";
+}
+
 function TreeLines({ entities }: { entities: TreeEntity[] }) {
   return (
-    <div className="font-geist text-xs md:text-sm text-foreground overflow-x-auto">
+    <div className="font-inter-tight text-[13px] text-foreground">
       <ul className="list-none m-0 p-0">
-        {entities.map((entity, i) => {
-          const indent = " ".repeat(entity.depth * 4);
-          const prefix = entity.depth === 0 ? "" : "└─";
-          return (
-            <li
-              key={`${entity.name}-${i}`}
-              className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-0.5 hover:bg-overlay"
-            >
-              <span className="truncate">
-                {indent}
-                {prefix ? (
-                  <span className="text-muted mr-2">{prefix}</span>
-                ) : null}
-                <span
-                  className={
-                    entity.depth === 0 ? "text-foreground" : "text-foreground"
-                  }
-                >
-                  {entity.name}
-                </span>
+        {entities.map((entity, i) => (
+          <li
+            key={`${entity.name}-${i}`}
+            className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-0.5 hover:bg-overlay"
+          >
+            {/* Guides are a fixed-width prefix that does not shrink, so a name
+                long enough to wrap flows under itself rather than under the
+                guide column. */}
+            <span className="flex min-w-0 items-start">
+              <span
+                aria-hidden
+                className="shrink-0 whitespace-pre font-mono text-muted"
+              >
+                {guidePrefix(entity.depth)}
               </span>
-              <span className="text-[10px] uppercase tracking-wider text-muted whitespace-nowrap">
-                {entity.country}
-              </span>
-            </li>
-          );
-        })}
+              <span className="min-w-0">{entity.name}</span>
+            </span>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-muted whitespace-nowrap">
+              {entity.country}
+            </span>
+          </li>
+        ))}
       </ul>
     </div>
   );
@@ -71,9 +78,9 @@ function TreeLines({ entities }: { entities: TreeEntity[] }) {
  * entities. Paginated by root grouping inline; the fullscreen modal renders
  * every entity unpaginated.
  */
-export function CompanyTreeSection({ detail }: CompanyTreeSectionProps) {
+export function CompanyTreeSection({ tree, source }: CompanyTreeSectionProps) {
   const [page, setPage] = useState(1);
-  const groups = useMemo(() => groupByRoot(detail.tree), [detail.tree]);
+  const groups = useMemo(() => groupByRoot(tree), [tree]);
   const flatPageSize = ROOTS_PER_PAGE;
   const totalGroups = groups.length;
   const totalPages = Math.max(1, Math.ceil(totalGroups / flatPageSize));
@@ -85,18 +92,18 @@ export function CompanyTreeSection({ detail }: CompanyTreeSectionProps) {
     <SectionCard
       id="tree"
       title="Corporate Tree"
-      subtitle={`${detail.tree.length} entities · reconciled ${detail.reconciledAt}`}
+      subtitle={`${tree.length} entities · illustrative sample`}
       info="Controlled subsidiaries and reconciled ownership relationships, sourced from filings that disclose material ownership stakes."
-      source={detail.treeSource}
+      source={source}
       expanded={
         <div className="max-w-3xl mx-auto">
-          <TreeLines entities={detail.tree} />
-          {detail.treeSource ? (
+          <TreeLines entities={tree} />
+          {source ? (
             <p className="mt-8 text-xs text-muted leading-relaxed">
-              <span className="uppercase tracking-wider font-medium mr-2">
+              <span className="font-mono uppercase tracking-wider font-medium mr-2">
                 Source.
               </span>
-              {detail.treeSource}
+              {source}
             </p>
           ) : null}
         </div>

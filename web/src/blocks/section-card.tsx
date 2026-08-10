@@ -61,7 +61,7 @@ export function SectionCard({
             {title}
           </h2>
           {subtitle ? (
-            <p className="text-[11px] md:text-xs text-muted">{subtitle}</p>
+            <p className="font-mono text-[11px] text-muted">{subtitle}</p>
           ) : null}
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -88,7 +88,7 @@ export function SectionCard({
       <div>{children}</div>
       {source ? (
         <footer className="mt-6 pt-4 border-t border-muted/15 text-[10px] md:text-xs text-muted leading-relaxed">
-          <span className="uppercase tracking-wider font-medium mr-2">
+          <span className="font-mono uppercase tracking-wider font-medium mr-2">
             Source.
           </span>
           {source}

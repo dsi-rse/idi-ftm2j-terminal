@@ -83,7 +83,7 @@ function ModalHeader({ title, subtitle, className }: ModalHeaderProps) {
           {title}
         </h2>
         {subtitle ? (
-          <p className="text-xs text-muted">{subtitle}</p>
+          <p className="font-mono text-[11px] text-muted">{subtitle}</p>
         ) : null}
       </div>
       <Dialog.Close

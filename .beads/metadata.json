@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "idi_ftm2j_terminal",
+  "project_id": "f1c5d643-bf11-42bc-b9dd-fdb4c92bf95f"
+}

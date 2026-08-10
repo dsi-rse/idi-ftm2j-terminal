@@ -11,14 +11,12 @@ import {
   RowIndex,
   Table,
 } from "@/components/table";
-import { formatUsdShortValue } from "@/domains/companies/mock-detail";
-import type {
-  CompanyDetail,
-  Shareholder,
-} from "@/domains/companies/types";
+import type { Shareholder } from "@/domains/companies/types";
+import { formatUsdShort } from "@/lib/format-currency";
 
 type CompanyShareholdersSectionProps = {
-  detail: CompanyDetail;
+  shareholders: Shareholder[];
+  source: string;
 };
 
 type SortKey = "stakePct" | "deltaPct" | "valueUsd";
@@ -141,7 +139,7 @@ function ShareholdersTable({
                 </Table.Cell>
                 <Table.Cell primary={holder.name} secondary={holder.type} />
                 <Table.Cell>
-                  <span className="text-[10px] uppercase tracking-wider text-muted">
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
                     {holder.country}
                   </span>
                 </Table.Cell>
@@ -155,7 +153,7 @@ function ShareholdersTable({
                 </Table.Cell>
                 <Table.Cell align="right">
                   <span className="tabular-nums">
-                    {formatUsdShortValue(holder.valueUsd)}
+                    {formatUsdShort(holder.valueUsd)}
                   </span>
                 </Table.Cell>
                 <Table.Cell>
@@ -187,29 +185,30 @@ function ShareholdersTable({
  * horizontal room.
  */
 export function CompanyShareholdersSection({
-  detail,
+  shareholders,
+  source,
 }: CompanyShareholdersSectionProps) {
   const maxStake = Math.max(
-    ...detail.shareholders.map((s) => s.stakePct),
+    ...shareholders.map((s) => s.stakePct),
     0.0001,
   );
   return (
     <SectionCard
       id="holders"
       title="Shareholders"
-      subtitle={`${detail.shareholders.length} institutional holders · 13-F derived · Q4 2025`}
-      info="Institutional and sovereign holders aggregated from 13-F filings and beneficial-ownership disclosures. Stake percentages are of outstanding shares."
-      source={detail.shareholdersSource}
+      subtitle={`${shareholders.length} institutional holders · illustrative sample`}
+      info="Institutional and sovereign holders aggregated from 13-F filings and beneficial-ownership disclosures. Stake percentages are of outstanding shares. Not yet wired to real filings."
+      source={source}
       expanded={
         <ShareholdersTable
-          shareholders={detail.shareholders}
+          shareholders={shareholders}
           pageSize={EXPANDED_PAGE_SIZE}
           maxStake={maxStake}
         />
       }
     >
       <ShareholdersTable
-        shareholders={detail.shareholders}
+        shareholders={shareholders}
         pageSize={INLINE_PAGE_SIZE}
         maxStake={maxStake}
       />

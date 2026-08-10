@@ -3,18 +3,13 @@
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
 import { ArrowRightIcon, Dot, Search } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useSiteSearch } from "@/hooks/use-site-search";
-
-type Company = {
-  permId: string;
-  companyName: string;
-  countryName?: string;
-  sectors?: string;
-  tickers?: string;
-};
+import { parseJsonList } from "@/lib/parse-json-list";
+import type { PagefindCompanyMeta } from "@/types/company-search";
 
 type ResponsivePlaceholder = string | { short: string; long: string };
 
@@ -22,18 +17,13 @@ type SearchBarProps = {
   placeholder: ResponsivePlaceholder;
 };
 
-function parseJsonList(value: string | undefined): string[] {
-  if (!value) return [];
-  const parsed = JSON.parse(value);
-  return Array.isArray(parsed) ? parsed : [];
-}
-
 export function SearchBar({ placeholder }: SearchBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const { results, totalCount, handleSearch } = useSiteSearch<Company>({
-    limit: 3,
-  });
+  const { results, totalCount, handleSearch } =
+    useSiteSearch<PagefindCompanyMeta>({
+      limit: 3,
+    });
   const isDesktop = useMediaQuery("(min-width: 640px)", {
     defaultMatches: true,
   });
@@ -57,7 +47,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
       mode="none"
       value={query}
       onValueChange={setQuery}
-      itemToStringValue={(company: Company) => company.companyName}
+      itemToStringValue={(company: PagefindCompanyMeta) => company.companyName}
     >
       <div className="relative w-full">
         <Search
@@ -77,7 +67,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
         >
           <Autocomplete.Popup className="bg-background border border-muted/25 rounded-sm shadow-md overflow-hidden">
             <Autocomplete.List className="max-h-64 overflow-y-auto">
-              {(company: Company) => {
+              {(company: PagefindCompanyMeta) => {
                 const sector = parseJsonList(company.sectors)[0];
                 const country = company.countryName;
                 const tickers = parseJsonList(company.tickers);
@@ -118,15 +108,15 @@ export function SearchBar({ placeholder }: SearchBarProps) {
               {trimmed.length > 0 && (
                 <div className="px-3 py-2 text-sm">
                   No matches.{" "}
-                  <a href="/companies" className="text-primary hover:underline">
+                  <Link href="/companies" className="text-primary hover:underline">
                     Browse the full dataset
-                  </a>
+                  </Link>
                 </div>
               )}
             </Autocomplete.Empty>
 
             {totalCount > 3 && (
-              <a
+              <Link
                 href={`/companies?q=${encodeURIComponent(trimmed)}`}
                 className="block px-3 py-2 text-sm border-t border-muted/25 text-primary hover:underline"
               >
@@ -134,7 +124,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                   <span>View all {totalCount} results</span>
                   <ArrowRightIcon className="size-3" />
                 </span>
-              </a>
+              </Link>
             )}
           </Autocomplete.Popup>
         </Autocomplete.Positioner>

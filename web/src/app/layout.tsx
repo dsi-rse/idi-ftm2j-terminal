@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
-import { Geist_Mono, Inter, Inter_Tight } from "next/font/google";
+import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
 
 import "./globals.css";
 import { Providers } from "./providers";
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const inter = Inter({
@@ -43,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${interTight.variable} ${inter.variable} ${geistMono.variable}`}
+      className={`${interTight.variable} ${inter.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <head>

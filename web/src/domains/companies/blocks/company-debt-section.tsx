@@ -6,14 +6,12 @@ import { SectionCard } from "@/blocks/section-card";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { RowIndex, Table } from "@/components/table";
-import { formatUsdShortValue } from "@/domains/companies/mock-detail";
-import type {
-  CompanyDetail,
-  DebtInstrument,
-} from "@/domains/companies/types";
+import type { DebtInstrument } from "@/domains/companies/types";
+import { formatUsdShort } from "@/lib/format-currency";
 
 type CompanyDebtSectionProps = {
-  detail: CompanyDetail;
+  debtInstruments: DebtInstrument[];
+  source: string;
 };
 
 type SortState = { direction: "asc" | "desc" };
@@ -115,7 +113,7 @@ function DebtTable({
                 />
                 <Table.Cell
                   align="right"
-                  primary={formatUsdShortValue(instrument.amountUsd)}
+                  primary={formatUsdShort(instrument.amountUsd)}
                   secondary="Outstanding"
                 />
               </Table.Row>
@@ -142,24 +140,27 @@ function DebtTable({
  * debt instruments. Sortable by outstanding amount. Inline view paginates
  * 5-per-page; fullscreen modal view paginates 15-per-page.
  */
-export function CompanyDebtSection({ detail }: CompanyDebtSectionProps) {
-  const total = detail.debtInstruments.reduce((s, d) => s + d.amountUsd, 0);
+export function CompanyDebtSection({
+  debtInstruments,
+  source,
+}: CompanyDebtSectionProps) {
+  const total = debtInstruments.reduce((s, d) => s + d.amountUsd, 0);
   return (
     <SectionCard
       id="debt"
       title="Commercial Debt"
-      subtitle={`${detail.debtInstruments.length} instruments · ${formatUsdShortValue(total)} outstanding · sourced from EDGAR 8-K + SDC Platinum`}
+      subtitle={`${debtInstruments.length} instruments · ${formatUsdShort(total)} outstanding · illustrative sample`}
       info="Disclosed commercial debt instruments — revolving facilities, term loans, senior notes, and trade finance. Private debt may not be reflected."
-      source={detail.debtSource}
+      source={source}
       expanded={
         <DebtTable
-          debt={detail.debtInstruments}
+          debt={debtInstruments}
           pageSize={EXPANDED_PAGE_SIZE}
         />
       }
     >
       <DebtTable
-        debt={detail.debtInstruments}
+        debt={debtInstruments}
         pageSize={INLINE_PAGE_SIZE}
       />
     </SectionCard>

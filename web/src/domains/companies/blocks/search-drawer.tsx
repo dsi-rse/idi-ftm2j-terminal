@@ -14,7 +14,13 @@ import { useRecentCompaniesSearch } from "../hooks/use-recent-companies-search";
 import { useSavedCompaniesSearch } from "../hooks/use-saved-companies-search";
 import { useCompaniesStore } from "../stores/companies";
 import { SearchResult } from "./search-result";
-import { CircleX, ClockIcon, ListIcon, Search, StarIcon } from "lucide-react";
+import {
+  ChevronLeftIcon,
+  ClockIcon,
+  ListIcon,
+  Search,
+  StarIcon,
+} from "lucide-react";
 
 type PanelBodyProps = {
   emptyMessage: string;
@@ -58,8 +64,16 @@ function PanelBody({
 
   return (
     <div className="flex flex-col">
-      <div className="px-3 py-2 text-xs text-muted border-b border-muted/25">
-        Viewing {rangeText} of {data.totalCount} {noun}
+      <div className="flex items-baseline justify-between gap-2 px-3 py-2 border-b border-muted/25">
+        <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium">
+          Results
+        </span>
+        <span
+          className="font-mono text-[11px] text-muted"
+          title={`Viewing ${rangeText} of ${data.totalCount} ${noun}`}
+        >
+          {data.totalCount}
+        </span>
       </div>
       {results.map((company, i) => (
         <SearchResult
@@ -102,22 +116,28 @@ export function CompanySearchDrawer() {
     <Drawer
       open={isInspectorOpen}
       onOpenChange={setInspectorOpen}
-      className="md:sticky md:top-0 md:self-start md:h-dvh"
+      openWidthClassName="md:w-[312px]"
+      // `md:` scoped deliberately: an unprefixed `relative` is merged over the
+      // Drawer's own `fixed` positioning by tailwind-merge, which silently breaks
+      // the mobile overlay. The chevron that needs this context is desktop-only.
+      className="md:relative md:h-full"
     >
+      {isInspectorOpen ? (
+        <button
+          type="button"
+          aria-label="Collapse company search panel"
+          onClick={() => setInspectorOpen(false)}
+          className="absolute -right-3 top-1/2 z-10 hidden h-16 w-6 -translate-y-1/2 items-center justify-center rounded-r-md border border-muted/40 border-l-0 bg-muted-foreground text-muted hover:text-foreground md:flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        >
+          <ChevronLeftIcon className="size-4" />
+        </button>
+      ) : null}
       <Drawer.Header>
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="inline-flex items-center gap-1.5 font-inter font-semibold text-foreground text-xs uppercase tracking-wider">
-              <Search className="size-3.5" /> Inspector
+            <h2 className="inline-flex items-center gap-1.5 font-mono font-semibold text-foreground text-xs uppercase tracking-wider">
+              <Search className="size-3.5" /> Company Search
             </h2>
-            <button
-              type="button"
-              aria-label="Collapse Inspector panel"
-              onClick={() => setInspectorOpen(false)}
-              className="text-muted hover:text-foreground cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              <CircleX className="size-4" />
-            </button>
           </div>
           <Tooltip>
             <Tooltip.Trigger

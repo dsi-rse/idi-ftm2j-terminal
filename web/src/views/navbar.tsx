@@ -1,7 +1,7 @@
 "use client";
 
 import { Navbar as NavbarBlock } from "@/blocks/navbar";
-import { ThemeToggleSwitch } from "@/blocks/theme-toggle";
+import { ThemeToggle } from "@/blocks/theme-toggle";
 import { SiteLogo } from "@/components/logo";
 
 /**
@@ -9,7 +9,7 @@ import { SiteLogo } from "@/components/logo";
  */
 export function Navbar() {
   const links = [
-    { href: "/companies", label: "Search Companies" },
+    { href: "/companies", label: "Companies" },
     { href: "/about", label: "About" },
     { href: "/methodology", label: "Methodology" },
     { href: "/downloads", label: "Downloads" },
@@ -28,7 +28,7 @@ export function Navbar() {
         ))}
       </NavbarBlock.List>
       <NavbarBlock.Extras>
-        <ThemeToggleSwitch />
+        <ThemeToggle />
       </NavbarBlock.Extras>
     </NavbarBlock>
   );

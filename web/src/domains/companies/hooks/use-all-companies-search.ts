@@ -7,28 +7,12 @@ import {
   useCompaniesStore,
 } from "@/domains/companies/stores/companies";
 import { useSiteSearch } from "@/hooks/use-site-search";
+import { parseJsonList } from "@/lib/parse-json-list";
+import type { PagefindCompanyMeta } from "@/types/company-search";
 
 const PAGE_SIZE = 10;
 const DEBOUNCE_MS = 200;
 const SORT = { companyName: "asc" } as const;
-
-type PagefindCompanyMeta = {
-  permId: string;
-  companyName: string;
-  countryName?: string;
-  sectors?: string;
-  tickers?: string;
-};
-
-function parseJsonList(value: string | undefined): string[] {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
 
 function normalize(raw: PagefindCompanyMeta): CompanySearchMeta {
   const sectors = parseJsonList(raw.sectors);

@@ -98,7 +98,10 @@ export const useCompaniesStore = create<CompaniesState>()(
       allPage: 1,
       recentPage: 1,
       savedPage: 1,
-      isInspectorOpen: false,
+      // Open by default: the search rail is part of the terminal layout, not
+      // an occasional overlay. Below `md` this renders as a full-screen sheet
+      // — see the mobile-scope issue noted on the design-parity epic.
+      isInspectorOpen: true,
       setSearchQuery: (q) => set({ searchQuery: q, allPage: 1 }),
       setActiveTab: (t) => set({ activeTab: t }),
       setPage: (tab, page) =>

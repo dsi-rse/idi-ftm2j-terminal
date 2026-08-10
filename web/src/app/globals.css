@@ -12,6 +12,7 @@
 	--ftm2j-gray-100: #f5f5f5;
 	--ftm2j-gray-200: #e6e6e6;
 	--ftm2j-gray-300: #d3d3d3;
+	--ftm2j-gray-350: #cccccc;
 	--ftm2j-gray-400: #a3a3a3;
 	--ftm2j-gray-500: #727272;
 	--ftm2j-gray-600: #535353;
@@ -60,7 +61,7 @@
 .dark {
 	/* SEMANTIC VARIABLES — DARK MODE */
 	--background: var(--ftm2j-gray-900);
-	--foreground: var(--ftm2j-white);
+	--foreground: var(--ftm2j-gray-350);
 	--overlay: rgba(255, 255, 255, 0.035);
 	--muted: var(--ftm2j-gray-400);
 	--muted-foreground: var(--ftm2j-gray-800);
@@ -80,11 +81,15 @@
 	--color-primary-foreground: var(--primary-foreground);
 	--font-inter: var(--font-inter);
 	--font-inter-tight: var(--font-inter-tight);
-	--font-geist: var(--font-geist-mono);
+	--font-mono: var(--font-jetbrains-mono);
 }
 
 html {
-	overflow-y: scroll;
+	/* `scrollbar-gutter: stable` alone reserves the gutter and prevents the
+	   layout shift between short and tall pages. Forcing `overflow-y: scroll`
+	   as well would paint a permanently disabled document scrollbar beside the
+	   TerminalShell's own pane, which is a second visible scrollbar. */
+	overflow-y: auto;
 	scrollbar-gutter: stable;
 }
 
