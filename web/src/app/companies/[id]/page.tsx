@@ -26,10 +26,28 @@ export const metadata: Metadata = {
     "How FTM2J assembles corporate ownership, shareholder, and debt data from primary disclosures.",
 };
 
-function loadCompanies(): Company[] {
+function readCompanies(): Company[] {
   const filePath = process.env.INPUT_DATA_FILE_PATH;
   if (!filePath || !fs.existsSync(filePath)) return [];
   return JSON.parse(fs.readFileSync(filePath, "utf-8"));
+}
+
+/**
+ * The parsed dataset, read once per build worker. `generateStaticParams` and
+ * every `CompanyPage` render share it — without the cache the whole file is
+ * re-read and re-parsed once per company page.
+ */
+let companiesCache: Company[] | undefined;
+let companiesByIdCache: Map<string, Company> | undefined;
+
+function loadCompanies(): Company[] {
+  companiesCache ??= readCompanies();
+  return companiesCache;
+}
+
+function findCompany(permId: string): Company | undefined {
+  companiesByIdCache ??= new Map(loadCompanies().map((c) => [c.permId, c]));
+  return companiesByIdCache.get(permId);
 }
 
 export const dynamic = "force-static";
@@ -92,7 +110,7 @@ function PagefindIndex({ company }: { company: Company }) {
 
 const CompanyPage = async ({ params }: CompanyPageParams) => {
   const { id } = await params;
-  const company = loadCompanies().find((c) => c.permId === id);
+  const company = findCompany(id);
   if (!company) {
     return (
       <StandardPageLayout>
