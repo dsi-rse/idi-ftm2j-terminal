@@ -93,11 +93,14 @@ export default function AboutPage() {
               What the data covers
             </Article.Body.Section.Title>
             <Article.Body.Section.Paragraph>
-              The current release focuses on the extractive and agribusiness
-              sectors, with corporate trees, shareholder records, and
-              commercial-debt instruments for more than four thousand companies
-              across thirty-eight jurisdictions. Coverage expands as new filings
-              are reconciled into the graph.
+              The current release covers more than four thousand companies, and
+              coverage differs sharply by dataset rather than being uniform
+              across them. Roughly a quarter have a corporate tree traced from
+              their subsidiary disclosures; a smaller share have commercial-debt
+              instruments extracted from their 8-K filings. Shareholder records
+              are not yet sourced. Every company page states what it does and
+              does not have, and coverage expands as new filings are reconciled
+              into the graph.
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Callout>
               FTM2J is an independent research project. Inclusion of a company
