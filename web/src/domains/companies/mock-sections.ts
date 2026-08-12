@@ -1,18 +1,18 @@
 import type { Company } from "@/types/domain";
 
-import type { DebtInstrument, MockSections, Shareholder } from "./types";
+import type { MockSections, Shareholder } from "./types";
 
 /**
- * Illustrative data for the two company-detail sections whose processors do
- * not exist yet: Holders and Debt.
+ * Illustrative data for the one company-detail section whose processor does not
+ * exist yet: Holders.
  *
  * NOTHING IN THIS FILE IS REAL. It exists so the page layout can be reviewed
- * before the shareholder-tracker and CDT processors land, and every section
- * that renders it says so in its source footer. Delete each generator as its
- * processor ships — do not extend this file to cover new fields.
+ * before the shareholder-tracker processor lands, and the section that renders
+ * it says so in its source footer. Delete the generator as that processor
+ * ships — do not extend this file to cover new fields.
  *
- * Company info and the corporate tree are real and come from the pipeline; they
- * are deliberately absent here.
+ * Company info, the corporate tree, and commercial debt are real and come from
+ * the pipeline; they are deliberately absent here.
  */
 
 /**
@@ -66,24 +66,7 @@ const HOLDER_POOL: ReadonlyArray<{ name: string; country: string }> = [
   { name: "Public Investment Fund", country: "Saudi Arabia" },
 ];
 
-const LENDER_POOL: ReadonlyArray<string> = [
-  "JPMorgan Chase Bank, N.A.",
-  "Citibank, N.A.",
-  "Sumitomo Mitsui Banking Corp.",
-  "BNP Paribas S.A.",
-  "HSBC Holdings plc",
-  "Deutsche Bank AG",
-  "Barclays Bank PLC",
-  "Bank of America, N.A.",
-];
 
-const INSTRUMENTS = [
-  "Revolving Credit Facility",
-  "Term Loan",
-  "Senior Unsecured Notes",
-  "Trade Finance Facility",
-  "Bridge Loan",
-] as const;
 
 const ILLUSTRATIVE = "Illustrative sample data — not sourced from any filing.";
 
@@ -106,47 +89,16 @@ function makeShareholders(rng: () => number): Shareholder[] {
   return shareholders.sort((a, b) => b.stakePct - a.stakePct);
 }
 
-function makeDebtInstruments(rng: () => number): DebtInstrument[] {
-  const count = 5 + Math.floor(rng() * 3);
-  const shuffled = [...LENDER_POOL].sort(() => rng() - 0.5).slice(0, count);
-  return shuffled.map((lender) => {
-    const instrument = pick(rng, INSTRUMENTS);
-    const rateType: "floating" | "fixed" =
-      instrument === "Senior Unsecured Notes" || rng() < 0.35
-        ? "fixed"
-        : "floating";
-    const rate =
-      rateType === "fixed"
-        ? `${between(rng, 4.25, 6.5).toFixed(3)}% fixed`
-        : `SOFR + ${between(rng, 0.75, 1.9).toFixed(2)}%`;
-    const maturityYear = 2026 + Math.floor(rng() * 8);
-    const maturityMonth = 1 + Math.floor(rng() * 12);
-    const maturityDay = 1 + Math.floor(rng() * 28);
-    const maturity = `${maturityYear}-${String(maturityMonth).padStart(2, "0")}-${String(maturityDay).padStart(2, "0")}`;
-    return {
-      lender,
-      syndication: rng() < 0.75 ? "syndicated" : "bilateral",
-      currency: "USD",
-      instrument,
-      rate,
-      rateType,
-      maturity,
-      amountUsd: between(rng, 300e6, 3.2e9),
-    };
-  });
-}
 
 /**
- * Build the deterministic, illustrative payload for the Holders and Debt
- * sections. Seeded from `permId`, so the same company always renders the same
- * sample — safe for static generation.
+ * Build the deterministic, illustrative payload for the Holders section. Seeded
+ * from `permId`, so the same company always renders the same sample — safe for
+ * static generation.
  */
 export function getMockSections(company: Company): MockSections {
   const rng = makeRng(company.permId);
   return {
     shareholders: makeShareholders(rng),
-    debtInstruments: makeDebtInstruments(rng),
     shareholdersSource: `${ILLUSTRATIVE} Real holdings will come from SEC Form 13-F via the shareholder-tracker processor.`,
-    debtSource: `${ILLUSTRATIVE} Real instruments will come from SEC 8-K filings via the CDT processor.`,
   };
 }

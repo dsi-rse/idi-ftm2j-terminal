@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import type {
   HTMLAttributes,
   PropsWithChildren,
+  ReactNode,
   TdHTMLAttributes,
   ThHTMLAttributes,
 } from "react";
@@ -176,7 +177,12 @@ TableRow.displayName = "Table.Row";
 
 type TableCellProps = TdHTMLAttributes<HTMLTableCellElement> & {
   align?: "left" | "right" | "center";
-  primary?: string;
+  /**
+   * Takes a node, not just a string, so a two-line cell can carry a link on its
+   * first line — a table whose rows each cite a different document needs the
+   * citation in the row.
+   */
+  primary?: ReactNode;
   secondary?: string;
 };
 
