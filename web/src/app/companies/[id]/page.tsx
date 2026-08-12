@@ -103,8 +103,8 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
     );
   }
 
-  // Holders and Debt have no processor yet; everything else on this page is
-  // real. See mock-sections.ts.
+  // Holders has no processor yet; everything else on this page is real. See
+  // mock-sections.ts.
   const mock = getMockSections(company);
 
   return (
@@ -132,10 +132,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
               shareholders={mock.shareholders}
               source={mock.shareholdersSource}
             />
-            <CompanyDebtSection
-              debtInstruments={mock.debtInstruments}
-              source={mock.debtSource}
-            />
+            <CompanyDebtSection company={company} />
           </div>
         </main>
         <PagefindIndex company={company} />
