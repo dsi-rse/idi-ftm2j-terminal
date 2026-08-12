@@ -323,6 +323,98 @@ def _collect(series: pd.Series) -> list[str]:
     return list(seen)
 
 
+def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
+    """Reads lender labels out of the CDT `lenders_json` blob.
+
+    The blob is a list of coreference groups, each holding character-offset
+    spans into the 8-K text::
+
+        [{"mentions": [{"char_start": 265, "char_end": 286, "tag_id": "tag-10",
+                        "text": "Western Alliance Bank", "type": "organization"},
+                       {"char_start": 304, "char_end": 308, "tag_id": "tag-11",
+                        "text": "Bank", "type": "organization"}],
+          "tag_ids": ["tag-10", "tag-11"]}]
+
+    One group is one entity's chain of references, so most of its spans are
+    anaphora -- "Bank" repeated five times -- rather than the name. Where the
+    chain contains a name, that name is its longest span, which is what this
+    returns.
+
+    Nothing is filtered, and that is the whole point. Many groups contain no name
+    anywhere: their longest span is a role word, and across the in-scope
+    instruments "lenders" is the label of 35 groups, "underwriters" 28, "lenders
+    party thereto" 24, "holders" 17. Those are returned as written.
+
+    Two filters look obviously right here and are both wrong:
+
+    Restricting to `type == "organization"` does not separate names from roles.
+    "underwriters" and "Underwriters" are themselves tagged `organization`, so
+    the roles survive anyway -- while 304 groups lose their only span and the
+    instruments carrying a lender drop from 638 to 431.
+
+    A stopword set of role words would work, and is the first step of separating
+    roles from names. That is deferred, deliberately: it belongs with the rest of
+    the lender-normalization work, and the labels this returns are the evidence
+    that work needs. Filtering them here would hide the problem instead of
+    scoping it. Note the difference from `parse_address_country`, which screens
+    an open set and so must name what a country is *not*: the set of role words
+    is closed and small, which is exactly why deferring costs nothing.
+
+    Args:
+        value: A raw `lenders_json` cell.
+        logger: A standard logger instance.
+
+    Returns:
+        One label per group, de-duplicated in document order. Empty when the
+        filing discloses no lender -- 494 of the 1,132 in-scope instruments.
+    """
+    text = _clean(value)
+    if not text:
+        return []
+
+    try:
+        groups = json.loads(text)
+    except ValueError:
+        logger.warning(
+            "Could not parse a lenders_json cell as JSON; treating the "
+            "instrument as disclosing no lender. Cell begins: %.80s",
+            text,
+        )
+        return []
+
+    if not isinstance(groups, list):
+        logger.warning(
+            "A lenders_json cell parsed to %s rather than a list of groups; "
+            "treating the instrument as disclosing no lender.",
+            type(groups).__name__,
+        )
+        return []
+
+    labels: dict[str, None] = {}
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        mentions = group.get("mentions")
+        if not isinstance(mentions, list):
+            continue
+        spans = [
+            span
+            for span in (
+                _clean(mention.get("text"))
+                for mention in mentions
+                if isinstance(mention, dict)
+            )
+            if span
+        ]
+        if not spans:
+            continue
+        # `max` keeps the first of equal-length spans, which is the earliest in
+        # the document, so the result does not depend on dict iteration luck.
+        labels.setdefault(max(spans, key=len), None)
+
+    return list(labels)
+
+
 # ---------------------------------------------------------------------------
 # Load
 # ---------------------------------------------------------------------------
