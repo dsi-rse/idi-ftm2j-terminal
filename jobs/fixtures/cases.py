@@ -709,6 +709,44 @@ def structure_missing_exhibit_url_fails_the_build() -> None:
     assert result.records == [], "build should not have produced records"
 
 
+def structure_20f_cites_exhibit_8_and_is_not_filtered() -> None:
+    """A 20-F filer keeps its subsidiaries and is cited as Exhibit 8, not 21.
+
+    No 20-F filer exists in the production company universe, so this path had no
+    coverage at all -- issue 19 shipped with it recorded as unexercised. Two
+    things could go wrong and neither would be visible on any real page: the
+    citation could hardcode "Exhibit 21", and a filter on `exhibit_type` would
+    silently drop every foreign private issuer.
+    """
+    result = run_build(
+        company_rows({}),
+        structure_rows({"form_type": "20-F", "exhibit_type": "8"}),
+    )
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    assert len(relationships) == 1, (
+        f"a 20-F filer lost its subsidiaries: got {len(relationships)}"
+    )
+    name = relationships[0]["sources"][0]["name"]
+    assert name == "SEC 20-F Exhibit 8", name
+
+
+def structure_citation_matches_production_exactly() -> None:
+    """The default fixture renders the citation production renders.
+
+    Pins the fixture's own faithfulness rather than any build behavior. The
+    default row once held `exhibit_type` "EX-21", which rendered "SEC 10-K
+    Exhibit EX-21" -- a string the production file cannot produce, since it holds
+    only "21" or "8". Nothing asserted on it, so nothing failed; the cost was
+    that a fixture-built page shown to a human was subtly not what ships.
+    """
+    result = run_build(company_rows({}), structure_rows({}))
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    name = relationships[0]["sources"][0]["name"]
+    assert name == "SEC 10-K Exhibit 21", name
+
+
 def run_debt_build(
     *,
     debt=None,
@@ -951,6 +989,8 @@ CASES = [
     structure_all_nameless_leaves_an_empty_tree,
     structure_missing_filing_date_fails_the_build,
     structure_missing_exhibit_url_fails_the_build,
+    structure_20f_cites_exhibit_8_and_is_not_filtered,
+    structure_citation_matches_production_exactly,
     debt_smoke_one_instrument,
     debt_unmatched_cik_fails_the_build,
     debt_unresolvable_document_fails_the_build,

@@ -152,7 +152,12 @@ DEFAULT_STRUCTURE_ROW: dict[str, Any] = {
     "filing_date": "2017-02-13",
     "report_date": "2016-12-31",
     "form_type": "10-K",
-    "exhibit_type": "EX-21",
+    # "21", not "EX-21". `build_source_name` interpolates this straight into the
+    # citation, so a prefixed value renders "SEC 10-K Exhibit EX-21" -- a string
+    # production cannot produce, which quietly weakens every fixture-built page
+    # someone eyeballs. Production holds only "21" (10-K Exhibit 21) or "8" (the
+    # 20-F equivalent).
+    "exhibit_type": "21",
     "accession_number": "0000000001-17-000001",
     "exhibit_url": "https://www.sec.gov/Archives/fixture/ex21.htm",
     "name": "Fixture Subsidiary LLC",
