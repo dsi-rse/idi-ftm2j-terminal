@@ -12,7 +12,7 @@ import {
   Table,
 } from "@/components/table";
 import type { Shareholder } from "@/domains/companies/types";
-import { formatUsdShort } from "@/lib/format-currency";
+import { formatAmountShort } from "@/lib/format-currency";
 
 type CompanyShareholdersSectionProps = {
   shareholders: Shareholder[];
@@ -153,7 +153,7 @@ function ShareholdersTable({
                 </Table.Cell>
                 <Table.Cell align="right">
                   <span className="tabular-nums">
-                    {formatUsdShort(holder.valueUsd)}
+                    {formatAmountShort(holder.valueUsd, "USD")}
                   </span>
                 </Table.Cell>
                 <Table.Cell>
