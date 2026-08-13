@@ -82,6 +82,36 @@ fi
 
 echo "[2/3] Setting up IAM role: $ROLE_NAME ..."
 
+# The `sub` condition lists two patterns because GitHub is mid-migration between
+# two subject-claim formats, and this role has to accept whichever one arrives:
+#
+#   1. Classic, name-based:  repo:ORG/REPO:environment:dev
+#   2. Immutable, with the numeric owner and repository IDs appended after `@`:
+#                            repo:ORG@121825459/REPO@1181917909:environment:dev
+#
+# The immutable format became automatic for new repositories and for renames or
+# transfers on 2026-07-15, and can be switched on manually at any time. Neither
+# pattern matches the other's claim, so dropping either one breaks the deploy at
+# `sts:AssumeRoleWithWebIdentity` the moment GitHub flips this repo over. Check
+# which is live with:
+#
+#   gh api repos/ORG/REPO/actions/oidc/customization/sub
+#
+# Two details in the second pattern are load-bearing:
+#
+#   * It ends `:environment:*`, not `:*`. IAM refuses to save a policy whose
+#     wildcard has fewer than six literal characters in front of it, and `@*:*`
+#     leaves only the colon.
+#   * Ending it at a bare `@*` would also satisfy that rule, but IAM wildcards
+#     span `:` and `/`, so the trailing `*` would go on to match a *branch*
+#     name -- `repo:ORG@9/other-repo@8:ref:refs/heads/x/REPO@y` satisfies it,
+#     letting any repository in the org assume this role. Git refs cannot
+#     contain `:` and repository names cannot contain `/` or `@`, so anchoring
+#     on `:environment:` closes that off.
+#
+# That anchor assumes every job assuming this role declares an `environment:`,
+# which all three in deploy.yaml do. A job without one emits a `ref:`-scoped
+# claim and will not match.
 TRUST_POLICY=$(cat <<EOF
 {
   "Version": "2012-10-17",
@@ -97,7 +127,10 @@ TRUST_POLICY=$(cat <<EOF
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:${GITHUB_ORG}/${GITHUB_REPO_NAME}:*"
+          "token.actions.githubusercontent.com:sub": [
+            "repo:${GITHUB_ORG}/${GITHUB_REPO_NAME}:*",
+            "repo:${GITHUB_ORG}@*/${GITHUB_REPO_NAME}@*:environment:*"
+          ]
         }
       }
     }
@@ -160,10 +193,10 @@ echo "└───────────────────────�
 echo ""
 echo "  IAM Role ARN : ${ROLE_ARN}"
 echo ""
-echo "Set the following in your GitHub Actions variables:"
+echo "Set the following as GitHub Actions repository secrets:"
 echo ""
-echo "  AWS_OIDC_ROLE = ${ROLE_ARN}"
-echo "  AWS_REGION    = ${REGION}"
+echo "  AWS_IAM_ROLE_ARN = ${ROLE_ARN}"
+echo "  AWS_REGION       = ${REGION}"
 echo ""
 echo "Ensure your workflow job has these permissions:"
 echo ""
@@ -174,8 +207,8 @@ echo ""
 echo "And this step to assume the role:"
 echo ""
 echo "  - name: Configure AWS credentials"
-echo "    uses: aws-actions/configure-aws-credentials@v4"
+echo "    uses: aws-actions/configure-aws-credentials@v6.0.0"
 echo "    with:"
-echo "      role-to-assume: \${{ vars.AWS_OIDC_ROLE }}"
-echo "      aws-region: \${{ vars.AWS_REGION }}"
+echo "      role-to-assume: \${{ secrets.AWS_IAM_ROLE_ARN }}"
+echo "      aws-region: \${{ secrets.AWS_REGION }}"
 echo ""
