@@ -211,7 +211,10 @@ function DebtTable({
                     primary={
                       instrument.amount === null
                         ? "Not reported"
-                        : formatAmountShort(instrument.amount)
+                        : formatAmountShort(
+                            instrument.amount,
+                            instrument.currency,
+                          )
                     }
                     secondary={instrument.currency ?? undefined}
                   />
