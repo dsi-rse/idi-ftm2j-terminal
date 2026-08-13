@@ -103,7 +103,7 @@ export function Footer() {
           <FooterBlock.LinkedInButtonLink href="https://www.linkedin.com/company/inclusive-development-international/" />
           <FooterBlock.InstagramButtonLink href="https://www.instagram.com/inclusivedevt/" />
           <FooterBlock.BlueskyButtonLink href="https://bsky.app/profile/inclusivedevt.bsky.social" />
-          <FooterBlock.GitHubButtonLink href="https://github.com/dsi-clinic/idi-ftm2j-terminal" />
+          <FooterBlock.GitHubButtonLink href="https://github.com/dsi-rse/idi-ftm2j-terminal" />
         </FooterBlock.SocialMediaRow>
         <div className="flex gap-4">
           <FooterBlock.LegalLink href="#">Privacy</FooterBlock.LegalLink>
