@@ -183,7 +183,12 @@ type TableCellProps = TdHTMLAttributes<HTMLTableCellElement> & {
    * citation in the row.
    */
   primary?: ReactNode;
-  secondary?: string;
+  /**
+   * A node for the same reason `primary` is one: the second line is where a
+   * cell's affordances sit, so it carries the control that expands a truncated
+   * cell as well as the label describing it.
+   */
+  secondary?: ReactNode;
 };
 
 /**

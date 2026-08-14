@@ -7,6 +7,7 @@ import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { RowIndex, Table } from "@/components/table";
 import { formatAmountShort } from "@/lib/format-currency";
+import { cn } from "@/lib/utils";
 import type { Company, CurrentCommercialDebt } from "@/types/domain";
 
 type CompanyDebtSectionProps = {
@@ -84,22 +85,63 @@ function maturityLabel(instrument: CurrentCommercialDebt): string {
 }
 
 /**
- * Lender labels for one instrument, and the count of any beyond the first.
+ * The Lender cell: the first label, with the rest behind a toggle.
  *
  * A label is whatever the filing called the counterparty, which is often a role
  * rather than a name — "lenders party thereto", "the underwriters". Those are
  * carried through deliberately; see the section's info copy.
+ *
+ * "+N more" is a button rather than a caption because this section is the only
+ * place those labels exist. 178 of the 638 instruments that name a lender name
+ * more than one, and one series of senior notes names 20, so the full list
+ * cannot sit on a collapsed row — but leaving it unreachable also broke the
+ * search above, which matches every lender: a reader could search a bank, see
+ * the row match, and never see the name they searched for.
  */
-function lenderLabel(instrument: CurrentCommercialDebt): {
-  primary: string;
-  secondary: string | undefined;
-} {
+function LenderCell({
+  instrument,
+  expanded,
+  onToggle,
+}: {
+  instrument: CurrentCommercialDebt;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
   const [first, ...rest] = instrument.lenders;
-  if (!first) return { primary: "Lender not disclosed", secondary: undefined };
-  return {
-    primary: first,
-    secondary: rest.length ? `+${rest.length} more` : undefined,
-  };
+  if (!first) return <Table.Cell primary="Lender not disclosed" />;
+  if (rest.length === 0) return <Table.Cell primary={first} />;
+
+  return (
+    <Table.Cell
+      primary={
+        expanded ? (
+          // Labels are de-duplicated per instrument in the pipeline, so a label
+          // is its own key.
+          <span className="flex flex-col gap-0.5">
+            {instrument.lenders.map((lender) => (
+              <span key={lender}>{lender}</span>
+            ))}
+          </span>
+        ) : (
+          first
+        )
+      }
+      secondary={
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          className={cn(
+            "font-mono text-[10px] uppercase tracking-wider cursor-pointer",
+            "hover:text-foreground rounded-sm",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+          )}
+        >
+          {expanded ? "Show fewer" : `+${rest.length} more`}
+        </button>
+      }
+    />
+  );
 }
 
 function DebtTable({
@@ -112,6 +154,17 @@ function DebtTable({
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
+  /**
+   * Which rows have their lender list open, keyed by instrument identity rather
+   * than row position — sorting, searching, and paging all move rows around an
+   * open cell, and a positional key would hand the open state to whichever
+   * instrument landed in that slot. The domain type carries no id, but `debt`
+   * comes off static props and both `filterDebt` and `sortDebt` preserve element
+   * references, so the instrument itself is the stable key.
+   */
+  const [openLenders, setOpenLenders] = useState<
+    ReadonlySet<CurrentCommercialDebt>
+  >(() => new Set());
 
   const filtered = useMemo(() => filterDebt(debt, query), [debt, query]);
   const sorted = useMemo(() => sortDebt(filtered, sort), [filtered, sort]);
@@ -119,6 +172,13 @@ function DebtTable({
   const currentPage = Math.min(page, totalPages);
   const start = (currentPage - 1) * pageSize;
   const visible = sorted.slice(start, start + pageSize);
+
+  const toggleLenders = (instrument: CurrentCommercialDebt) =>
+    setOpenLenders((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(instrument)) next.add(instrument);
+      return next;
+    });
 
   const toggle = (key: SortKey) =>
     setSort((prev) =>
@@ -169,7 +229,6 @@ function DebtTable({
             </Table.Empty>
           ) : (
             visible.map((instrument, i) => {
-              const lender = lenderLabel(instrument);
               const [source] = instrument.sources;
               return (
                 <Table.Row key={`${instrument.asOf}-${start + i}`}>
@@ -180,9 +239,10 @@ function DebtTable({
                     primary={displayName(instrument)}
                     secondary={maturityLabel(instrument)}
                   />
-                  <Table.Cell
-                    primary={lender.primary}
-                    secondary={lender.secondary}
+                  <LenderCell
+                    instrument={instrument}
+                    expanded={openLenders.has(instrument)}
+                    onToggle={() => toggleLenders(instrument)}
                   />
                   <Table.Cell
                     primary={
