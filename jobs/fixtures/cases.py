@@ -963,6 +963,82 @@ def debt_duplicate_items_do_not_multiply_instruments() -> None:
     assert len(debt) == 1, f"duplicate items multiplied the instrument: {len(debt)}"
 
 
+def debt_undated_document_fails_the_build() -> None:
+    """An instrument whose 8-K has no filing date must fail the build.
+
+    `asOf` comes from `items.date` and `SnapshotEntity` types it a `string`. The
+    frontend does not treat it as optional either: `sortDebt` calls
+    `localeCompare` on it, so a null crashes the prerender of every page carrying
+    the instrument instead of leaving a cell blank. The url-only guard used to let
+    this through -- the row cites its filing perfectly well and simply has no date.
+    """
+    result = run_debt_build(
+        items=cdt_item_rows({"date": None}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
+def debt_unparseable_document_date_fails_the_build() -> None:
+    """A date that will not parse fails the same way a missing one does.
+
+    `parse_iso_date` returns `None` for both, so both reach the frontend as
+    `asOf: null`. The guard runs `parse_iso_date` itself rather than testing for
+    emptiness, which is what makes these one case rather than two behaviours.
+    """
+    result = run_debt_build(
+        items=cdt_item_rows({"date": "not a date"}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
+def debt_unrenderable_instrument_does_not_fail_the_build() -> None:
+    """An uncitable instrument that renders nowhere warns instead of failing.
+
+    An instrument whose CIK company-info has not resolved to a PermID appears on
+    no page -- 14 do today, across 9 CIKs, and that bucket grows whenever CDT
+    covers a company the PermID mapping does not. Failing the whole build over a
+    row no reader can reach trades the site for a rule about invisible data.
+
+    Two instruments, because one unmatched CIK on its own is the padding bug the
+    join guard exists to catch: the first is ordinary and keeps the join honest,
+    the second names a CIK no company holds and resolves no document at all. The
+    build must produce the first and say something about the second.
+    """
+    result = run_debt_build(
+        debt=cdt_rows(
+            {},
+            {
+                "debt_instrument_id": "orphan-1",
+                "cik": "9999999",
+                "seed_debt_instrument_mention_id": "no-such-mention",
+            },
+        ),
+    )
+
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected the renderable instrument only, got {len(debt)}"
+    assert debt[0]["asOf"] == "2016-01-04", debt[0]["asOf"]
+
+    matches = result.warnings_matching("none of them renders", "orphan-1")
+    assert matches, f"expected a warning naming the skipped instrument, got {result.warnings()}"
+
+
+def debt_every_rendered_instrument_carries_a_date() -> None:
+    """`asOf` is a string on every emitted instrument, never null.
+
+    The guard exists to make that true, so this asserts the property rather than
+    the guard -- a future change that drops a row instead of failing, or defaults
+    the date, has to keep this passing.
+    """
+    result = run_debt_build()
+    for record in result.records:
+        for instrument in record["currentCommercialDebt"]:
+            assert isinstance(instrument["asOf"], str), instrument
+            assert instrument["asOf"], instrument
+
+
 CASES = [
     smoke_single_cik,
     smoke_unmatched_cik_fails_the_build,
@@ -1001,4 +1077,8 @@ CASES = [
     debt_generic_lender_labels_survive,
     debt_currency_comes_from_the_mentions_file,
     debt_duplicate_items_do_not_multiply_instruments,
+    debt_undated_document_fails_the_build,
+    debt_unparseable_document_date_fails_the_build,
+    debt_unrenderable_instrument_does_not_fail_the_build,
+    debt_every_rendered_instrument_carries_a_date,
 ]

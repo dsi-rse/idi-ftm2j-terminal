@@ -1226,12 +1226,13 @@ def resolve_debt_documents(
 
     Returns:
         `instruments_df` with `url`, `date`, `item`, and `amount_json` attached.
+        A row that resolved no document keeps those columns as nulls rather than
+        failing here -- whether that matters depends on whether the row renders,
+        which this function cannot know. `require_renderable_citations` decides.
 
     Raises:
-        `RuntimeError` if any instrument fails to resolve a document. Both hops
-            are total on today's data, and an instrument that cannot cite its
-            filing must not be rendered at all -- so a partial resolution is a
-            build failure rather than a row silently dropped.
+        `RuntimeError` if either merge changed the row count, which means the
+            de-duplication above no longer covers how those files repeat.
     """
     mentions = mentions_df.drop_duplicates("debt_instrument_mention_id")
     items = items_df.drop_duplicates("item_id")
@@ -1266,17 +1267,80 @@ def resolve_debt_documents(
             "de-duplication above no longer covers how those files repeat."
         )
 
-    unresolved = resolved["url"].map(lambda value: not _clean(value))
-    if unresolved.any():
-        sample = resolved.loc[unresolved, "debt_instrument_id"].head(5).tolist()
+    return resolved
+
+
+def require_renderable_citations(
+    resolved: pd.DataFrame, renders: pd.Series, logger: logging.Logger
+) -> None:
+    """Fails the build if an instrument that will render cannot cite or date itself.
+
+    An instrument needs two things from the `items` row it resolved to, and
+    neither is optional. The url is its citation, and an uncited fact does not
+    belong on a company page. The date is `asOf`: `SnapshotEntity` declares it a
+    `string`, and `sortDebt` in `company-debt-section.tsx` calls `localeCompare`
+    on it, so a null does not render an empty cell -- it throws while prerendering
+    every page that carries the instrument. `parse_iso_date` returning `None` is
+    the only way that null can arise, which is why the same call decides it here.
+
+    Both faults say the same thing about the inputs: the three CDT files did not
+    come from one processor run. `items` supplies both fields and populates both
+    on all 1,891 of its rows today, so neither is something one extraction can
+    half-succeed at.
+
+    Scoped to the instruments that reach a page, which is why this takes a mask
+    rather than checking the frame. An instrument whose CIK company-info has not
+    resolved to a PermID renders nowhere -- 14 of them today across 9 CIKs, a
+    bucket that grows whenever CDT covers a company the PermID mapping does not
+    yet -- and failing the whole build over a row no reader can reach trades the
+    site for a rule about invisible data. Matured and superseded instruments are
+    outside the mask for the same reason.
+
+    Those rows still get reported. A processor-run mismatch that lands only on
+    unrenderable instruments is worth knowing about before it lands on a
+    renderable one, so it warns rather than passing in silence.
+
+    Args:
+        resolved: `resolve_debt_documents` output.
+        renders: Boolean mask over `resolved`, True where the instrument reaches
+            a company page.
+        logger: A standard logger instance.
+
+    Raises:
+        `RuntimeError` if any instrument under `renders` resolved no url or no
+            parseable date.
+    """
+    # Both checks run the way `build_debt_instrument` runs them -- `_clean` and
+    # `parse_iso_date` per cell, not a vectorized approximation of either -- so
+    # "the guard passed" and "the emitted record is well-formed" cannot come
+    # apart on a value one accepts and the other does not.
+    uncited = resolved["url"].map(lambda value: not _clean(value))
+    undated = resolved["date"].map(lambda value: parse_iso_date(value) is None)
+    incomplete = uncited | undated
+
+    failing = incomplete & renders
+    if failing.any():
+        sample = resolved.loc[failing, "debt_instrument_id"].head(5).tolist()
         raise RuntimeError(
-            f"{int(unresolved.sum())} of {len(resolved)} debt instruments could "
-            "not be joined to the 8-K they came from, so they have no citation. "
-            f"Sample debt_instrument_id: {sample}. Check that the mentions and "
-            "items files are from the same processor run as debt-instruments."
+            f"{int(failing.sum())} of {int(renders.sum())} renderable debt "
+            "instruments cannot be cited or dated: "
+            f"{int((uncited & renders).sum())} resolved no 8-K url and "
+            f"{int((undated & renders).sum())} no parseable filing date. Sample "
+            f"debt_instrument_id: {sample}. Check that the mentions and items "
+            "files are from the same processor run as debt-instruments."
         )
 
-    return resolved
+    hidden = incomplete & ~renders
+    if hidden.any():
+        logger.warning(
+            "%d debt instruments resolved no 8-K url or no parseable filing "
+            "date, but none of them renders -- their CIK has no company page, or "
+            "they are matured or superseded -- so the build continues. This is "
+            "still a sign the three CDT files are not from one processor run. "
+            "Sample debt_instrument_id: %s",
+            int(hidden.sum()),
+            resolved.loc[hidden, "debt_instrument_id"].head(5).tolist(),
+        )
 
 
 def build_debt_instrument(
@@ -1355,7 +1419,9 @@ def attach_commercial_debt(
         logger: A standard logger instance.
 
     Raises:
-        `RuntimeError` if the CIK join matches no companies at all.
+        `RuntimeError` if the CIK join matches no companies at all, or if an
+            instrument that will render cannot cite or date itself -- see
+            `require_renderable_citations`.
     """
     resolved = resolve_debt_documents(instruments_df, mentions_df, items_df, logger)
     resolved["cik"] = normalize_cik(resolved["cik"])
@@ -1400,10 +1466,17 @@ def attach_commercial_debt(
     as_of_build = pd.Timestamp(run_date)
     matured = end_dates <= as_of_build
 
-    in_scope = resolved[~is_superseded & ~matured]
+    # The set that reaches a page, and so the set that must be citable. Unknown
+    # CIKs were previously built and then dropped by the loop below, which read
+    # only its own registrants -- the output is the same, but the citation guard
+    # now covers exactly what ships rather than the whole file.
+    renders = known_cik & ~is_superseded & ~matured
+    require_renderable_citations(resolved, renders, logger)
+
+    in_scope = resolved[renders]
     statuses = [
         DEBT_STATUS_UNDATED if pd.isna(end) else DEBT_STATUS_ACTIVE
-        for end in end_dates[~is_superseded & ~matured]
+        for end in end_dates[renders]
     ]
 
     by_cik: dict[str, list[dict]] = {}
