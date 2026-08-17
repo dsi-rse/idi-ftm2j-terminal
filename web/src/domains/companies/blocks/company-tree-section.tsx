@@ -227,10 +227,15 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
         // months after the fiscal period it describes, so a bare date reads as
         // whichever the reader assumes. The range branch says "filings from"
         // rather than gluing the endpoints together with "and" — a company with
-        // more than two registrants has dates between them.
-        spansFilings
-          ? `${rows.length} entities · filings from ${earliest} to ${latest}`
-          : `${rows.length} entities · filed on ${earliest}`
+        // more than two registrants has dates between them. The no-date branch
+        // cannot arise from current data (the build fails on a null `asOf`), but
+        // the subtitle degrades to the count rather than render "filed on
+        // undefined" if it is ever fed a relationship without one.
+        !earliest
+          ? `${rows.length} entities`
+          : spansFilings
+            ? `${rows.length} entities · filings from ${earliest} to ${latest}`
+            : `${rows.length} entities · filed on ${earliest}`
       }
       info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F, taken from this company's most recent such filing. The right-hand column is the jurisdiction of incorporation as disclosed, reproduced verbatim — it may name a US state or a country, and is not normalized. Exhibit 21 reports no ownership percentages, so no stake is shown."
       source={<TreeSources company={company} relationships={relationships} />}
