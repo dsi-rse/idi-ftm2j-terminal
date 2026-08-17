@@ -93,8 +93,51 @@ function treeGateway(company: Company): Gateway {
 }
 
 /**
- * The two stats whose processors do not exist yet. They render unavailable
- * rather than showing the sample figures the sections below still display — a
+ * The Commercial Debt stat.
+ *
+ * The count is instruments, not money. This slot was labelled "Outstanding debt"
+ * while the section was mocked, and it cannot be: no CDT output supplies an FX
+ * rate, in-scope instruments span five currencies, and 385 of 1,132 report no
+ * amount at all, so any total would both mix currencies and understate by a
+ * third. A count is a number the data actually supports.
+ */
+function debtGateway(company: Company): Gateway {
+  const debt = company.currentCommercialDebt;
+  const base = {
+    section: "debt",
+    kicker: "Commercial Debt",
+    unit:
+      debt.length === 1 ? "Instrument disclosed" : "Instruments disclosed",
+    link: "View commercial debt",
+  };
+
+  if (debt.length === 0) {
+    return {
+      ...base,
+      value: "0",
+      meta: "No 8-K debt disclosure in scope for this company",
+    };
+  }
+
+  const withLender = debt.filter((instrument) => instrument.lenders.length).length;
+  // ISO-8601 dates compare lexicographically. A company's debt is assembled from
+  // every 8-K that disclosed an instrument, so unlike the tree there is no single
+  // filing date for the section — the most recent is what dates the card.
+  const latest = debt.reduce(
+    (newest, instrument) =>
+      instrument.asOf > newest ? instrument.asOf : newest,
+    "",
+  );
+  return {
+    ...base,
+    value: String(debt.length),
+    meta: `${withLender} with a disclosed lender · SEC 8-K · latest filed on ${latest}`,
+  };
+}
+
+/**
+ * The one stat whose processor does not exist yet. It renders unavailable rather
+ * than showing the sample figures the section below still displays — a
  * fabricated number in a headline stat is worse than an absent one.
  */
 const PENDING_GATEWAYS: Gateway[] = [
@@ -105,14 +148,6 @@ const PENDING_GATEWAYS: Gateway[] = [
     unit: "Shareholders disclosed",
     meta: "Awaiting the shareholder-tracker processor · sample data shown below",
     link: "View shareholders",
-  },
-  {
-    section: "debt",
-    kicker: "Commercial Debt",
-    value: null,
-    unit: "Outstanding debt",
-    meta: "Awaiting the CDT processor · sample data shown below",
-    link: "View commercial debt",
   },
 ];
 
@@ -182,23 +217,28 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
  * The "Overview" section of the company detail page — headline counts that
  * gateway into the sections below.
  *
- * Only the Corporate Tree stat has a processor behind it. The other two say so
- * rather than repeating the sample figures their sections display.
+ * Corporate Tree and Commercial Debt have processors behind them. Shareholders
+ * does not, and says so rather than repeating the sample figures its section
+ * displays.
  *
  * There is no section-level date: the three stats draw on datasets with
- * genuinely different vintages — corporate structure is 2016–2018, company info
- * is current — so each card carries its own instead of one date that would be
- * wrong for at least one of them.
+ * genuinely different vintages — corporate structure is 2016–2018, commercial
+ * debt runs to the present, company info is current — so each card carries its
+ * own instead of one date that would be wrong for at least one of them.
  */
 export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps) {
-  const gateways = [treeGateway(company), ...PENDING_GATEWAYS];
+  const gateways = [
+    treeGateway(company),
+    ...PENDING_GATEWAYS,
+    debtGateway(company),
+  ];
 
   return (
     <SectionCard
       id="overview"
       title="Overview"
       subtitle="Headline counts"
-      info="Headline counts for the sections below. Only the corporate tree is sourced from a processor today; shareholder and commercial-debt figures require the shareholder-tracker and CDT processors and are shown as unavailable rather than estimated."
+      info="Headline counts for the sections below. The corporate tree and commercial debt are sourced from processors; the shareholder figure requires the shareholder-tracker processor and is shown as unavailable rather than estimated. Commercial debt is counted in instruments rather than totalled in money — amounts are reported in several currencies with no conversion rate available, and a third of instruments report no amount at all."
       source={<OverviewSource sources={company.sources} />}
       expanded={
         <div className="max-w-3xl mx-auto">

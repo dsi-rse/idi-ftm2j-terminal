@@ -54,8 +54,7 @@ export default function MethodologyPage() {
               shareholders come from SEC Form&nbsp;13-F filings, augmented by
               13-D and 13-G beneficial-ownership disclosures; and commercial
               debt is extracted from SEC 8-K material-event filings using a
-              custom NLP model, supplemented by bond prospectuses and
-              syndicated-loan announcements.
+              custom NLP model.
             </Article.Body.Section.Paragraph>
           </Article.Body.Section>
 
@@ -107,9 +106,14 @@ export default function MethodologyPage() {
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Paragraph>
               Private debt, off-balance-sheet vehicles, and beneficial owners
-              below SEC reporting thresholds may not appear, and figures should
-              be treated as illustrative rather than relied upon for investment
-              decisions.
+              below SEC reporting thresholds may not appear. Debt amounts are
+              reproduced as the filing reported them and are not converted
+              between currencies, so figures denominated differently are not
+              comparable and are never totalled; interest rates are not
+              extracted; and a lender appears as the filing describes it, which
+              is sometimes a role rather than a name. Most disclosed instruments
+              state no end date, and those are shown as undated rather than
+              assumed current.
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Callout>
               Found an error or a missing link? Corrections from researchers

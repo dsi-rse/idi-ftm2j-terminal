@@ -284,6 +284,65 @@ export type HistoricCommercialDebt = CitedEntity &
     type: "Bond" | "Convertible" | "Credit Facility";
   };
 
+/**
+ * A commercial debt instrument as disclosed in a single 8-K. The filing states
+ * when the instrument was *disclosed*, not a range over which the record stays
+ * authoritative, so this is a {@link SnapshotEntity}. See
+ * {@link HistoricCommercialDebt} for the date-ranged form, which needs a source
+ * that reports one.
+ *
+ * Almost every field is nullable, and that is a property of the source rather
+ * than caution: the CDT processor extracts these from 8-K prose with an NLP
+ * model, and a filing that does not state a maturity or an amount yields a row
+ * that does not have one. `HistoricCommercialDebt` requires a `from` date, an
+ * interest rate, a maturity, a classification, and one named holder; this data
+ * supplies none of those reliably and no rate at all, so forcing it into that
+ * type would mean inventing a `from` — which this file forbids outright.
+ */
+export type CurrentCommercialDebt = CitedEntity &
+  SnapshotEntity & {
+    /**
+     * Instrument name verbatim from the filing, e.g. "revolving line of
+     * credit". Free text, never a classification: the source has 978 distinct
+     * values and no type field, and a regex guess at Bond vs Credit Facility
+     * would present a derivation as sourced fact.
+     */
+    instrumentName: string;
+    /**
+     * Lender labels as extracted, one per coreference group in the filing.
+     * Many are role words rather than names — "lenders", "the underwriters" —
+     * because that is what the filing says in place of a name. They are carried
+     * unfiltered; separating roles from names, and normalizing the names, is
+     * its own piece of work. Empty when the filing discloses no lender at all,
+     * which is 44% of instruments.
+     */
+    lenders: string[];
+    /** As reported, in `currency`. Null when the extraction found no amount. */
+    amount: number | null;
+    /**
+     * ISO 4217. Null when the extraction reported none. Never converted — no
+     * source supplies an FX rate, so amounts in different currencies are not
+     * comparable and must not be summed.
+     */
+    currency: string | null;
+    /** ISO-8601 date. Null when the filing does not state one. */
+    startDate: string | null;
+    /** ISO-8601 date. Null when the filing does not state one. */
+    endDate: string | null;
+    /**
+     * `Active` when `endDate` is in the future as of the build, `Undated` when
+     * the filing states no end date. There is no matured or superseded variant:
+     * those are filtered out in the pipeline and never reach the frontend.
+     *
+     * Stored rather than derived in the view because the `endDate > today`
+     * comparison happens at build time, in the same place the filter is
+     * applied. Recomputing it in the browser would evaluate "today" at a
+     * different moment than the filter did, and the two could disagree on a
+     * page served the day an instrument matures.
+     */
+    status: "Active" | "Undated";
+  };
+
 // ---------------------------------------------------------------------------
 // Flagged projects
 // ---------------------------------------------------------------------------
@@ -387,6 +446,12 @@ export type Company = CitedEntity & {
    * {@link CurrentCorporateRelationship}.
    */
   currentCorporateRelationships: CurrentCorporateRelationship[];
+  /**
+   * Commercial debt instruments disclosed in this company's 8-K filings,
+   * excluding those that have matured or been superseded. A snapshot rather
+   * than a date range — see {@link CurrentCommercialDebt}.
+   */
+  currentCommercialDebt: CurrentCommercialDebt[];
 
   // History. Every entry needs a real `from` date; leave these empty rather
   // than inventing one. To get the current CEO, find the HistoricLeader with

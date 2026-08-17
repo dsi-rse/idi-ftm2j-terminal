@@ -2,8 +2,9 @@
 
 Build-time data pipeline for the static web application.
 
-`build_dataset.py` reads the company info and corporate structure processors'
-outputs and writes JSON records matching the serialized `Company` type in
+`build_dataset.py` reads the company info, corporate structure, and commercial
+debt processors' outputs — five parquet files, because CDT takes three — and
+writes JSON records matching the serialized `Company` type in
 [`web/src/types/domain.ts`](../web/src/types/domain.ts). That TypeScript type is
 the contract; if you change the shape here, change it there in the same commit.
 
@@ -12,6 +13,9 @@ the contract; if you change the shape here, change it there in the same commit.
 ```bash
 COMPANY_INFO_FILE_PATH=../data/input/latest_company_info.parquet \
 CORPORATE_STRUCTURE_FILE_PATH=../data/input/latest_corporate_structure.parquet \
+CDT_DEBT_INSTRUMENTS_FILE_PATH=../data/input/latest_cdt.parquet \
+CDT_MENTIONS_FILE_PATH=../data/input/latest_cdt_mentions.parquet \
+CDT_ITEMS_FILE_PATH=../data/input/latest_cdt_items.parquet \
 OUTPUT_FILE_PATH=../data/output/companies.json \
 uv run python build_dataset.py
 ```
@@ -20,9 +24,12 @@ uv run python build_dataset.py
 | --- | --- |
 | `COMPANY_INFO_FILE_PATH` | `company-info/latest.parquet` from the processed layer |
 | `CORPORATE_STRUCTURE_FILE_PATH` | `corporate-structure/latest.parquet` from the processed layer |
+| `CDT_DEBT_INSTRUMENTS_FILE_PATH` | `cdt/debt-instruments/latest.parquet` |
+| `CDT_MENTIONS_FILE_PATH` | `cdt/debt-instrument-mentions/latest.parquet` |
+| `CDT_ITEMS_FILE_PATH` | `cdt/items/latest.parquet` |
 | `OUTPUT_FILE_PATH` | Where to write the JSON the web build consumes |
 
-In CI all three are set by [`deploy.yaml`](../.github/workflows/deploy.yaml), which
+In CI all six are set by [`deploy.yaml`](../.github/workflows/deploy.yaml), which
 first syncs the processed layer out of S3. The web build then reads the output
 via `INPUT_DATA_FILE_PATH`.
 
@@ -135,7 +142,110 @@ fill gaps in company-info's coverage, but company-info stays the single source
 for company identity — reconciling two sources for the same fact is its own
 problem, not something to do implicitly here.
 
+## Inputs 3, 4, 5 — commercial debt (CDT)
+
+Three files for one section, and that is not an accident of convenience.
+
+`s3://{bucket}/database/cdt/debt-instruments/latest.parquet` holds the
+instruments — one row per debt instrument, resolved across the filings that
+mention it — and **carries no provenance whatsoever**. Thirteen columns, none of
+them a document link, filing date, accession number, or access date. Since every
+fact rendered on a company page has to cite its source, that file alone cannot
+populate the section. The citation comes from two sibling outputs:
+
+```
+debt-instruments.seed_debt_instrument_mention_id
+  → debt-instrument-mentions.debt_instrument_mention_id   (amount_json → currency)
+  → debt-instrument-mentions.item_id
+  → items.item_id                                         (url, date, item)
+```
+
+Both hops are total on today's data: 1,640 of 1,640 instruments resolve a mention,
+and 1,891 of 1,891 mentions resolve an item. An instrument that fails to resolve
+**fails the build** — it would otherwise be rendered uncited, which is worse than
+not rendering it.
+
+`debt-instrument-mentions` is also the only place the **currency** lives, in
+`amount_json.currency`. `debt-instruments.amount` is a bare number.
+
+`items` is read narrow, four columns of sixteen. It is 26.5 MB mostly because of
+`text`, the full 8-K section body the extraction ran over, and only ~1,900 of its
+~26,000 rows are ever joined.
+
+Populates `Company.currentCommercialDebt`:
+
+| `CurrentCommercialDebt` field | Source column |
+| --- | --- |
+| `instrumentName` | `debt-instruments.name`, verbatim |
+| `lenders` | `debt-instruments.lenders_json`, one label per coreference group |
+| `amount` | `debt-instruments.amount` |
+| `currency` | `mentions.amount_json` → `currency` |
+| `startDate` | `debt-instruments.start_date` |
+| `endDate` | `debt-instruments.end_date` |
+| `status` | derived from `endDate` vs the build date |
+| `asOf` | `items.date` (the filing date) |
+| `sources[].name` | `items.item`, e.g. `SEC 8-K Item 1.01` |
+| `sources[].url` | `items.url`, verbatim |
+| `sources[].lastAccessed` | the pipeline run date |
+| (join key) | `debt-instruments.cik`, zero-padded |
+| (scope filter) | the three `*_of_debt_instrument_id` lineage columns |
+
+Unused columns: `company_name` on all three files (company-info stays the single
+source for company identity, as with corporate structure),
+`other_interested_parties_json` (borrowers and guarantors — the same coreference
+problem as lenders, with less payoff), everything in `mentions` that
+`debt-instruments` already resolves (`name_json`, `start_date_json`,
+`end_date_json`, `raw_id`, and the per-mention lineage columns), and everything in
+`items` outside the four read — including `item_information`, the gloss for
+`item`, which is lowercase and runs to 135 characters and so makes a poor
+citation name.
+
+**Both auxiliary files must be de-duplicated before joining.** `mentions` carries
+23 duplicate ids (exact repeats within one item) and `items` carries 803 duplicate
+`item_id`s in which `company_name` is the only column that varies, because each
+co-registrant on one 8-K gets a row. The naive join turns 1,640 instruments into
+1,861. The merges also pass `validate="many_to_one"`, so removing the de-duplication
+raises rather than quietly inflating.
+
 ## Decisions worth knowing before you change this
+
+**The CDT scope filter deliberately departs from the tech spec.** The spec admits
+an instrument only when its end date is in the future and it has not been
+superseded. Superseding is honored. The end date is not, because 63% of rows have
+none: strict compliance yields 156 instruments across **55 of 4,832** companies
+and silently discards the undated majority. Instruments with no end date are kept
+and labelled `Undated`, giving 1,132 across 186 companies. Every row shows the
+date its 8-K was filed, so nothing undated is presented as current.
+
+**`lastAccessed` on a debt citation is the build date, and `asOf` is the filing
+date.** They are different facts and neither substitutes for the other. Nothing in
+the three CDT files records when the document was retrieved — corporate structure
+has `date_added` for this and CDT has no equivalent — so the honest available
+answer is when the pipeline read it. This makes `lastAccessed` the only
+non-deterministic field in the output. Do not "fix" that by using the filing date:
+that would assert a 2016 retrieval of a document first read years later.
+
+**Debt amounts are never converted or summed.** No CDT output supplies an FX rate,
+so the spec's "Amount USD" cannot be produced. Twelve in-scope instruments are
+EUR, CHF, or GBP, and 385 have no amount at all, so any total both mixes
+currencies and understates by a third.
+
+**Lender labels ship unfiltered, role words included.** `lenders_json` is a
+coreference mention graph, and many groups contain no name anywhere — their
+longest span is `lenders`, `underwriters`, or `lenders party thereto`, which is
+what the filing said in place of a name. 494 of 1,132 instruments disclose no
+lender at all and 638 carry at least one label. Separating roles from names, and
+normalizing the names that remain, is its own piece of work; the labels here are
+the evidence it needs. `extract_lender_labels` is the single place any such
+cleanup belongs.
+
+**Misextracted amounts are passed through.** Six values dataset-wide are below
+1,000 and at least three are plainly interest-rate margins the extractor put in
+the amount field — `0.875` on a row named `ABR Loan`. No threshold separates those
+from a genuine small private note, so nothing is filtered and the fix belongs
+upstream.
+
+
 
 **The citation is `permid_url`, not the company website.** The PermID record is
 where these facts came from. It is also populated for every row, where `url` is
@@ -308,12 +418,22 @@ on every run, so the evidence accumulates without anyone re-deriving it.
 
 ## Scope
 
-The company universe is set by company-info, which currently covers only
-companies reached via the commercial debt tracker — 219 PermIDs. It grows as the
-Shareholder Tracker lands. No filtering is applied here, including on
+The company universe is set by company-info, currently **4,832 PermIDs**. It grows
+as the Shareholder Tracker lands. No filtering is applied here, including on
 `activity_status`: inactive companies still get records.
 
 Corporate structure covers 4,652 registrants, but only those that are also in the
-company universe get a tree: **133 of 219** companies, carrying 8,807
-subsidiaries between them. The other 86 render an empty state. That ratio
-improves from both directions as the two processors fill in.
+company universe get a tree: **1,207 of 4,832** companies, carrying 65,318
+subsidiaries between them. The other 3,625 render an empty state.
+
+CDT covers 228 borrower CIKs, of which 219 are in the company universe:
+**186 of 4,832** companies end up with debt, carrying 1,132 instruments — 156
+active, 976 undated. The gap between 219 and 186 is companies whose every
+instrument was filtered out as matured or superseded.
+
+110 companies have both a tree and debt; 76 have debt but no tree.
+
+Both ratios improve from both directions as the processors fill in. Two coverage
+losses are worth watching because they are silent by nature: 14 in-scope
+instruments belong to 9 CIKs that company-info has not resolved to a PermID, and
+those are logged on every run rather than inferred.

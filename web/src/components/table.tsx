@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import type {
   HTMLAttributes,
   PropsWithChildren,
+  ReactNode,
   TdHTMLAttributes,
   ThHTMLAttributes,
 } from "react";
@@ -176,8 +177,18 @@ TableRow.displayName = "Table.Row";
 
 type TableCellProps = TdHTMLAttributes<HTMLTableCellElement> & {
   align?: "left" | "right" | "center";
-  primary?: string;
-  secondary?: string;
+  /**
+   * Takes a node, not just a string, so a two-line cell can carry a link on its
+   * first line — a table whose rows each cite a different document needs the
+   * citation in the row.
+   */
+  primary?: ReactNode;
+  /**
+   * A node for the same reason `primary` is one: the second line is where a
+   * cell's affordances sit, so it carries the control that expands a truncated
+   * cell as well as the label describing it.
+   */
+  secondary?: ReactNode;
 };
 
 /**

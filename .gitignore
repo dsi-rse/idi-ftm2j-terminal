@@ -11,3 +11,9 @@ __pycache__/
 
 # Local planning docs — intermediate step between a GitHub issue and its beads issues
 plans/
+
+# Exploratory notebooks. Local scratch for poking at the parquet inputs by hand;
+# what the columns mean and which ones build_dataset.py reads lives in
+# jobs/README.md instead. Committing them means committing execution counts and
+# cell outputs, which diff badly and can carry data out of the gitignored data/.
+*.ipynb

@@ -9,10 +9,19 @@ those paths.
 """
 
 # Standard library imports
+import datetime
 import logging
 
 # Local imports
-from .harness import company_rows, run_build, structure_rows
+from .harness import (
+    CDT_URL,
+    cdt_item_rows,
+    cdt_mention_rows,
+    cdt_rows,
+    company_rows,
+    run_build,
+    structure_rows,
+)
 
 # A second, ordinary company whose CIK matches a structure row. Multi-CIK cases
 # need it: `attach_relationships` raises when the join matches nothing at all,
@@ -700,6 +709,336 @@ def structure_missing_exhibit_url_fails_the_build() -> None:
     assert result.records == [], "build should not have produced records"
 
 
+def structure_20f_cites_exhibit_8_and_is_not_filtered() -> None:
+    """A 20-F filer keeps its subsidiaries and is cited as Exhibit 8, not 21.
+
+    No 20-F filer exists in the production company universe, so this path had no
+    coverage at all -- issue 19 shipped with it recorded as unexercised. Two
+    things could go wrong and neither would be visible on any real page: the
+    citation could hardcode "Exhibit 21", and a filter on `exhibit_type` would
+    silently drop every foreign private issuer.
+    """
+    result = run_build(
+        company_rows({}),
+        structure_rows({"form_type": "20-F", "exhibit_type": "8"}),
+    )
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    assert len(relationships) == 1, (
+        f"a 20-F filer lost its subsidiaries: got {len(relationships)}"
+    )
+    name = relationships[0]["sources"][0]["name"]
+    assert name == "SEC 20-F Exhibit 8", name
+
+
+def structure_citation_matches_production_exactly() -> None:
+    """The default fixture renders the citation production renders.
+
+    Pins the fixture's own faithfulness rather than any build behavior. The
+    default row once held `exhibit_type` "EX-21", which rendered "SEC 10-K
+    Exhibit EX-21" -- a string the production file cannot produce, since it holds
+    only "21" or "8". Nothing asserted on it, so nothing failed; the cost was
+    that a fixture-built page shown to a human was subtly not what ships.
+    """
+    result = run_build(company_rows({}), structure_rows({}))
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    name = relationships[0]["sources"][0]["name"]
+    assert name == "SEC 10-K Exhibit 21", name
+
+
+def run_debt_build(
+    *,
+    debt=None,
+    mentions=None,
+    items=None,
+    expect_failure: bool = False,
+):
+    """Runs a build with a complete, self-consistent CDT dataset.
+
+    `run_build` defaults the three CDT frames to empty so that cases about
+    corporate structure need not describe debt. Debt cases want the opposite
+    default, and want to replace one frame while the other two stay consistent
+    with it -- an instrument whose mention is missing tests the citation guard,
+    not whatever the case was about.
+    """
+    return run_build(
+        company_rows({}),
+        structure_rows({}),
+        debt=cdt_rows({}) if debt is None else debt,
+        mentions=cdt_mention_rows({}) if mentions is None else mentions,
+        items=cdt_item_rows({}) if items is None else items,
+        expect_failure=expect_failure,
+    )
+
+
+def debt_smoke_one_instrument() -> None:
+    """One company, one instrument, three CDT files: the ordinary shape.
+
+    Also pins the citation, which is the reason CDT needs three files at all --
+    `debt-instruments` carries no url, date, or accession, so a broken join shows
+    up here as a missing source rather than as a wrong number.
+    """
+    result = run_debt_build()
+
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+    instrument = debt[0]
+    assert instrument["instrumentName"] == "revolving credit facility", instrument
+    assert instrument["status"] == "Undated", instrument["status"]
+    assert instrument["asOf"] == "2016-01-04", instrument["asOf"]
+    assert instrument["amount"] == 10000000, instrument["amount"]
+    assert isinstance(instrument["amount"], int), type(instrument["amount"])
+    assert instrument["currency"] == "USD", instrument["currency"]
+
+    assert len(instrument["sources"]) == 1, instrument["sources"]
+    source = instrument["sources"][0]
+    assert source["name"] == "SEC 8-K Item 1.01", source["name"]
+    assert source["url"] == CDT_URL, source["url"]
+    assert source["url"].endswith(".txt"), "citation must be the filing, not a transform"
+    # lastAccessed is when the pipeline ran, not when the 8-K was filed. Nothing
+    # in the three CDT files records a retrieval date; asOf carries the filing.
+    assert source["lastAccessed"] != source["name"], source
+    assert source["lastAccessed"] > "2026-01-01", source["lastAccessed"]
+    assert source["lastAccessed"] != instrument["asOf"], (
+        "lastAccessed must not be the filing date"
+    )
+
+
+def debt_unmatched_cik_fails_the_build() -> None:
+    """A CDT dataset that joins to no company must fail, not render empty.
+
+    The production `cik` column is unpadded and company-info's is zero-padded to
+    ten, so the unnormalized join matches zero of 228 CIKs -- silently, and
+    indistinguishably from "the processor has no data for these companies".
+    """
+    result = run_debt_build(
+        debt=cdt_rows({"cik": "9999999"}),
+        mentions=cdt_mention_rows({"cik": "9999999"}),
+        items=cdt_item_rows({"cik": "9999999"}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
+def debt_unresolvable_document_fails_the_build() -> None:
+    """An instrument whose 8-K cannot be found must fail the build.
+
+    Every fact rendered on a company page carries a citation, so an instrument
+    that cannot cite its filing is not a row to drop quietly -- it means the three
+    CDT files are from different processor runs.
+    """
+    result = run_debt_build(
+        items=cdt_item_rows({"item_id": "some-other-item"}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
+def debt_matured_instrument_is_excluded() -> None:
+    """An instrument whose end date has passed does not reach the frontend."""
+    result = run_debt_build(
+        debt=cdt_rows({"end_date": "2017-06-30"}),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert debt == [], f"matured instrument should have been excluded, got {debt}"
+
+
+def debt_future_instrument_is_active() -> None:
+    """An instrument whose end date is in the future is Active.
+
+    The end date is computed rather than hardcoded: any literal future date in a
+    fixture eventually becomes a past date and turns this case into a silent
+    duplicate of the matured one.
+    """
+    future = (datetime.date.today() + datetime.timedelta(days=365)).isoformat()
+    result = run_debt_build(
+        debt=cdt_rows({"end_date": future}),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+    assert debt[0]["status"] == "Active", debt[0]["status"]
+    assert debt[0]["endDate"] == future, debt[0]["endDate"]
+
+
+def debt_unparseable_end_date_is_undated() -> None:
+    """An end date that will not parse is Undated, not silently matured.
+
+    Coercion turns both a blank and a garbage date into NaT, and treating NaT as
+    "expired" would drop the instrument on the strength of a parse failure.
+    """
+    result = run_debt_build(
+        debt=cdt_rows({"end_date": "as soon as practicable"}),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+    assert debt[0]["status"] == "Undated", debt[0]["status"]
+    assert debt[0]["endDate"] is None, debt[0]["endDate"]
+
+
+def debt_superseded_instrument_is_excluded() -> None:
+    """An amended instrument drops out and its replacement stays.
+
+    Lineage points from the newer instrument back at the older one, so the row
+    naming a predecessor is the survivor -- the reverse of what the column name
+    reads like.
+    """
+    original = "dim::fixture000000000000000001"
+    replacement = "dim::fixture000000000000000002"
+    result = run_debt_build(
+        debt=cdt_rows(
+            {},
+            {
+                "debt_instrument_id": replacement,
+                "seed_debt_instrument_mention_id": replacement,
+                "amendment_of_debt_instrument_id": original,
+                "name": "amended revolving credit facility",
+            },
+        ),
+        mentions=cdt_mention_rows(
+            {},
+            {"debt_instrument_mention_id": replacement},
+        ),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    names = [i["instrumentName"] for i in debt]
+    assert names == ["amended revolving credit facility"], (
+        f"expected only the replacement to survive, got {names}"
+    )
+
+
+def debt_generic_lender_labels_survive() -> None:
+    """Role words reach the frontend as lender labels, on purpose.
+
+    A filing that names no counterparty says "the lenders party thereto", and the
+    extraction records that phrase. Filtering it here is the first step of the
+    lender-normalization work, which is deliberately not done yet -- so this case
+    fails if someone adds a stopword set without also revisiting that decision.
+    """
+    result = run_debt_build(
+        debt=cdt_rows(
+            {
+                "lenders_json": (
+                    '[{"mentions": [{"char_end": 21, "char_start": 0,'
+                    ' "tag_id": "tag-1", "text": "lenders party thereto",'
+                    ' "type": "organization"}], "tag_ids": ["tag-1"]}]'
+                )
+            }
+        ),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+    assert debt[0]["lenders"] == ["lenders party thereto"], debt[0]["lenders"]
+
+
+def debt_currency_comes_from_the_mentions_file() -> None:
+    """A non-USD amount keeps its own code and is not converted.
+
+    `debt-instruments.amount` is a bare number; the currency lives only in
+    `mentions.amount_json`, which is why the mentions join carries more than
+    provenance. No CDT output supplies an FX rate, so nothing is converted.
+    """
+    result = run_debt_build(
+        debt=cdt_rows({"amount": "500000000"}),
+        mentions=cdt_mention_rows(
+            {"amount_json": '{"currency": "EUR", "mentions": []}'}
+        ),
+    )
+    instrument = result.by_permid("5000000001")["currentCommercialDebt"][0]
+    assert instrument["currency"] == "EUR", instrument["currency"]
+    assert instrument["amount"] == 500000000, instrument["amount"]
+
+
+def debt_duplicate_items_do_not_multiply_instruments() -> None:
+    """Co-registrant rows in `items` must not duplicate an instrument.
+
+    Production `items` carries 803 duplicate `item_id`s differing only in
+    `company_name`, because each co-registrant on one 8-K gets a row. Joining
+    without de-duplicating turns 1,640 instruments into 1,861.
+    """
+    result = run_debt_build(
+        items=cdt_item_rows({}, {"company_name": "CO-REGISTRANT CO"}),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"duplicate items multiplied the instrument: {len(debt)}"
+
+
+def debt_undated_document_fails_the_build() -> None:
+    """An instrument whose 8-K has no filing date must fail the build.
+
+    `asOf` comes from `items.date` and `SnapshotEntity` types it a `string`. The
+    frontend does not treat it as optional either: `sortDebt` calls
+    `localeCompare` on it, so a null crashes the prerender of every page carrying
+    the instrument instead of leaving a cell blank. The url-only guard used to let
+    this through -- the row cites its filing perfectly well and simply has no date.
+    """
+    result = run_debt_build(
+        items=cdt_item_rows({"date": None}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
+def debt_unparseable_document_date_fails_the_build() -> None:
+    """A date that will not parse fails the same way a missing one does.
+
+    `parse_iso_date` returns `None` for both, so both reach the frontend as
+    `asOf: null`. The guard runs `parse_iso_date` itself rather than testing for
+    emptiness, which is what makes these one case rather than two behaviours.
+    """
+    result = run_debt_build(
+        items=cdt_item_rows({"date": "not a date"}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
+def debt_unrenderable_instrument_does_not_fail_the_build() -> None:
+    """An uncitable instrument that renders nowhere warns instead of failing.
+
+    An instrument whose CIK company-info has not resolved to a PermID appears on
+    no page -- 14 do today, across 9 CIKs, and that bucket grows whenever CDT
+    covers a company the PermID mapping does not. Failing the whole build over a
+    row no reader can reach trades the site for a rule about invisible data.
+
+    Two instruments, because one unmatched CIK on its own is the padding bug the
+    join guard exists to catch: the first is ordinary and keeps the join honest,
+    the second names a CIK no company holds and resolves no document at all. The
+    build must produce the first and say something about the second.
+    """
+    result = run_debt_build(
+        debt=cdt_rows(
+            {},
+            {
+                "debt_instrument_id": "orphan-1",
+                "cik": "9999999",
+                "seed_debt_instrument_mention_id": "no-such-mention",
+            },
+        ),
+    )
+
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected the renderable instrument only, got {len(debt)}"
+    assert debt[0]["asOf"] == "2016-01-04", debt[0]["asOf"]
+
+    matches = result.warnings_matching("none of them renders", "orphan-1")
+    assert matches, f"expected a warning naming the skipped instrument, got {result.warnings()}"
+
+
+def debt_every_rendered_instrument_carries_a_date() -> None:
+    """`asOf` is a string on every emitted instrument, never null.
+
+    The guard exists to make that true, so this asserts the property rather than
+    the guard -- a future change that drops a row instead of failing, or defaults
+    the date, has to keep this passing.
+    """
+    result = run_debt_build()
+    for record in result.records:
+        for instrument in record["currentCommercialDebt"]:
+            assert isinstance(instrument["asOf"], str), instrument
+            assert instrument["asOf"], instrument
+
+
 CASES = [
     smoke_single_cik,
     smoke_unmatched_cik_fails_the_build,
@@ -726,4 +1065,20 @@ CASES = [
     structure_all_nameless_leaves_an_empty_tree,
     structure_missing_filing_date_fails_the_build,
     structure_missing_exhibit_url_fails_the_build,
+    structure_20f_cites_exhibit_8_and_is_not_filtered,
+    structure_citation_matches_production_exactly,
+    debt_smoke_one_instrument,
+    debt_unmatched_cik_fails_the_build,
+    debt_unresolvable_document_fails_the_build,
+    debt_matured_instrument_is_excluded,
+    debt_future_instrument_is_active,
+    debt_unparseable_end_date_is_undated,
+    debt_superseded_instrument_is_excluded,
+    debt_generic_lender_labels_survive,
+    debt_currency_comes_from_the_mentions_file,
+    debt_duplicate_items_do_not_multiply_instruments,
+    debt_undated_document_fails_the_build,
+    debt_unparseable_document_date_fails_the_build,
+    debt_unrenderable_instrument_does_not_fail_the_build,
+    debt_every_rendered_instrument_carries_a_date,
 ]

@@ -1,12 +1,13 @@
 /**
- * View models for the company-detail sections that still render illustrative
- * data — Holders and Debt.
+ * View model for the one company-detail section that still renders illustrative
+ * data — Holders.
  *
- * These are NOT domain types. The real, cited versions of these concepts live
- * in `@/types/domain` as `HistoricShareholder` and `HistoricCommercialDebt`;
- * each type here retires when its processor lands and its section switches to
- * the domain model. The Corporate Tree already made that move — it reads
- * `CurrentCorporateRelationship` from the domain model.
+ * This is NOT a domain type. The real, cited version lives in `@/types/domain`
+ * as `HistoricShareholder`; it retires when the shareholder-tracker processor
+ * lands and the section switches to the domain model. The Corporate Tree and
+ * Commercial Debt already made that move — they read
+ * `CurrentCorporateRelationship` and `CurrentCommercialDebt` from the domain
+ * model.
  */
 
 /**
@@ -21,29 +22,13 @@ export interface Shareholder {
   valueUsd: number;
 }
 
-/**
- * A single commercial debt instrument disclosed via EDGAR 8-K or SDC
- * Platinum.
- */
-export interface DebtInstrument {
-  lender: string;
-  syndication: "syndicated" | "bilateral";
-  currency: string;
-  instrument: string;
-  rate: string;
-  rateType: "floating" | "fixed";
-  maturity: string;
-  amountUsd: number;
-}
 
 /**
- * The illustrative payload for the two company-detail sections that have no
+ * The illustrative payload for the one company-detail section that has no
  * processor yet. Produced by `mock-sections.ts`; every field is sample data, and
- * the `*Source` strings say so where they render.
+ * `shareholdersSource` says so where it renders.
  */
 export interface MockSections {
   shareholders: Shareholder[];
-  debtInstruments: DebtInstrument[];
   shareholdersSource: string;
-  debtSource: string;
 }
