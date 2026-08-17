@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 
 import { SCROLL_PANE_ATTR } from "@/layouts";
+import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
 
 type SectionTab = {
@@ -147,10 +148,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
 
   const handleClick = (id: string) => (event: React.MouseEvent) => {
     event.preventDefault();
-    const target = document.getElementById(id);
-    if (!target) return;
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-    setActive(id);
+    if (scrollToSection(id)) setActive(id);
   };
 
   return (

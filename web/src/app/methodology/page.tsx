@@ -49,7 +49,7 @@ export default function MethodologyPage() {
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Paragraph>
               In practice, company facts are derived from LSEG PermID; corporate
-              trees are reconciled from GLEIF and SEC Exhibit&nbsp;21 subsidiary
+              trees come from SEC Exhibit&nbsp;21 and Exhibit&nbsp;8 subsidiary
               lists attached to 10-K and 20-F filings; institutional
               shareholders come from SEC Form&nbsp;13-F filings, augmented by
               13-D and 13-G beneficial-ownership disclosures; and commercial
@@ -65,11 +65,14 @@ export default function MethodologyPage() {
               Building the corporate tree
             </Article.Body.Section.Title>
             <Article.Body.Section.Paragraph>
-              Parent&ndash;subsidiary relationships are extracted, normalized to
-              a single entity per legal person, and merged into a directed
-              ownership graph. Conflicting disclosures are resolved in favor of
-              the most recent primary filing, and unresolved conflicts are
-              flagged for manual review.
+              Parent&ndash;subsidiary relationships are extracted from the
+              subsidiary list a registrant attaches to its own annual report,
+              and are presented as that filing discloses them. Where a company
+              has filed more than once, only its most recent filing is shown,
+              with the filing date alongside. Subsidiary names are reproduced as
+              filed and are not resolved to company records, so a subsidiary
+              that is itself a registrant elsewhere in the database is not yet
+              linked to it.
             </Article.Body.Section.Paragraph>
           </Article.Body.Section>
 

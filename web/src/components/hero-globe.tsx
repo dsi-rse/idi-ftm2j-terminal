@@ -336,5 +336,3 @@ export function HeroGlobe() {
     />
   );
 }
-
-export default HeroGlobe;
