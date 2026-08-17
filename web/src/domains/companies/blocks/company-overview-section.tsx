@@ -76,13 +76,19 @@ function treeGateway(company: Company): Gateway {
     };
   }
 
-  const [first] = relationships;
+  // A multi-registrant company unions each registrant's most recent filing, so
+  // the list can span several filing dates and documents. This caption is a
+  // one-line summary, not the tree subtitle's full range, so it reports the
+  // most recent filing — its date and its citation together — rather than
+  // whichever subsidiary happens to sort first alphabetically. ISO-8601 dates
+  // compare lexicographically, which is why `asOf` can be `max`'d as a string.
+  const latest = relationships.reduce((a, b) => (b.asOf > a.asOf ? b : a));
   const jurisdictions = countJurisdictions(relationships);
-  const citation = first.sources[0]?.name ?? "SEC filing";
+  const citation = latest.sources[0]?.name ?? "SEC filing";
   return {
     ...base,
     value: String(relationships.length),
-    meta: `${plural(jurisdictions, "jurisdiction")} · ${citation} · filed on ${first.asOf}`,
+    meta: `${plural(jurisdictions, "jurisdiction")} · ${citation} · filed on ${latest.asOf}`,
   };
 }
 
