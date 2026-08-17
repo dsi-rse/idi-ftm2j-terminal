@@ -460,7 +460,7 @@ def build_registrants(
         Registrant dicts, primary first then ascending by CIK.
     """
     identifiers = group["identifier"].map(_clean)
-    is_cik = group["identifier_type"] == "cik"
+    is_cik = cik_rows(group["identifier_type"])
 
     registrants = []
     for cik in ciks:
