@@ -765,7 +765,7 @@ def build_relationship(row: pd.Series, company: dict) -> dict:
         A dict matching the serialized `CurrentCorporateRelationship` type in
         `web/src/types/domain.ts`.
     """
-    return {
+    relationship = {
         # CitedEntity
         "sources": [
             {
@@ -789,6 +789,31 @@ def build_relationship(row: pd.Series, company: dict) -> dict:
         # who said what.
         "disclosedByCik": _clean(row["cik"]),
     }
+
+    # `url`, `lastAccessed` and `asOf` are required strings in the serialized
+    # type (domain.ts), but `_clean`/`parse_iso_date` return None on a blank or
+    # unparseable cell -- which ships as JSON null and renders as literal "null"
+    # in the tree's citation. Nothing downstream catches it: `validate_companies`
+    # runs before relationships are attached. Fail here, the way the CIK join
+    # does, rather than emit a citation the UI cannot show. (`child.name` is
+    # handled by the caller, which drops nameless subsidiaries outright.)
+    source = relationship["sources"][0]
+    missing = [
+        field
+        for field, value in (
+            ("asOf", relationship["asOf"]),
+            ("sources[0].url", source["url"]),
+            ("sources[0].lastAccessed", source["lastAccessed"]),
+        )
+        if value is None
+    ]
+    if missing:
+        raise RuntimeError(
+            f"Corporate-structure row disclosed by CIK {relationship['disclosedByCik']} "
+            f"(accession {_clean(row['accession_number'])}) is missing required "
+            f"field(s): {', '.join(missing)}."
+        )
+    return relationship
 
 
 def attach_relationships(
@@ -825,6 +850,7 @@ def attach_relationships(
     matched = 0
     multi_registrant = 0
     dropped_to_accession_collapse = 0
+    dropped_to_missing_name = 0
     duplicate_names_across_accessions = 0
 
     for company in companies:
@@ -835,6 +861,10 @@ def attach_relationships(
         ]
         if not groups:
             continue
+        # Counted the moment the CIK join finds rows, not once a tree is built,
+        # so dropping every row below for a blank name leaves an empty tree
+        # rather than tripping the zero-match guard as if the join had failed.
+        matched += 1
         if len(groups) > 1:
             multi_registrant += 1
 
@@ -860,6 +890,15 @@ def attach_relationships(
 
         surviving = pd.concat(kept)
 
+        # A subsidiary with no name is not renderable: `child.name` is a required
+        # string, so a blank ships as JSON null and draws an empty row in the
+        # tree. Drop it here, counted, rather than emit a nameless entity.
+        named = surviving[surviving["name"].map(_clean).notna()]
+        dropped_to_missing_name += len(surviving) - len(named)
+        surviving = named
+        if surviving.empty:
+            continue
+
         # Surviving accessions are concatenated as-is: two registrants who filed
         # separately both contribute in full, so a subsidiary named in both
         # appears twice. Deduping that is deferred until a real multi-CIK
@@ -882,7 +921,6 @@ def attach_relationships(
             build_relationship(row, company)
             for _, row in surviving.sort_values("name").iterrows()
         ]
-        matched += 1
 
     # Both sides must be zero-padded or the join silently matches nothing,
     # leaving every company page with an empty Corporate Tree and no error. That
@@ -910,11 +948,12 @@ def attach_relationships(
     # yet.
     logger.info(
         "%d companies joined more than one registrant; the accession collapse "
-        "dropped %d duplicate rows; %d duplicate child names survive across "
-        "separate accessions (not deduped -- see the join contract in "
-        "jobs/README.md).",
+        "dropped %d duplicate rows; %d subsidiary rows dropped for a missing "
+        "name; %d duplicate child names survive across separate accessions (not "
+        "deduped -- see the join contract in jobs/README.md).",
         multi_registrant,
         dropped_to_accession_collapse,
+        dropped_to_missing_name,
         duplicate_names_across_accessions,
     )
 

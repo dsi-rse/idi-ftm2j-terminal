@@ -8,6 +8,9 @@ because production data has no multi-CIK company, so nothing else exercises
 those paths.
 """
 
+# Standard library imports
+import logging
+
 # Local imports
 from .harness import company_rows, run_build, structure_rows
 
@@ -626,6 +629,77 @@ def structure_same_day_filings_without_report_date_still_resolve() -> None:
     )
 
 
+def structure_nameless_subsidiary_is_dropped() -> None:
+    """A row with a blank `name` is dropped, counted, and does not render.
+
+    `child.name` is a required string in the serialized type; a blank would ship
+    as JSON null and draw an empty row in the tree. The named rows around it are
+    unaffected, and the drop is reported so it is visible rather than silent.
+    """
+    rows = [
+        {"accession_number": "0000000001-17-000001", "name": "Named Sub LLC"},
+        {"accession_number": "0000000001-17-000001", "name": "   "},
+    ]
+    result = run_build(company_rows({}), structure_rows(*rows))
+
+    relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
+    names = [r["child"]["name"] for r in relationships]
+    assert names == ["Named Sub LLC"], f"expected the nameless row dropped, got {names}"
+    assert result.messages(logging.INFO), "expected the drop to be reported"
+    assert any(
+        "1 subsidiary rows dropped for a missing name" in m
+        for m in result.messages(logging.INFO)
+    ), result.messages(logging.INFO)
+
+
+def structure_all_nameless_leaves_an_empty_tree() -> None:
+    """A company whose every row is nameless gets an empty tree, not a failure.
+
+    The CIK join matched, so this is not the zero-match case that fails the
+    build -- the rows are simply unrenderable. With this the only company, the
+    build must still succeed with an empty tree rather than trip the zero-match
+    guard as if the join had found nothing.
+    """
+    result = run_build(
+        company_rows({}),
+        structure_rows({"name": None}),
+    )
+
+    record = result.by_permid("5000000001")
+    assert record["currentCorporateRelationships"] == [], (
+        f"expected an empty tree, got {record['currentCorporateRelationships']}"
+    )
+
+
+def structure_missing_filing_date_fails_the_build() -> None:
+    """A null `filing_date` yields a null `asOf`, which must fail the build.
+
+    `asOf` is a required string; shipping null renders as literal "null" in the
+    citation. Nothing downstream catches it -- `validate_companies` runs before
+    relationships are attached -- so the build must refuse it here.
+    """
+    result = run_build(
+        company_rows({}),
+        structure_rows({"filing_date": None}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
+def structure_missing_exhibit_url_fails_the_build() -> None:
+    """A null `exhibit_url` yields a null citation URL, which must fail the build.
+
+    Same contract as the date: `Source.url` is a required string, so a blank
+    cell cannot be allowed to ship as null.
+    """
+    result = run_build(
+        company_rows({}),
+        structure_rows({"exhibit_url": None}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
 CASES = [
     smoke_single_cik,
     smoke_unmatched_cik_fails_the_build,
@@ -648,4 +722,8 @@ CASES = [
     structure_same_day_filings_break_on_report_date,
     structure_same_day_filings_without_report_date_still_resolve,
     structure_disclosed_by_cik_matches_a_registrant,
+    structure_nameless_subsidiary_is_dropped,
+    structure_all_nameless_leaves_an_empty_tree,
+    structure_missing_filing_date_fails_the_build,
+    structure_missing_exhibit_url_fails_the_build,
 ]
