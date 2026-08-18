@@ -20,6 +20,30 @@ export type RecentlyViewedEntry = CompanySearchMeta & {
   viewedAt: number;
 };
 
+/**
+ * Narrows whatever a caller hands the store to exactly the fields that get
+ * persisted.
+ *
+ * Callers pass search results, which carry more than this type declares —
+ * `CompanySearchResultItem` adds the company's full subsidiary list, up to 1,284
+ * names. TypeScript permits that (excess-property checks do not apply to a
+ * variable passed as an argument) and the extra field would then be written
+ * straight to IndexedDB, where nothing ever reads it: neither the Recent nor the
+ * Saved tab consults the search query.
+ *
+ * So the boundary is enforced here, once, rather than trusted to every call
+ * site. Persisted records stay small no matter what gets handed in.
+ */
+function toSearchMeta(company: CompanySearchMeta): CompanySearchMeta {
+  return {
+    permId: company.permId,
+    companyName: company.companyName,
+    sector: company.sector,
+    country: company.country,
+    tickers: company.tickers,
+  };
+}
+
 export type CompanyTab = "all" | "recent" | "saved";
 
 const idbStorage: StateStorage = {
@@ -64,7 +88,7 @@ export const useCompaniesStore = create<CompaniesState>()(
         set((state) =>
           state.bookmarked.some((c) => c.permId === company.permId)
             ? state
-            : { bookmarked: [...state.bookmarked, company] },
+            : { bookmarked: [...state.bookmarked, toSearchMeta(company)] },
         ),
 
       removeBookmark: (permId) =>
@@ -78,7 +102,7 @@ export const useCompaniesStore = create<CompaniesState>()(
       addRecentlyViewed: (company) =>
         set((state) => ({
           recentlyViewed: [
-            { ...company, viewedAt: Date.now() },
+            { ...toSearchMeta(company), viewedAt: Date.now() },
             ...state.recentlyViewed.filter((c) => c.permId !== company.permId),
           ].slice(0, MAX_RECENTLY_VIEWED),
         })),
