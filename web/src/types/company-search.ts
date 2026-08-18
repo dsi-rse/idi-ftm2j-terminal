@@ -20,4 +20,11 @@ export type PagefindCompanyMeta = {
   sectors?: string;
   /** JSON-encoded string array. */
   tickers?: string;
+  /**
+   * Every subsidiary this company disclosed, JSON-encoded, in disclosure order.
+   * Not a display field: it is the list a result row matches the query against
+   * to say *why* the company came back. Uncapped, so this is the one meta field
+   * that can run to tens of kilobytes — 1,284 names for the largest tree.
+   */
+  subsidiaries?: string;
 };
