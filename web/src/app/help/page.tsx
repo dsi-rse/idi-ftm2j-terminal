@@ -48,8 +48,7 @@ export default function HelpPage() {
             <Article.Body.Section.Paragraph>
               Open <strong>Companies</strong> from the menu to browse the full
               list. Use the search bar to filter by company name, ticker,
-              country, or the name of a disclosed subsidiary — a subsidiary match
-              lists the subsidiaries it matched beneath the parent company — and
+              country, or the name of a disclosed subsidiary and
               switch between the All, Recent, and Saved tabs to manage your
               working set. Select any company to load its profile.
             </Article.Body.Section.Paragraph>
