@@ -1829,6 +1829,86 @@ def report_unresolved_rows(companies_df: pd.DataFrame, logger: logging.Logger) -
     )
 
 
+INDEX_FILE_NAME = "index.ndjson"
+DETAIL_DIR_NAME = "detail"
+
+
+def index_shard(perm_id: str) -> str:
+    """The subdirectory bucket for a PermID's detail file.
+
+    Two-character prefix, so no single directory holds every company. Mirrored
+    exactly by the web reader (`detailShard` in the company route); if this
+    changes, that must change with it.
+    """
+    return perm_id[:2] if len(perm_id) >= 2 else "_"
+
+
+def build_index_entry(company: dict) -> dict:
+    """The light per-company record written to `index.ndjson`.
+
+    Carries only what page selection and search need without loading a
+    company's heavy nested lists: identity fields and the content-depth counts
+    `generateStaticParams` sorts on. Reading the full detail for all companies
+    just to pick and order a subset is what did not scale.
+    """
+    return {
+        "permId": company["permId"],
+        "name": company["name"],
+        "hqCountry": company["hqCountry"],
+        "debtCount": len(company["currentCommercialDebt"]),
+        "treeCount": len(company["currentCorporateRelationships"]),
+        "shareholderCount": len(company["currentShareholders"]),
+    }
+
+
+def write_dataset(
+    companies: list[dict], output_dir: str, logger: logging.Logger
+) -> None:
+    """Writes the dataset as an index plus one detail file per company.
+
+    A single JSON array does not survive the data volume: with every
+    shareholding kept, the array is >1 GB and the web reader cannot even hold it
+    as one string (Node caps a string at ~536 MB). Splitting it means the reader
+    loads a small index to select and order pages, then reads only the detail of
+    each page it renders.
+
+    Layout under `output_dir`:
+        index.ndjson              one `build_index_entry` per line
+        detail/<shard>/<permId>.json   the full Company record, one per file
+
+    `index.ndjson` is newline-delimited rather than a JSON array so the reader
+    can parse it line by line and never build one giant string.
+
+    Args:
+        companies: The transformed company records.
+        output_dir: Directory to write into; created if absent.
+        logger: A standard logger instance.
+    """
+    out = Path(output_dir)
+    detail_root = out / DETAIL_DIR_NAME
+    detail_root.mkdir(parents=True, exist_ok=True)
+
+    index_path = out / INDEX_FILE_NAME
+    with open(index_path, "w", encoding="utf-8") as index_file:
+        for company in companies:
+            index_file.write(
+                json.dumps(build_index_entry(company), ensure_ascii=False)
+            )
+            index_file.write("\n")
+            shard_dir = detail_root / index_shard(company["permId"])
+            shard_dir.mkdir(parents=True, exist_ok=True)
+            detail_path = shard_dir / f"{company['permId']}.json"
+            with open(detail_path, "w", encoding="utf-8") as detail_file:
+                json.dump(company, detail_file, ensure_ascii=False)
+
+    logger.info(
+        "Wrote %s (%d companies) and per-company detail files under %s.",
+        index_path,
+        len(companies),
+        detail_root,
+    )
+
+
 def validate_companies(companies: list[dict]) -> None:
     """Fails the build if a record violates a non-nullable `Company` field.
 
@@ -1880,7 +1960,8 @@ def main(logger: logging.Logger) -> None:
         CDT_MENTIONS_FILE_PATH: Path to the CDT debt-instrument-mentions parquet.
         CDT_ITEMS_FILE_PATH: Path to the CDT items parquet.
         SHAREHOLDERS_FILE_PATH: Path to the shareholder-tracker parquet.
-        OUTPUT_FILE_PATH: Path to write the output JSON file.
+        OUTPUT_DIR: Directory to write the dataset into, as an index plus one
+            detail file per company -- see `write_dataset`.
 
     Args:
         logger: A standard logger instance.
@@ -1900,7 +1981,7 @@ def main(logger: logging.Logger) -> None:
         cdt_mentions_fpath = os.environ["CDT_MENTIONS_FILE_PATH"]
         cdt_items_fpath = os.environ["CDT_ITEMS_FILE_PATH"]
         shareholders_fpath = os.environ["SHAREHOLDERS_FILE_PATH"]
-        output_fpath = os.environ["OUTPUT_FILE_PATH"]
+        output_dir = os.environ["OUTPUT_DIR"]
     except KeyError as e:
         raise RuntimeError(f'Missing required environment variable "{e}".') from e
 
@@ -1986,10 +2067,8 @@ def main(logger: logging.Logger) -> None:
             ", ".join(missing_sources[:10]),
         )
 
-    logger.info("Writing dataset to output JSON file.")
-    Path(output_fpath).parent.mkdir(parents=True, exist_ok=True)
-    with open(output_fpath, "w", encoding="utf-8") as f:
-        json.dump(companies, f, ensure_ascii=False, indent=2)
+    logger.info("Writing dataset to output directory.")
+    write_dataset(companies, output_dir, logger)
 
     logger.info("Pipeline completed successfully.")
 

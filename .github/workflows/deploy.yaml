@@ -54,13 +54,14 @@ jobs:
           CDT_DEBT_INSTRUMENTS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.CDT_DEBT_INSTRUMENTS_FILE_PATH }}
           CDT_MENTIONS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.CDT_MENTIONS_FILE_PATH }}
           CDT_ITEMS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.CDT_ITEMS_FILE_PATH }}
-          OUTPUT_FILE_PATH: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}/${{ vars.OUTPUT_FILE_NAME }}
+          SHAREHOLDERS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.SHAREHOLDERS_FILE_PATH }}
+          OUTPUT_DIR: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}
 
       - name: Cache dataset
         uses: actions/upload-artifact@v6
         with:
           name: site-data-${{ github.ref_name }}
-          path: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}/${{ vars.OUTPUT_FILE_NAME }}
+          path: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}
           retention-days: 1
 
   build:
@@ -103,7 +104,7 @@ jobs:
         run: pnpm run build:prod
         working-directory: project/web
         env:
-          INPUT_DATA_FILE_PATH: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}/${{ vars.OUTPUT_FILE_NAME }}
+          INPUT_DATA_DIR: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}
 
       - name: Validate build output
         run: |

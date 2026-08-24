@@ -367,7 +367,7 @@ def run_build(
         mentions_path = tmpdir / "cdt_mentions.parquet"
         items_path = tmpdir / "cdt_items.parquet"
         shareholders_path = tmpdir / "shareholders.parquet"
-        output_path = tmpdir / "companies.json"
+        output_dir = tmpdir / "output"
         companies.to_parquet(company_path, index=False)
         structure.to_parquet(structure_path, index=False)
         debt.to_parquet(debt_path, index=False)
@@ -384,7 +384,7 @@ def run_build(
                 "CDT_MENTIONS_FILE_PATH",
                 "CDT_ITEMS_FILE_PATH",
                 "SHAREHOLDERS_FILE_PATH",
-                "OUTPUT_FILE_PATH",
+                "OUTPUT_DIR",
             )
         }
         os.environ["COMPANY_INFO_FILE_PATH"] = str(company_path)
@@ -393,7 +393,7 @@ def run_build(
         os.environ["CDT_MENTIONS_FILE_PATH"] = str(mentions_path)
         os.environ["CDT_ITEMS_FILE_PATH"] = str(items_path)
         os.environ["SHAREHOLDERS_FILE_PATH"] = str(shareholders_path)
-        os.environ["OUTPUT_FILE_PATH"] = str(output_path)
+        os.environ["OUTPUT_DIR"] = str(output_dir)
         try:
             # The build prints nothing to stdout, but pandas and pyarrow may;
             # swallow it so the runner's own output stays readable.
@@ -410,6 +410,29 @@ def run_build(
                 else:
                     os.environ[key] = value
 
-        records = json.loads(output_path.read_text(encoding="utf-8"))
+        records = _read_records(output_dir)
 
     return FixtureResult(records=records, log=capture.records)
+
+
+def _read_records(output_dir: Path) -> list[dict]:
+    """Reconstructs the company records from the split output layout.
+
+    `build_dataset` no longer writes one JSON array; it writes `index.ndjson`
+    plus one `detail/<shard>/<permId>.json` per company. Records are returned in
+    index order, which is the order `build_companies` sorted them, so a case can
+    still assert on ordering. Mirrors `build_dataset.index_shard`.
+    """
+    index_path = output_dir / "index.ndjson"
+    if not index_path.exists():
+        return []
+    records: list[dict] = []
+    for line in index_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        perm_id = json.loads(line)["permId"]
+        shard = perm_id[:2] if len(perm_id) >= 2 else "_"
+        detail = output_dir / "detail" / shard / f"{perm_id}.json"
+        records.append(json.loads(detail.read_text(encoding="utf-8")))
+    return records
