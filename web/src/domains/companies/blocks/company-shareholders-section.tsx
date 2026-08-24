@@ -6,7 +6,7 @@ import { SectionCard } from "@/blocks/section-card";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { DistributionBar, RowIndex, Table } from "@/components/table";
-import { formatAmountShort } from "@/lib/format-currency";
+import { formatAmountShort, formatCountShort } from "@/lib/format-currency";
 import type { Company, CurrentShareholder } from "@/types/domain";
 
 type CompanyShareholdersSectionProps = {
@@ -109,6 +109,7 @@ function ShareholdersTable({
             <Table.HeaderCell>Country</Table.HeaderCell>
             <Table.HeaderCell>Security</Table.HeaderCell>
             <Table.HeaderCell>Reported</Table.HeaderCell>
+            <Table.HeaderCell align="right">Shares</Table.HeaderCell>
             <Table.HeaderCell
               align="right"
               sortable
@@ -122,7 +123,7 @@ function ShareholdersTable({
         </Table.Head>
         <Table.Body>
           {visible.length === 0 ? (
-            <Table.Empty colSpan={7}>No holders match your search.</Table.Empty>
+            <Table.Empty colSpan={8}>No holders match your search.</Table.Empty>
           ) : (
             visible.map((holder, i) => {
               const [source] = holder.sources;
@@ -165,6 +166,14 @@ function ShareholdersTable({
                       )
                     }
                     secondary={source?.name}
+                  />
+                  <Table.Cell
+                    align="right"
+                    primary={
+                      holder.sharesOwned === null
+                        ? "Not reported"
+                        : formatCountShort(holder.sharesOwned)
+                    }
                   />
                   <Table.Cell
                     align="right"
