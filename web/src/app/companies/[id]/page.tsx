@@ -1,4 +1,5 @@
 import fs from "fs";
+import path from "path";
 
 import { Metadata } from "next";
 
@@ -13,7 +14,6 @@ import {
   CompanyInspectorOpener,
   CompanySearchDrawer,
 } from "@/domains/companies/blocks/search-drawer";
-import { getMockSections } from "@/domains/companies/mock-sections";
 import { StandardPageLayout, TerminalShell } from "@/layouts";
 import { foldDiacritics } from "@/lib/fold-diacritics";
 import type { Company } from "@/types/domain";
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
  *
  * This is a billing constraint, not a data or product decision. Workers Paid
  * raises the limit to 100,000 and fits the whole dataset with room to spare; at
- * that point this constant, `byContentDepth`, and the slice in `readCompanies`
+ * that point this constant, `byContentDepth`, and the slice in `selectedIndex`
  * should all be deleted rather than retuned. Until then `MAX_COMPANY_PAGES`
  * overrides it without a code change, and the rejection message reports the
  * exact asset count, so the true ceiling is measurable rather than guessed.
@@ -47,59 +47,129 @@ export const metadata: Metadata = {
 const MAX_COMPANY_PAGES = Number(process.env.MAX_COMPANY_PAGES ?? 2000);
 
 /**
+ * The build reads its data from a directory, not one file. `build_dataset.py`
+ * writes `index.ndjson` (one light record per company) plus one
+ * `detail/<shard>/<permId>.json` per company. Keeping every shareholding makes
+ * the full array >1 GB — past Node's ~536 MB single-string cap — so the whole
+ * dataset can no longer be read as one string. Selection reads only the index;
+ * each rendered page reads only its own detail file.
+ */
+const DATA_DIR = process.env.INPUT_DATA_DIR;
+
+/**
+ * The light per-company record in `index.ndjson`: identity plus the
+ * content-depth counts `byContentDepth` sorts on. The heavy nested lists live
+ * in the detail file and are never loaded to pick or order pages.
+ */
+type CompanyIndexEntry = {
+  permId: string;
+  name: string;
+  hqCountry: string | null;
+  debtCount: number;
+  treeCount: number;
+  shareholderCount: number;
+};
+
+/**
+ * The detail-file subdirectory for a PermID. Mirrors `index_shard` in
+ * `build_dataset.py`; if one changes, the other must.
+ */
+function detailShard(permId: string): string {
+  return permId.length >= 2 ? permId.slice(0, 2) : "_";
+}
+
+/**
  * Orders companies by how much of the page has anything on it, richest first.
  *
- * Taking the dataset's own first N would be simpler and is wrong here: only 186
- * of 4,832 companies hold any commercial debt and the rest render an empty
- * state, so an arbitrary slice could contain almost no debt sections at all --
- * and a deploy showing none of them cannot be used to review the debt section.
- * Debt leads, then corporate-tree size, so what survives is what has something
- * on it.
+ * Taking the dataset's own first N would be simpler and is wrong here: most
+ * companies render an empty debt state, so an arbitrary slice could contain
+ * almost no debt sections at all -- and a deploy showing none of them cannot be
+ * used to review the debt section. Debt leads, then corporate-tree size, so
+ * what survives is what has something on it.
  *
  * `permId` breaks ties to keep the surviving set stable build to build. Without
  * it the selection would drift with input order, and a page that existed in the
  * last deploy could 404 in the next one for no visible reason.
  */
-function byContentDepth(a: Company, b: Company): number {
+function byContentDepth(a: CompanyIndexEntry, b: CompanyIndexEntry): number {
   return (
-    b.currentCommercialDebt.length - a.currentCommercialDebt.length ||
-    b.currentCorporateRelationships.length -
-      a.currentCorporateRelationships.length ||
+    b.debtCount - a.debtCount ||
+    b.treeCount - a.treeCount ||
     a.permId.localeCompare(b.permId)
   );
 }
 
-function readCompanies(): Company[] {
-  const filePath = process.env.INPUT_DATA_FILE_PATH;
-  if (!filePath || !fs.existsSync(filePath)) return [];
-  const all: Company[] = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-  if (all.length <= MAX_COMPANY_PAGES) return all;
-  return [...all].sort(byContentDepth).slice(0, MAX_COMPANY_PAGES);
+/**
+ * Reads `index.ndjson` as a Buffer split on newlines rather than as one UTF-8
+ * string: the index grows with the company count, and a single-string read
+ * would reintroduce the ~536 MB cap this split exists to avoid. Each line is
+ * one small record.
+ */
+function readIndex(): CompanyIndexEntry[] {
+  if (!DATA_DIR) return [];
+  const indexPath = path.join(DATA_DIR, "index.ndjson");
+  if (!fs.existsSync(indexPath)) return [];
+  const buffer = fs.readFileSync(indexPath);
+  const entries: CompanyIndexEntry[] = [];
+  let start = 0;
+  for (let i = 0; i <= buffer.length; i++) {
+    if (i === buffer.length || buffer[i] === 0x0a) {
+      if (i > start) {
+        const line = buffer.toString("utf8", start, i).trim();
+        if (line) entries.push(JSON.parse(line) as CompanyIndexEntry);
+      }
+      start = i + 1;
+    }
+  }
+  return entries;
 }
 
 /**
- * The parsed dataset, read once per build worker. `generateStaticParams` and
- * every `CompanyPage` render share it — without the cache the whole file is
- * re-read and re-parsed once per company page.
+ * The index and the selected page set, read once per build worker.
+ * `generateStaticParams` and every render share them.
  */
-let companiesCache: Company[] | undefined;
-let companiesByIdCache: Map<string, Company> | undefined;
+let indexCache: CompanyIndexEntry[] | undefined;
+let selectedCache: CompanyIndexEntry[] | undefined;
+const detailCache = new Map<string, Company | null>();
 
-function loadCompanies(): Company[] {
-  companiesCache ??= readCompanies();
-  return companiesCache;
+function loadIndex(): CompanyIndexEntry[] {
+  indexCache ??= readIndex();
+  return indexCache;
 }
 
+/** The companies that get a prerendered page, capped and content-ordered. */
+function selectedIndex(): CompanyIndexEntry[] {
+  selectedCache ??= (() => {
+    const all = loadIndex();
+    if (all.length <= MAX_COMPANY_PAGES) return all;
+    return [...all].sort(byContentDepth).slice(0, MAX_COMPANY_PAGES);
+  })();
+  return selectedCache;
+}
+
+/** Reads one company's full record from its detail file. */
 function findCompany(permId: string): Company | undefined {
-  companiesByIdCache ??= new Map(loadCompanies().map((c) => [c.permId, c]));
-  return companiesByIdCache.get(permId);
+  if (!DATA_DIR) return undefined;
+  if (!detailCache.has(permId)) {
+    const detailPath = path.join(
+      DATA_DIR,
+      "detail",
+      detailShard(permId),
+      `${permId}.json`,
+    );
+    const company = fs.existsSync(detailPath)
+      ? (JSON.parse(fs.readFileSync(detailPath, "utf-8")) as Company)
+      : null;
+    detailCache.set(permId, company);
+  }
+  return detailCache.get(permId) ?? undefined;
 }
 
 export const dynamic = "force-static";
 export const dynamicParams = false;
 
 export async function generateStaticParams() {
-  return loadCompanies().map((c) => ({ id: c.permId }));
+  return selectedIndex().map((entry) => ({ id: entry.permId }));
 }
 
 type CompanyPageParams = {
@@ -230,10 +300,6 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
     );
   }
 
-  // Holders has no processor yet; everything else on this page is real. See
-  // mock-sections.ts.
-  const mock = getMockSections(company);
-
   return (
     <TerminalShell sidebar={<CompanySearchDrawer />}>
       <RecentlyViewedTracker
@@ -255,10 +321,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
           <div className="flex flex-col gap-4">
             <CompanyOverviewSection company={company} />
             <CompanyTreeSection company={company} />
-            <CompanyShareholdersSection
-              shareholders={mock.shareholders}
-              source={mock.shareholdersSource}
-            />
+            <CompanyShareholdersSection company={company} />
             <CompanyDebtSection company={company} />
           </div>
         </main>

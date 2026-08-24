@@ -136,20 +136,43 @@ function debtGateway(company: Company): Gateway {
 }
 
 /**
- * The one stat whose processor does not exist yet. It renders unavailable rather
- * than showing the sample figures the section below still displays — a
- * fabricated number in a headline stat is worse than an absent one.
+ * The Shareholders stat.
+ *
+ * The count is holdings, not money. A per-company total of institutional market
+ * value is a real number — every value is USD and 99.8% are populated — but it
+ * is a partial one, covering only holders whose issuer resolves, so presenting
+ * it as "held by institutions" would overstate coverage. A count is honest about
+ * what the section is: a floor on who holds the company.
  */
-const PENDING_GATEWAYS: Gateway[] = [
-  {
+function shareholdersGateway(company: Company): Gateway {
+  const holders = company.currentShareholders;
+  const base = {
     section: "holders",
     kicker: "Shareholders",
-    value: null,
-    unit: "Shareholders disclosed",
-    meta: "Awaiting the shareholder-tracker processor · sample data shown below",
+    unit: holders.length === 1 ? "Holder disclosed" : "Holders disclosed",
     link: "View shareholders",
-  },
-];
+  };
+
+  if (holders.length === 0) {
+    return {
+      ...base,
+      value: "0",
+      meta: "No holdings resolved to this company",
+    };
+  }
+
+  // ISO-8601 dates compare lexicographically. Holdings come from many filings,
+  // so the most recent report date is what dates the card.
+  const latest = holders.reduce(
+    (newest, holder) => (holder.asOf > newest ? holder.asOf : newest),
+    "",
+  );
+  return {
+    ...base,
+    value: String(holders.length),
+    meta: `SEC 13-F & pension disclosures · reported ${latest}`,
+  };
+}
 
 /**
  * The section's citation. Company-info reports no filing date, so the citation
@@ -217,9 +240,8 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
  * The "Overview" section of the company detail page — headline counts that
  * gateway into the sections below.
  *
- * Corporate Tree and Commercial Debt have processors behind them. Shareholders
- * does not, and says so rather than repeating the sample figures its section
- * displays.
+ * All three stats — Corporate Tree, Shareholders, and Commercial Debt — now have
+ * processors behind them and carry real counts.
  *
  * There is no section-level date: the three stats draw on datasets with
  * genuinely different vintages — corporate structure is 2016–2018, commercial
@@ -229,7 +251,7 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
 export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps) {
   const gateways = [
     treeGateway(company),
-    ...PENDING_GATEWAYS,
+    shareholdersGateway(company),
     debtGateway(company),
   ];
 
@@ -238,7 +260,7 @@ export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps)
       id="overview"
       title="Overview"
       subtitle="Headline counts"
-      info="Headline counts for the sections below. The corporate tree and commercial debt are sourced from processors; the shareholder figure requires the shareholder-tracker processor and is shown as unavailable rather than estimated. Commercial debt is counted in instruments rather than totalled in money — amounts are reported in several currencies with no conversion rate available, and a third of instruments report no amount at all."
+      info="Headline counts for the sections below, each sourced from a processor. Commercial debt is counted in instruments rather than totalled in money — amounts are reported in several currencies with no conversion rate available, and a third of instruments report no amount at all. Shareholders are counted in holdings rather than totalled in value, since coverage is limited to holders whose issuer resolves and a total would overstate it."
       source={<OverviewSource sources={company.sources} />}
       expanded={
         <div className="max-w-3xl mx-auto">
