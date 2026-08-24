@@ -39,7 +39,7 @@ export const metadata: Metadata = {
  *
  * This is a billing constraint, not a data or product decision. Workers Paid
  * raises the limit to 100,000 and fits the whole dataset with room to spare; at
- * that point this constant, `byContentDepth`, and the slice in `selectedIndex`
+ * that point this constant, `rankForDeploy`, and the slice in `selectedIndex`
  * should all be deleted rather than retuned. Until then `MAX_COMPANY_PAGES`
  * overrides it without a code change, and the rejection message reports the
  * exact asset count, so the true ceiling is measurable rather than guessed.
@@ -78,24 +78,46 @@ function detailShard(permId: string): string {
   return permId.length >= 2 ? permId.slice(0, 2) : "_";
 }
 
+const CONTENT_SECTIONS = ["debtCount", "treeCount", "shareholderCount"] as const;
+
 /**
- * Orders companies by how much of the page has anything on it, richest first.
+ * Orders companies so the cap keeps the pages worth reviewing, richest first.
  *
- * Taking the dataset's own first N would be simpler and is wrong here: most
- * companies render an empty debt state, so an arbitrary slice could contain
- * almost no debt sections at all -- and a deploy showing none of them cannot be
- * used to review the debt section. Debt leads, then corporate-tree size, so
- * what survives is what has something on it.
+ * Taking the dataset's own first N would be simpler and is wrong: most companies
+ * render empty sections, so an arbitrary slice could contain almost none of a
+ * given section -- and a deploy showing none of them cannot be used to review
+ * that section.
  *
- * `permId` breaks ties to keep the surviving set stable build to build. Without
- * it the selection would drift with input order, and a page that existed in the
- * last deploy could 404 in the next one for no visible reason.
+ * Ranking by one section (debt, then tree) was also wrong once shareholders
+ * landed: 4,482 companies have a tree, so every tree-bearing company outranked
+ * every shareholder-only one, and the largest holder lists -- Alphabet (9,538
+ * holders, no debt, no tree), Apple, Amazon -- fell past the cap entirely.
+ *
+ * So rank each company by its *best* standing in any one section: the top holder
+ * pages, the top tree pages, and all 186 debt pages interleave at the front,
+ * and no section is washed out by a section that happens to be more common.
+ * Total content and then `permId` break ties, keeping the surviving set stable
+ * build to build so a page does not silently 404 between deploys.
  */
-function byContentDepth(a: CompanyIndexEntry, b: CompanyIndexEntry): number {
-  return (
-    b.debtCount - a.debtCount ||
-    b.treeCount - a.treeCount ||
-    a.permId.localeCompare(b.permId)
+function rankForDeploy(entries: CompanyIndexEntry[]): CompanyIndexEntry[] {
+  const bestRank = new Map<string, number>();
+  for (const section of CONTENT_SECTIONS) {
+    const ranked = entries
+      .filter((e) => e[section] > 0)
+      .sort((a, b) => b[section] - a[section] || a.permId.localeCompare(b.permId));
+    ranked.forEach((entry, i) => {
+      if (i < (bestRank.get(entry.permId) ?? Infinity)) {
+        bestRank.set(entry.permId, i);
+      }
+    });
+  }
+  const total = (e: CompanyIndexEntry) =>
+    e.debtCount + e.treeCount + e.shareholderCount;
+  return [...entries].sort(
+    (a, b) =>
+      (bestRank.get(a.permId) ?? Infinity) - (bestRank.get(b.permId) ?? Infinity) ||
+      total(b) - total(a) ||
+      a.permId.localeCompare(b.permId),
   );
 }
 
@@ -142,7 +164,7 @@ function selectedIndex(): CompanyIndexEntry[] {
   selectedCache ??= (() => {
     const all = loadIndex();
     if (all.length <= MAX_COMPANY_PAGES) return all;
-    return [...all].sort(byContentDepth).slice(0, MAX_COMPANY_PAGES);
+    return rankForDeploy(all).slice(0, MAX_COMPANY_PAGES);
   })();
   return selectedCache;
 }
