@@ -147,6 +147,25 @@ DEFAULT_CDT_ITEM_ROW: dict[str, Any] = {
     "section_char_count": 67,
 }
 
+# The columns of the shareholder-tracker output that `attach_shareholders`
+# reads. The issuer is identified by `security_cusip`, which company-info
+# resolves to a PermID -- there is no issuer PermID or CIK in this file. The
+# default is one institutional (13-F) holding; a case sets `security_cusip` to
+# match a company-info cusip row to make it attach.
+DEFAULT_SHAREHOLDER_ROW: dict[str, Any] = {
+    "source": "U.S. SECURITIES AND EXCHANGE COMMISSION (SEC)",
+    "document_report_date": "2025-09-30",
+    "investor_type": "INSTITUTIONAL INVESTOR",
+    "investor_name": "Fixture Asset Management LLC",
+    "investor_country_name": "United States",
+    "security_type": "COM",
+    "security_cusip": "000000000",
+    "stock_number_of_shares": 1000,
+    "security_market_value_amount_usd": 50000,
+    "url": "https://www.sec.gov/Archives/fixture/13f.txt",
+    "last_accessed_date": "2025-12-18",
+}
+
 DEFAULT_STRUCTURE_ROW: dict[str, Any] = {
     "parent_cik": "1",
     "filing_date": "2017-02-13",
@@ -246,6 +265,11 @@ def cdt_item_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
     return rows(DEFAULT_CDT_ITEM_ROW, overrides)
 
 
+def shareholder_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
+    """Builds a shareholder-tracker fixture frame from partial rows."""
+    return rows(DEFAULT_SHAREHOLDER_ROW, overrides)
+
+
 @dataclass
 class FixtureResult:
     """The output of one build run, plus everything the build said while running."""
@@ -297,6 +321,7 @@ def run_build(
     debt: pd.DataFrame | None = None,
     mentions: pd.DataFrame | None = None,
     items: pd.DataFrame | None = None,
+    shareholders: pd.DataFrame | None = None,
     expect_failure: bool = False,
 ) -> FixtureResult:
     """Runs the whole `build_dataset` pipeline against in-memory frames.
@@ -312,6 +337,9 @@ def run_build(
         debt: A CDT debt-instruments frame, from `cdt_rows`.
         mentions: A CDT debt-instrument-mentions frame, from `cdt_mention_rows`.
         items: A CDT items frame, from `cdt_item_rows`.
+        shareholders: A shareholder-tracker frame, from `shareholder_rows`.
+            Defaults to empty, so a case about another section says nothing about
+            shareholders.
         expect_failure: When true, a `RuntimeError` from the build is caught and
             recorded rather than raised -- for cases asserting the build refuses
             bad input.
@@ -329,6 +357,7 @@ def run_build(
     debt = cdt_rows() if debt is None else debt
     mentions = cdt_mention_rows() if mentions is None else mentions
     items = cdt_item_rows() if items is None else items
+    shareholders = shareholder_rows() if shareholders is None else shareholders
 
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
@@ -337,12 +366,14 @@ def run_build(
         debt_path = tmpdir / "cdt_debt_instruments.parquet"
         mentions_path = tmpdir / "cdt_mentions.parquet"
         items_path = tmpdir / "cdt_items.parquet"
+        shareholders_path = tmpdir / "shareholders.parquet"
         output_path = tmpdir / "companies.json"
         companies.to_parquet(company_path, index=False)
         structure.to_parquet(structure_path, index=False)
         debt.to_parquet(debt_path, index=False)
         mentions.to_parquet(mentions_path, index=False)
         items.to_parquet(items_path, index=False)
+        shareholders.to_parquet(shareholders_path, index=False)
 
         previous = {
             key: os.environ.get(key)
@@ -352,6 +383,7 @@ def run_build(
                 "CDT_DEBT_INSTRUMENTS_FILE_PATH",
                 "CDT_MENTIONS_FILE_PATH",
                 "CDT_ITEMS_FILE_PATH",
+                "SHAREHOLDERS_FILE_PATH",
                 "OUTPUT_FILE_PATH",
             )
         }
@@ -360,6 +392,7 @@ def run_build(
         os.environ["CDT_DEBT_INSTRUMENTS_FILE_PATH"] = str(debt_path)
         os.environ["CDT_MENTIONS_FILE_PATH"] = str(mentions_path)
         os.environ["CDT_ITEMS_FILE_PATH"] = str(items_path)
+        os.environ["SHAREHOLDERS_FILE_PATH"] = str(shareholders_path)
         os.environ["OUTPUT_FILE_PATH"] = str(output_path)
         try:
             # The build prints nothing to stdout, but pandas and pyarrow may;

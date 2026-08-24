@@ -66,6 +66,22 @@ UNKNOWN_MIC = "XXXX"
 # Value of `identifier_type` marking a row whose `identifier` holds a CIK.
 IDENTIFIER_TYPE_CIK = "cik"
 
+# Value of `identifier_type` marking a row whose `identifier` holds a CUSIP.
+# These rows are how a shareholding's issuer resolves to a PermID: the
+# shareholder-tracker output carries no issuer PermID, only the security's
+# CUSIP, and company-info is where that CUSIP was resolved -- see
+# `attach_shareholders`.
+IDENTIFIER_TYPE_CUSIP = "cusip"
+
+# The shareholder-tracker blends SEC 13-F filings (institutional investors) with
+# European pension-fund reports. The 13-F rows all carry the same generic
+# `source` ("U.S. SECURITIES AND EXCHANGE COMMISSION (SEC)"), so the citation
+# name is fixed rather than read from the row; pension rows carry the fund's own
+# name in `source`, which is the better citation.
+SHAREHOLDER_INVESTOR_TYPE_INSTITUTIONAL = "INSTITUTIONAL INVESTOR"
+SHAREHOLDER_SOURCE_NAME_13F = "SEC Form 13-F"
+SHAREHOLDER_SOURCE_NAME_FALLBACK = "Shareholder disclosure"
+
 # CDT extracts debt instruments from 8-K material-event filings. 6-Ks are named
 # in the spec as a future source and are not in the data yet.
 CDT_FORM_TYPE = "8-K"
@@ -785,6 +801,10 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
         # Filled by `attach_commercial_debt` once the CDT datasets are joined;
         # stays empty for the 4,646 of 4,832 companies with no in-scope debt.
         "currentCommercialDebt": [],
+        # Filled by `attach_shareholders` once the shareholder-tracker dataset is
+        # joined; stays empty for companies whose issuer CUSIP company-info has
+        # not resolved (the majority).
+        "currentShareholders": [],
         # History — empty until a source supplies real date ranges. Do not
         # populate these by inventing a `from` date.
         "historicNames": [],
@@ -1539,6 +1559,222 @@ def attach_commercial_debt(
     )
 
 
+def build_issuer_cusip_map(company_info_df: pd.DataFrame) -> dict[str, str]:
+    """Maps a security CUSIP to the issuer's PermID, using company-info.
+
+    The shareholder-tracker output identifies each holding's issuer by the
+    security's CUSIP, never by a PermID. company-info is where that CUSIP was
+    resolved: its `identifier_type == "cusip"` rows carry the CUSIP in
+    `identifier` and the resolved issuer in `permid_id`. This is the only path
+    from a holding to a company page, and it is why coverage is bounded by
+    company-info's resolution rather than by anything the frontend does.
+
+    Args:
+        company_info_df: The raw company-info dataset.
+
+    Returns:
+        A dict from CUSIP to PermID. A CUSIP with no resolved PermID is omitted.
+    """
+    cusip_rows = company_info_df[
+        company_info_df["identifier_type"].astype(str).str.strip().str.casefold()
+        == IDENTIFIER_TYPE_CUSIP
+    ]
+    mapping: dict[str, str] = {}
+    for cusip, permid in zip(
+        cusip_rows["identifier"], cusip_rows["permid_id"], strict=True
+    ):
+        clean_cusip = _clean(cusip)
+        clean_permid = _clean(permid)
+        if clean_cusip and clean_permid:
+            mapping[clean_cusip] = clean_permid
+    return mapping
+
+
+def build_shareholder_source_name(investor_type: str | None, source: str | None) -> str:
+    """Names the citation for one shareholding.
+
+    Institutional holdings all come from SEC 13-F filings under a generic
+    `source`, so they are named for the filing. Pension-fund holdings carry the
+    fund's own name in `source`, which is a more useful citation than a generic
+    label.
+
+    Args:
+        investor_type: The row's `investor_type`.
+        source: The row's `source`.
+
+    Returns:
+        A citation name, never empty.
+    """
+    if _clean(investor_type) == SHAREHOLDER_INVESTOR_TYPE_INSTITUTIONAL:
+        return SHAREHOLDER_SOURCE_NAME_13F
+    return _clean(source) or SHAREHOLDER_SOURCE_NAME_FALLBACK
+
+
+def _json_number(value: object) -> int | float | None:
+    """Coerces one parsed numeric cell to a JSON-safe number or None.
+
+    `json.dump` cannot serialize a numpy scalar, and a NaN must become null
+    rather than the invalid JSON token `NaN`. Integers are emitted without a
+    trailing `.0`.
+    """
+    if value is None or pd.isna(value):
+        return None
+    number = float(value)
+    return int(number) if number.is_integer() else number
+
+
+def _iso_date_column(values: pd.Series) -> list[str | None]:
+    """Vectorized `parse_iso_date` over a whole column.
+
+    Per-cell parsing is too slow at the shareholder-tracker's scale (~1.7M
+    resolved rows), so dates are parsed once as a column and NaT becomes None.
+    """
+    parsed = pd.to_datetime(values, errors="coerce", utc=True).dt.strftime("%Y-%m-%d")
+    return [None if pd.isna(text) else text for text in parsed.tolist()]
+
+
+def _stripped_column(values: pd.Series) -> list[str | None]:
+    """Vectorized `_clean` over a whole column: stripped string, or None."""
+    stripped = values.fillna("").astype(str).str.strip()
+    return [text or None for text in stripped.tolist()]
+
+
+def attach_shareholders(
+    companies: list[dict],
+    shareholders_df: pd.DataFrame,
+    company_info_df: pd.DataFrame,
+    logger: logging.Logger,
+) -> None:
+    """Attaches disclosed shareholdings to the companies they are holdings in.
+
+    Mutates `companies` in place, filling `currentShareholders`.
+
+    The join is on the issuer's CUSIP resolved to a PermID through company-info
+    (`build_issuer_cusip_map`), NOT on a registrant CIK -- a holding is a stake
+    in the *issuer*, and the issuer is identified by the security's CUSIP. No
+    recency, ownership, or security-type filter is applied, per the issue: every
+    resolved holding is attached, one row per holding (share classes are not
+    collapsed).
+
+    Args:
+        companies: `Company` records keyed by `permId`.
+        shareholders_df: The shareholder-tracker dataset.
+        company_info_df: The company-info dataset, for the CUSIP->PermID map.
+        logger: A standard logger instance.
+
+    Raises:
+        `RuntimeError` if the CUSIP join matches no issuer at all -- the same
+            silent-zero guard the CIK joins carry. A key-format break (a
+            prefixed CUSIP column, or company-info emitting no cusip rows) would
+            otherwise leave every page's Shareholders section empty with no
+            error. An individual unresolved CUSIP is expected and never fatal.
+    """
+    cusip_to_permid = build_issuer_cusip_map(company_info_df)
+
+    permids = shareholders_df["security_cusip"].astype(str).str.strip().map(
+        cusip_to_permid
+    )
+    resolved_mask = permids.notna()
+
+    # Guard the JOIN, not the attachment: a total miss means the two sides no
+    # longer share a key format, which is a data-integrity bug invisible in the
+    # logs. A partial miss is the normal steady state -- most CUSIPs in the file
+    # are never resolved by company-info.
+    if len(shareholders_df) and not resolved_mask.any():
+        raise RuntimeError(
+            "The shareholder CUSIP join matched no issuers. company-info carries "
+            f"{len(cusip_to_permid)} CUSIP-keyed rows. The shareholder "
+            "`security_cusip` and company-info's cusip `identifier` must be the "
+            "same format."
+        )
+
+    permids_by_company = {company["permId"]: company for company in companies}
+
+    # Keep only holdings that both resolve and land on a company that has a page;
+    # a resolved CUSIP whose PermID has no record cannot render anywhere.
+    renderable = resolved_mask & permids.isin(permids_by_company.keys())
+    holdings_df = shareholders_df[renderable]
+    holding_permids = permids[renderable].tolist()
+
+    # Everything below is column-vectorized: per-cell parsing (parse_iso_date,
+    # parse_amount, _clean) is far too slow across ~1.7M resolved rows. Parse
+    # each column once, then a single Python pass assembles the records.
+    names = _stripped_column(holdings_df["investor_name"])
+    types = _stripped_column(holdings_df["investor_type"])
+    countries = _stripped_column(holdings_df["investor_country_name"])
+    security_types = _stripped_column(holdings_df["security_type"])
+    urls = _stripped_column(holdings_df["url"])
+    sources = _stripped_column(holdings_df["source"])
+    as_of_dates = _iso_date_column(holdings_df["document_report_date"])
+    accessed_dates = _iso_date_column(holdings_df["last_accessed_date"])
+    shares = [
+        _json_number(v)
+        for v in pd.to_numeric(
+            holdings_df["stock_number_of_shares"], errors="coerce"
+        ).tolist()
+    ]
+    values = [
+        _json_number(v)
+        for v in pd.to_numeric(
+            holdings_df["security_market_value_amount_usd"], errors="coerce"
+        ).tolist()
+    ]
+
+    by_permid: dict[str, list[dict]] = {}
+    for i, permid in enumerate(holding_permids):
+        by_permid.setdefault(permid, []).append(
+            {
+                "sources": [
+                    {
+                        "name": build_shareholder_source_name(types[i], sources[i]),
+                        "url": urls[i],
+                        "lastAccessed": accessed_dates[i],
+                    }
+                ],
+                "asOf": as_of_dates[i],
+                # investor.permId is null: holders are not linked to their own
+                # pages yet, though most resolve. See the plan's decision 4.
+                "investor": {"name": names[i], "permId": None},
+                "investorType": types[i],
+                "investorCountry": countries[i],
+                "securityType": security_types[i],
+                "sharesOwned": shares[i],
+                "marketValueUsd": values[i],
+            }
+        )
+
+    matched = 0
+    for company in companies:
+        holdings = by_permid.get(company["permId"])
+        if not holdings:
+            continue
+        # Descending by USD market value, nulls last, so the largest holder
+        # leads; investor name breaks ties for a stable order across runs.
+        holdings.sort(
+            key=lambda h: (
+                h["marketValueUsd"] is not None,
+                h["marketValueUsd"] or 0,
+                h["investor"]["name"] or "",
+            ),
+            reverse=True,
+        )
+        company["currentShareholders"] = holdings
+        matched += 1
+
+    attached = sum(len(company["currentShareholders"]) for company in companies)
+    logger.info(
+        "Attached %d shareholdings to %d of %d companies; %d have no resolved "
+        "shareholders. %d holdings did not resolve to any PermID and %d resolved "
+        "to a PermID with no company page.",
+        attached,
+        matched,
+        len(companies),
+        len(companies) - matched,
+        int((~resolved_mask).sum()),
+        int(resolved_mask.sum()) - attached,
+    )
+
+
 def build_companies(companies_df: pd.DataFrame, logger: logging.Logger) -> list[dict]:
     """Transforms the company info dataset into Company records.
 
@@ -1643,6 +1879,7 @@ def main(logger: logging.Logger) -> None:
         CDT_DEBT_INSTRUMENTS_FILE_PATH: Path to the CDT debt-instruments parquet.
         CDT_MENTIONS_FILE_PATH: Path to the CDT debt-instrument-mentions parquet.
         CDT_ITEMS_FILE_PATH: Path to the CDT items parquet.
+        SHAREHOLDERS_FILE_PATH: Path to the shareholder-tracker parquet.
         OUTPUT_FILE_PATH: Path to write the output JSON file.
 
     Args:
@@ -1662,6 +1899,7 @@ def main(logger: logging.Logger) -> None:
         cdt_instruments_fpath = os.environ["CDT_DEBT_INSTRUMENTS_FILE_PATH"]
         cdt_mentions_fpath = os.environ["CDT_MENTIONS_FILE_PATH"]
         cdt_items_fpath = os.environ["CDT_ITEMS_FILE_PATH"]
+        shareholders_fpath = os.environ["SHAREHOLDERS_FILE_PATH"]
         output_fpath = os.environ["OUTPUT_FILE_PATH"]
     except KeyError as e:
         raise RuntimeError(f'Missing required environment variable "{e}".') from e
@@ -1711,6 +1949,17 @@ def main(logger: logging.Logger) -> None:
     attach_commercial_debt(
         companies, instruments_df, mentions_df, items_df, run_date, logger
     )
+
+    logger.info("Loading shareholder-tracker dataset.")
+    shareholders_df = load_parquet(shareholders_fpath, "shareholders")
+    logger.info(
+        "Loaded %d shareholdings covering %d distinct issuer CUSIPs.",
+        len(shareholders_df),
+        shareholders_df["security_cusip"].astype(str).str.strip().replace("", pd.NA).nunique(),
+    )
+
+    logger.info("Attaching disclosed shareholders.")
+    attach_shareholders(companies, shareholders_df, companies_df, logger)
 
     with_ticker = sum(1 for c in companies if (c["currentListing"] or {}).get("ticker"))
     with_exchange = sum(
