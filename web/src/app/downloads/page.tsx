@@ -24,7 +24,7 @@ const DATASETS = [
   {
     name: "Institutional shareholders",
     description:
-      "Holdings from SEC Form 13-F, augmented with 13-D and 13-G beneficial-ownership disclosures.",
+      "Holdings from SEC Form 13-F filings and pension-fund disclosures, attached to issuers by security identifier.",
     size: "214 MB",
     rows: "9.6M",
     updated: "Jul 6, 2026",

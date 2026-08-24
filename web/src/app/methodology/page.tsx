@@ -51,10 +51,11 @@ export default function MethodologyPage() {
               In practice, company facts are derived from LSEG PermID; corporate
               trees come from SEC Exhibit&nbsp;21 and Exhibit&nbsp;8 subsidiary
               lists attached to 10-K and 20-F filings; institutional
-              shareholders come from SEC Form&nbsp;13-F filings, augmented by
-              13-D and 13-G beneficial-ownership disclosures; and commercial
-              debt is extracted from SEC 8-K material-event filings using a
-              custom NLP model.
+              shareholders come from SEC Form&nbsp;13-F filings and
+              pension-fund disclosures, attached to a company by resolving the
+              security they report to its issuer; and commercial debt is
+              extracted from SEC 8-K material-event filings using a custom NLP
+              model.
             </Article.Body.Section.Paragraph>
           </Article.Body.Section>
 
