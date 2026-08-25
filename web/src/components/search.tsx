@@ -29,7 +29,9 @@ function Marked({ segments }: { segments: MatchSegment[] }) {
         segment.matched ? (
           <mark
             key={i}
-            className={cn("rounded-sm bg-primary/25 text-foreground")}
+            className={cn(
+              "rounded-sm bg-primary/25 text-inherit underline decoration-2 underline-offset-2",
+            )}
           >
             {segment.text}
           </mark>
@@ -182,7 +184,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                           <span className={cn("sr-only")}>
                             Matched subsidiary: {match.name}
                           </span>
-                          <span aria-hidden className={cn("truncate")}>
+                          <span aria-hidden className={cn("truncate pb-0.5")}>
                             {windowedMatch?.leadingEllipsis && "…"}
                             {windowedMatch && (
                               <Marked segments={windowedMatch.segments} />

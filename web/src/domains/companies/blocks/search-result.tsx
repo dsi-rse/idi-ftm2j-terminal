@@ -78,20 +78,41 @@ function hasHighlight(segments?: MatchSegment[]): boolean {
  * shared renderer, and the autocomplete popup keeps its own copy for the same
  * reason.
  *
- * `text-foreground` on the mark rather than inheriting the caller's color:
- * teal-on-teal-tint is the app's lowest-contrast pairing in light mode and the
- * highlight nearly disappeared at this text size. The tint carries the signal;
- * the word itself stays the most legible thing on the line, which is also what
- * the reader is scanning for.
+ * Two cues, neither hard-coding the text color. `text-inherit` is load-bearing:
+ * `<mark>` defaults to `color: black` in the UA stylesheet, so without it the run
+ * renders black on the tint (invisible in dark mode). Inheriting instead means
+ * the text — and the `currentColor` underline that tracks it — carry whatever
+ * contrast the surrounding text already has on whatever surface the run lands.
+ * The underline also makes the match a shape cue, not a color-only one (WCAG
+ * 1.4.1).
+ *
+ * `tinted={false}` drops the background wash and leaves the underline alone, for
+ * runs that already sit on their own colored surface — the unselected ticker
+ * chip (`bg-muted/25`), where a 25% tint over the chip's own fill reads muddy.
+ * There the underline (currentColor) is the whole cue and stays legible because
+ * it inherits the chip's text contrast. A selected row's chip suppresses the cue
+ * entirely (see the ticker render), so this never lands on the solid accent.
  */
-function Highlighted({ segments }: { segments: MatchSegment[] }) {
+function Highlighted({
+  segments,
+  tinted = true,
+}: {
+  segments: MatchSegment[];
+  tinted?: boolean;
+}) {
   return (
     <>
       {segments.map((segment, i) =>
         segment.matched ? (
           <mark
             key={i}
-            className={cn("rounded-sm bg-primary/25 text-foreground")}
+            className={cn(
+              "rounded-sm text-inherit underline decoration-2 underline-offset-2",
+              // `<mark>` defaults to a solid yellow background in the UA
+              // stylesheet; the untinted case must clear it explicitly, not just
+              // omit the tint, or that yellow shows through on the chip.
+              tinted ? "bg-primary/25" : "bg-transparent",
+            )}
           >
             {segment.text}
           </mark>
@@ -121,8 +142,9 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
         ↳
       </span>
       {/* The visible line is windowed to the match; the full name goes to
-          assistive tech unabridged. */}
-      <span aria-hidden className={cn("truncate")}>
+          assistive tech unabridged. `pb-0.5` keeps `truncate`'s overflow:hidden
+          from clipping the match underline, which sits below the baseline. */}
+      <span aria-hidden className={cn("truncate pb-0.5")}>
         {leadingEllipsis && "…"}
         <Highlighted segments={segments} />
       </span>
@@ -256,9 +278,13 @@ export function SearchResult({
                       : "bg-muted/25",
                   )}
                 >
-                  {hasHighlight(segments) && segments ? (
-                    <Highlighted segments={segments} />
+                  {!active && hasHighlight(segments) && segments ? (
+                    <Highlighted segments={segments} tinted={false} />
                   ) : (
+                    // A selected row shows no match cue on its ticker: the solid
+                    // accent chip, the row's accent border, and the highlighted
+                    // title already explain the hit, and an underline on three
+                    // mono characters inside the filled pill only reads as noise.
                     ticker
                   )}
                 </p>
