@@ -111,12 +111,13 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
   return (
     <p
       className={cn(
-        "flex min-w-0 items-baseline gap-1 text-xs font-light leading-none text-primary",
+        "flex min-w-0 items-baseline gap-1 text-xs font-light leading-none text-foreground",
       )}
     >
       {/* Fixed-width and non-shrinking, so a long name truncates on its own
-          side rather than squeezing the guide out of the row. */}
-      <span aria-hidden className={cn("shrink-0 font-mono")}>
+          side rather than squeezing the guide out of the row. Teal stays on the
+          guide alone; the name text is foreground so it clears AA at 12px. */}
+      <span aria-hidden className={cn("shrink-0 font-mono text-primary")}>
         ↳
       </span>
       {/* The visible line is windowed to the match; the full name goes to

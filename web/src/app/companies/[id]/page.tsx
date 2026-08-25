@@ -138,8 +138,8 @@ function sectorNames(company: Company): string[] {
  */
 function subsidiaryNames(company: Company): string[] {
   return company.currentCorporateRelationships
-    .map((r) => r.child.name)
-    .filter((name) => name.trim() !== "");
+    .map((r) => r.child.name.trim())
+    .filter((name) => name !== "");
 }
 
 /**

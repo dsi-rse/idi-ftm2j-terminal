@@ -170,10 +170,13 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                       {match ? (
                         <span
                           className={cn(
-                            "text-xs flex items-baseline gap-1 mt-0.5 min-w-0 text-primary",
+                            "text-xs flex items-baseline gap-1 mt-0.5 min-w-0 text-foreground",
                           )}
                         >
-                          <span aria-hidden className={cn("shrink-0 font-mono")}>
+                          <span
+                            aria-hidden
+                            className={cn("shrink-0 font-mono text-primary")}
+                          >
                             ↳
                           </span>
                           <span className={cn("sr-only")}>

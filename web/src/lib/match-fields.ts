@@ -364,5 +364,8 @@ function matchHint(
   if (fields.has("subsidiaries")) return "matched a subsidiary";
   if (fields.has("sectors")) return "matched a sector";
   if (fields.has("ticker")) return "matched a ticker";
-  return undefined;
+  // A stemmed hit on a short name/country word both highlight passes reject
+  // (e.g. `mans` → "Isle of Man") lands here: no displayed value lit up, yet a
+  // field did match. Naming it honestly beats leaving the row unexplained.
+  return fields.size > 0 ? "indirect match" : undefined;
 }
