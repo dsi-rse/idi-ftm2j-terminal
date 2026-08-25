@@ -226,6 +226,30 @@ function subtitle(holders: CurrentShareholder[]): string {
 }
 
 /**
+ * The "retrieved" clause of the source footer, honest across all holdings
+ * rather than reading one arbitrary row.
+ *
+ * `lastAccessed` is a real per-holding retrieval date, not a uniform build
+ * stamp (unlike the debt section, where every row shares the pipeline run
+ * date). Today every attached holding carries the same processor stamp, so
+ * this collapses to one date — but a company mixing sources with different
+ * access dates renders the full range instead of misrepresenting the rest with
+ * the first value. Mirrors the corporate tree's earliest–latest treatment.
+ */
+function retrievedLabel(holders: CurrentShareholder[]): string {
+  const dates = holders
+    .map((holder) => holder.sources[0]?.lastAccessed)
+    .filter((date): date is string => Boolean(date))
+    .sort();
+  if (dates.length === 0) return "";
+  const earliest = dates[0];
+  const latest = dates[dates.length - 1];
+  return earliest === latest
+    ? `, retrieved ${earliest}`
+    : `, retrieved ${earliest}–${latest}`;
+}
+
+/**
  * The "Shareholders" section: searchable, sortable, paginated table of the
  * institutional and pension-fund holders disclosed against this company. Inline
  * view paginates 5-per-page; the fullscreen view paginates 15-per-page.
@@ -266,7 +290,6 @@ export function CompanyShareholdersSection({
   const documents = new Set(
     holders.map((holder) => holder.sources[0]?.url).filter(Boolean),
   ).size;
-  const retrieved = holders[0]?.sources[0]?.lastAccessed;
 
   return (
     <SectionCard
@@ -277,8 +300,8 @@ export function CompanyShareholdersSection({
       source={
         <>
           {documents} disclosure{documents === 1 ? "" : "s"}
-          {retrieved ? `, retrieved ${retrieved}` : null}. Each row links to the
-          filing it was extracted from.
+          {retrievedLabel(holders)}. Each row links to the filing it was
+          extracted from.
         </>
       }
       expanded={
