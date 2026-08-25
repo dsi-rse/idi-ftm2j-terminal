@@ -42,8 +42,12 @@ function Header() {
       </Article.Header>
       <SearchBar
         placeholder={{
-          short: "Search by name, PermID, or ticker",
-          long: "Search for a company by name, PermID, or ticker",
+          // The magnifying-glass icon carries "search", so the short variant
+          // spends its width on the fields instead: "Search by name,
+          // subsidiary, or ticker" measures 245px against 237px of usable input
+          // at 375px and clips, while this keeps PermID and fits at 233px.
+          short: "Name, subsidiary, PermID, or ticker",
+          long: "Search for a company by name, subsidiary, PermID, or ticker",
         }}
       />
       <StatisticGrid stats={stats} />

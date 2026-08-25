@@ -82,6 +82,13 @@ function PanelBody({
           rankWidth={end.toString().length}
           company={company}
           viewedAt={company.viewedAt}
+          matches={company.matches}
+          nameSegments={company.nameSegments}
+          countrySegments={company.countrySegments}
+          sectorSegments={company.sectorSegments}
+          tickerSegments={company.tickerSegments}
+          permIdSegments={company.permIdSegments}
+          matchHint={company.matchHint}
           active={company.permId === activeCompanyId}
         />
       ))}
@@ -193,7 +200,7 @@ export function CompanySearchDrawer() {
                 <SearchInput
                   value={searchQuery}
                   onValueChange={setSearchQuery}
-                  placeholder="Search by name, PermID, or ticker…"
+                  placeholder="Search by name, subsidiary, PermID, or ticker…"
                 />
               </div>
               <PanelBody
