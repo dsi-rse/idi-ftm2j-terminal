@@ -5,8 +5,8 @@ import { useMemo, useState } from "react";
 import { SectionCard } from "@/blocks/section-card";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
-import { DistributionBar, RowIndex, Table } from "@/components/table";
-import { formatAmountShort, formatCountShort } from "@/lib/format-currency";
+import { RowIndex, Table } from "@/components/table";
+import { formatAmountShort } from "@/lib/format-currency";
 import type { Company, CurrentShareholder } from "@/types/domain";
 
 type CompanyShareholdersSectionProps = {
@@ -61,11 +61,9 @@ function sortShareholders(
 function ShareholdersTable({
   holders,
   pageSize,
-  maxValue,
 }: {
   holders: CurrentShareholder[];
   pageSize: number;
-  maxValue: number;
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -118,12 +116,11 @@ function ShareholdersTable({
             >
               Value
             </Table.HeaderCell>
-            <Table.HeaderCell>Distribution</Table.HeaderCell>
           </tr>
         </Table.Head>
         <Table.Body>
           {visible.length === 0 ? (
-            <Table.Empty colSpan={8}>No holders match your search.</Table.Empty>
+            <Table.Empty colSpan={7}>No holders match your search.</Table.Empty>
           ) : (
             visible.map((holder, i) => {
               const [source] = holder.sources;
@@ -172,7 +169,7 @@ function ShareholdersTable({
                     primary={
                       holder.sharesOwned === null
                         ? "Not reported"
-                        : formatCountShort(holder.sharesOwned)
+                        : holder.sharesOwned.toLocaleString()
                     }
                   />
                   <Table.Cell
@@ -183,11 +180,6 @@ function ShareholdersTable({
                         : formatAmountShort(holder.marketValueUsd, "USD")
                     }
                   />
-                  <Table.Cell>
-                    <DistributionBar
-                      value={(holder.marketValueUsd ?? 0) / maxValue}
-                    />
-                  </Table.Cell>
                 </Table.Row>
               );
             })
@@ -283,10 +275,6 @@ export function CompanyShareholdersSection({
     );
   }
 
-  const maxValue = Math.max(
-    ...holders.map((holder) => holder.marketValueUsd ?? 0),
-    1,
-  );
   const documents = new Set(
     holders.map((holder) => holder.sources[0]?.url).filter(Boolean),
   ).size;
@@ -305,18 +293,10 @@ export function CompanyShareholdersSection({
         </>
       }
       expanded={
-        <ShareholdersTable
-          holders={holders}
-          pageSize={EXPANDED_PAGE_SIZE}
-          maxValue={maxValue}
-        />
+        <ShareholdersTable holders={holders} pageSize={EXPANDED_PAGE_SIZE} />
       }
     >
-      <ShareholdersTable
-        holders={holders}
-        pageSize={INLINE_PAGE_SIZE}
-        maxValue={maxValue}
-      />
+      <ShareholdersTable holders={holders} pageSize={INLINE_PAGE_SIZE} />
     </SectionCard>
   );
 }

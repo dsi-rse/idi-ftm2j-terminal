@@ -43,15 +43,6 @@ function formatMagnitude(value: number): string {
 }
 
 /**
- * A bare count with a short magnitude suffix and no currency: `1.2M`, `950.0M`,
- * `12,345`. Shares a formatter with {@link formatAmountShort} so a Shares column
- * and a Value column line up under `tabular-nums`.
- */
-export function formatCountShort(value: number): string {
-  return formatMagnitude(value);
-}
-
-/**
  * Format a figure with a short magnitude suffix, prefixed with the symbol of
  * the currency it was actually reported in: `$1.25B`, `€1.80B`, `CHF 950.0M`.
  *
