@@ -4,10 +4,12 @@ import { PropsWithChildren } from "react";
 
 import { ThemeProvider } from "next-themes";
 
+import { Tooltip } from "@/components/tooltip";
+
 export function Providers({ children }: PropsWithChildren) {
   return (
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-      {children}
+      <Tooltip.Provider>{children}</Tooltip.Provider>
     </ThemeProvider>
   );
 }

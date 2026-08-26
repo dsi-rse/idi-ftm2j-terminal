@@ -19,6 +19,15 @@ TooltipRoot.displayName = "Tooltip.Root";
 
 const TooltipTrigger = BaseTooltip.Trigger;
 
+/**
+ * Coordinates all tooltips under it: a shared open/close delay, and — the part
+ * that matters here — it groups their timers so one tooltip's popup is torn down
+ * before the next opens. Mount once near the app root. Without it, moving
+ * between adjacent triggers could leave two popups briefly mounted, which read
+ * as a clipped or doubled tooltip.
+ */
+const TooltipProvider = BaseTooltip.Provider;
+
 type TooltipContentProps = {
   title: string;
   className?: string;
@@ -39,11 +48,14 @@ function TooltipContent({
 }: PropsWithChildren<TooltipContentProps>) {
   return (
     <BaseTooltip.Portal>
-      <BaseTooltip.Positioner sideOffset={sideOffset}>
+      <BaseTooltip.Positioner sideOffset={sideOffset} collisionPadding={8}>
         <BaseTooltip.Popup
           {...popupProps}
           className={cn(
-            "bg-background border border-muted/25 rounded-sm shadow-md p-3 text-sm text-foreground max-w-xs",
+            // z-50 keeps the portalled popup above header/section stacking
+            // contexts; collisionPadding on the positioner keeps a long body
+            // from clipping against the viewport edge near the top of the page.
+            "z-50 bg-background border border-muted/25 rounded-sm shadow-md p-3 text-sm text-foreground max-w-xs",
             className,
           )}
         >
@@ -70,6 +82,7 @@ TooltipContent.displayName = "Tooltip.Content";
  * ```
  */
 export const Tooltip = Object.assign(TooltipRoot, {
+  Provider: TooltipProvider,
   Root: TooltipRoot,
   Trigger: TooltipTrigger,
   Content: TooltipContent,
