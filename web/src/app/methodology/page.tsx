@@ -57,6 +57,14 @@ export default function MethodologyPage() {
               extracted from SEC 8-K material-event filings using a custom NLP
               model.
             </Article.Body.Section.Paragraph>
+            <Article.Body.Section.Paragraph>
+              Financial figures shown in the company header &mdash; public float
+              and revenue &mdash; are read from the cover page of the company&rsquo;s
+              most recent 10-K or 20-F. Public float is the market value of shares
+              held by non-affiliates as of the filing date; it is not market
+              capitalization. Figures are reported in the filing&rsquo;s own
+              currency and never converted.
+            </Article.Body.Section.Paragraph>
           </Article.Body.Section>
 
           {/** BUILDING THE CORPORATE TREE */}

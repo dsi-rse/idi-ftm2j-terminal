@@ -257,18 +257,51 @@ Column mapping (`build_shareholder`):
 | `sources[].url` | `url` |
 | `sources[].lastAccessed` | `last_accessed_date` |
 
-**No percent-of-outstanding stake.** `stock_percent_ownership` is 0% populated on
-the resolved rows, and the denominator (shares outstanding) lives in
-company-facts, which is not an input here. So the section leads with USD market
-value and no `% stake` is derived — computing one would present a guess as a
-sourced fact. `stock_percent_*`, the pre-conversion value/multiplier/rate
-columns, voting-authority columns, `stock_ticker`, `security_isin`/`figi`, the
-`issuer_*` columns, and `text` are all unused.
+**No percent-of-outstanding stake is shown.** `stock_percent_ownership` is 0%
+populated on the resolved rows, so it is not sourced from this dataset. The
+denominator (shares outstanding) is now available from company-facts (Input 7)
+on the primary registrant, but it is only the annual 10-K / 20-F cover-date
+common-share count, which is too stale and share-class-mismatched against a
+quarterly 13-F holding to divide safely — so the section leads with USD market
+value and derives no `% stake`. A reworked, quarterly-denominator version is
+tracked separately (beads `idi-ftm2j-terminal-5y2.15`/`5y2.16`), pending
+company-facts processor changes. `stock_percent_*`, the pre-conversion
+value/multiplier/rate columns, voting-authority columns, `stock_ticker`,
+`security_isin`/`figi`, the `issuer_*` columns, and `text` are all unused.
 
 No recency or dedup step: the file is already a single snapshot (one report date
 per investor), so "most recent 13-F per CIK" would remove nothing. The large
 holder counts on mega-caps (Alphabet ~9,538) are genuine institutional breadth,
 not duplication.
+
+## Input 7 — company facts
+
+`COMPANY_FACTS_FILE_PATH`, produced by the `idi-company-facts` processor from
+10-K / 20-F inline XBRL. One row per `(company_cik, accession_number)`, keyed by
+the SEC registrant CIK. Wired in by `attach_company_facts`, which hangs each
+registrant's most recent filing (by `report_date`, tie-broken on `filing_date`)
+off its CIK as `Registrant.facts`.
+
+| `RegistrantFacts` field | Source column |
+| --- | --- |
+| `publicFloat` (+ currency, as-of) | `market_value` = `dei:EntityPublicFloat` — **public float, not market cap** |
+| `revenue` (+ currency, as-of) | `revenue`, the recognized revenue concept |
+| `sharesOutstanding` (+ as-of) | `shares_outstanding` = `dei:EntityCommonStockSharesOutstanding` |
+| `isShellCompany` | `is_shell_company` |
+| `reportDate`, `formType` | `report_date`, `form_type` |
+| `sources[0]` | `primary_url` (cited as `SEC {form_type}`), `last_accessed` |
+
+Facts are **per-registrant scalars** — a REIT and its operating partnership have
+genuinely different public floats — so they are never summed or maxed across a
+company's registrants; the header shows the primary registrant's. Currencies are
+carried as reported and **never converted** (20-F filers report in EUR, CNY,
+etc.), matching the commercial-debt amount rule. There is no market-cap or
+employee-count field: the cover page reports public float, and no headcount is
+extracted. The accession prefix also drives primary-CIK selection — see the
+company-info primary-selection note above.
+
+The registered-securities columns (`all_tickers`, …) are not consumed yet;
+`currentListing` still sources ticker and exchange from company info.
 
 ## Decisions worth knowing before you change this
 
@@ -328,11 +361,24 @@ utility groups. All of them land in `registrants`; `cik` mirrors the one marked
 version nulled `cik` whenever a PermID carried more than one, which also cost
 those companies their corporate tree.
 
-Primary selection is a **stub** in `select_primary_cik`: lowest CIK, which is
-deterministic and demonstrably wrong for some groups — it picks Entergy Arkansas
-over Entergy Corp, and NSTAR Electric over Eversource Energy. The docstring
-carries the evidence and the intended replacement. It matters only for joining
-per-CIK datasets and for choosing one extraction per accession; it does not
+Primary selection is a **three-rung ladder** in `select_primary_cik`, applied by
+`assign_primary_registrants` once company facts and corporate structure are
+loaded:
+
+1. **Accession prefix.** The prefix of a company-facts filing's accession number
+   is the transmitting CIK — on a combined 10-K, normally the parent. Used when
+   it is one of the group's own CIKs (~69% of co-registrant groups, and it fixes
+   Entergy and Eversource, which the old lowest-CIK stub got wrong).
+2. **Structural signal.** When the prefix is a filing agent not in the group,
+   the registrant *not* listed as a child in the shared Exhibit 21 / Exhibit 8
+   is the parent.
+3. **Lowest CIK.** Deterministic terminal fallback, for ties, an inconclusive
+   structural signal, and companies with no filing.
+
+Only multi-registrant companies are ever re-decided, and production has none, so
+this is exercised by the `registrants_*` and `primary_*` fixtures. Primary
+selection matters only for joining per-CIK datasets, for choosing one extraction
+per accession, and for which registrant's facts the header shows; it does not
 decide displayed identity.
 
 **HQ country is positional parsing of free text.** The country is the last line

@@ -54,6 +54,7 @@ jobs:
           CDT_DEBT_INSTRUMENTS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.CDT_DEBT_INSTRUMENTS_FILE_PATH }}
           CDT_MENTIONS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.CDT_MENTIONS_FILE_PATH }}
           CDT_ITEMS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.CDT_ITEMS_FILE_PATH }}
+          COMPANY_FACTS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.COMPANY_FACTS_FILE_PATH }}
           SHAREHOLDERS_FILE_PATH: ${{ github.workspace }}/project/${{ vars.INPUT_DATA_DIR }}/${{ vars.SHAREHOLDERS_FILE_PATH }}
           OUTPUT_DIR: ${{ github.workspace }}/project/${{ vars.OUTPUT_DATA_DIR }}
 
