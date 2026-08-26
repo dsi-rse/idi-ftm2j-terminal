@@ -30,13 +30,16 @@ function currencySymbol(code: string): string | null {
 /**
  * The magnitude half of a formatted amount, with no currency attached.
  *
- * Billions keep two decimals and millions one, held even when they are zero:
- * `1.25B`, `1.80B`, `950.0M`. The fixed decimal count is what lets a column of
- * these line up under `tabular-nums` — a mix of `1.8B` and `1.25B` does not.
- * Precision is uniform rather than width-capped, so figures above ten billion
- * render one character wider (`217.55B`).
+ * Trillions and billions keep two decimals and millions one, held even when
+ * they are zero: `2.63T`, `1.25B`, `1.80B`, `950.0M`. The fixed decimal count
+ * is what lets a column of these line up under `tabular-nums` — a mix of `1.8B`
+ * and `1.25B` does not. Precision is uniform rather than width-capped, so
+ * figures above ten billion render one character wider (`217.55B`). The
+ * trillions tier keeps company-facts public floats and revenues from rendering
+ * as four-digit billions (`$2628.55B`).
  */
 function formatMagnitude(value: number): string {
+  if (value >= 1e12) return `${(value / 1e12).toFixed(2)}T`;
   if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
   if (value >= 1e6) return `${(value / 1e6).toFixed(1)}M`;
   return value.toLocaleString();
