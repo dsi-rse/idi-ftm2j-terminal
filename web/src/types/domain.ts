@@ -408,14 +408,69 @@ export type HistoricProjectAffiliation = CitedEntity &
 // ---------------------------------------------------------------------------
 
 /**
+ * Company facts extracted from a registrant's most recent annual filing (10-K /
+ * 20-F) by the idi-company-facts processor. These are scalars reported per
+ * registrant — an operating partnership and its REIT have genuinely different
+ * public floats — so they live on {@link Registrant}, not {@link Company}, and
+ * are never summed or maxed across a company's registrants. The header shows
+ * the primary registrant's facts.
+ *
+ * `CitedEntity` carries the one source: the filing's primary-document URL.
+ * `SnapshotEntity.asOf` is the filing's report date. Each figure additionally
+ * carries its own as-of date, because the cover-page concepts are measured on
+ * different dates — public float as of the most recent second-quarter close,
+ * shares outstanding as of a date near the filing.
+ */
+export type RegistrantFacts = CitedEntity &
+  SnapshotEntity & {
+    /**
+     * `dei:EntityPublicFloat` — the market value of common equity held by
+     * non-affiliates, from the filing cover page. This is **public float, not
+     * market capitalization**: it excludes affiliate holdings and is not
+     * shares × price. Null when the filing reports none.
+     */
+    publicFloat: number | null;
+    /**
+     * ISO 4217 currency for `publicFloat`. May be non-USD for foreign filers
+     * and is never converted. Null when `publicFloat` is null.
+     */
+    publicFloatCurrency: string | null;
+    /** ISO-8601 date `publicFloat` is measured as of. Null when absent. */
+    publicFloatAsOf: string | null;
+    /**
+     * Total revenue as reported. Null when the filing carries no revenue
+     * concept the processor recognizes.
+     */
+    revenue: number | null;
+    /**
+     * ISO 4217 currency for `revenue`. May be non-USD and is never converted.
+     * Null when `revenue` is null.
+     */
+    revenueCurrency: string | null;
+    /** ISO-8601 date `revenue` is measured as of — the fiscal period end. Null when absent. */
+    revenueAsOf: string | null;
+    /**
+     * `dei:EntityCommonStockSharesOutstanding` — common shares outstanding from
+     * the cover page. Null when absent.
+     */
+    sharesOutstanding: number | null;
+    /** ISO-8601 date `sharesOutstanding` is measured as of. Null when absent. */
+    sharesOutstandingAsOf: string | null;
+    /**
+     * `dei:EntityShellCompany`. True when the registrant marks itself a shell
+     * company. Null when the filing does not report the flag.
+     */
+    isShellCompany: boolean | null;
+    /** Fiscal year end of the filing the facts came from. ISO-8601 date, or null. */
+    reportDate: string | null;
+    /** SEC form the facts came from, e.g. `"10-K"`, `"10-K/A"`, `"20-F"`. */
+    formType: string;
+  };
+
+/**
  * One SEC registrant rolling up to a company. A PermID may cover several —
  * holdco/opco pairs, REIT/operating-partnership pairs, and utility groups all
  * file under multiple CIKs that LSEG resolves to one entity.
- *
- * Company-facts fields are the intended next addition here. Facts are scalars
- * reported per registrant — an operating partnership and its REIT have
- * genuinely different market caps — so unlike the list-shaped sections they
- * cannot be collapsed into one array.
  */
 export type Registrant = CitedEntity &
   SnapshotEntity & {
@@ -430,6 +485,12 @@ export type Registrant = CitedEntity &
     registrantName: string | null;
     /** True for exactly one registrant per company. */
     isPrimary: boolean;
+    /**
+     * Company facts from this registrant's most recent 10-K / 20-F, or null
+     * when it has no in-scope filing. Per-registrant scalars — see
+     * {@link RegistrantFacts}.
+     */
+    facts: RegistrantFacts | null;
   };
 
 // ---------------------------------------------------------------------------
