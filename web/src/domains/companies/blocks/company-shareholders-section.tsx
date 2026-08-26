@@ -201,7 +201,7 @@ function ShareholdersTable({
 }
 
 const INFO_COPY =
-  "Institutional and pension-fund holdings in this company, one row per disclosed holding, each linking to the filing it was extracted from. Institutional holdings come from SEC Form 13-F; pension-fund holdings come from the fund's own reports. Values are reproduced in USD as the processor reported them. Percent-of-outstanding stake is not shown: it needs a shares-outstanding figure that is not yet available, and estimating it would present a derivation as a sourced fact. Coverage is limited to holdings whose issuer resolves to a known company, so this is a floor on who holds the company, not a complete register.";
+  "Institutional and pension-fund holdings in this company, one row per disclosed holding, each linking to the filing it was extracted from. Institutional holdings come from SEC Form 13-F; pension-fund holdings come from the fund's own reports. Values are reproduced in USD as the processor reported them. Percent-of-outstanding stake is still not shown: the shares-outstanding denominator is now available from the company's latest 10-K or 20-F, but it counts common shares as of that filing's cover date, which mismatches each holding's own report date and share class — so a derived percentage stays deferred pending review rather than presenting a mismatched ratio as a sourced fact. Coverage is limited to holdings whose issuer resolves to a known company, so this is a floor on who holds the company, not a complete register.";
 
 /**
  * The count line under the section title: how many holders, and the report date
@@ -247,9 +247,13 @@ function retrievedLabel(holders: CurrentShareholder[]): string {
  * view paginates 5-per-page; the fullscreen view paginates 15-per-page.
  *
  * Value leads rather than stake percent, which is the reverse of the original
- * design: the shareholder-tracker reports no shares-outstanding denominator, so
- * a percent-of-outstanding figure cannot be produced and its column and the
- * quarter-over-quarter delta beside it are both gone.
+ * design. The shares-outstanding denominator now arrives with company-facts (on
+ * the primary registrant, via the passed `company`), but it is the 10-K
+ * cover-date common-share count, which does not line up with each holding's own
+ * report date and share class. So the percent-of-outstanding column and the
+ * quarter-over-quarter delta beside it stay deferred pending review — see the
+ * multi-CIK / company-facts plan's open question — rather than rendering a
+ * mismatched ratio. Value continues to lead.
  */
 export function CompanyShareholdersSection({
   company,
