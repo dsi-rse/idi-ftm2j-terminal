@@ -18,6 +18,7 @@ from .harness import (
     cdt_item_rows,
     cdt_mention_rows,
     cdt_rows,
+    company_facts_rows,
     company_rows,
     run_build,
     shareholder_rows,
@@ -304,7 +305,12 @@ def registrants_survive_across_sources() -> None:
 
 
 def registrants_primary_is_lowest_cik_for_aep() -> None:
-    """The AEP group: lowest CIK happens to be right."""
+    """The AEP group with no facts and no structural signal: lowest-CIK fallback.
+
+    With company-facts wired in, the prefix names the parent
+    (`primary_prefix_names_the_parent_for_aep`); here there are no facts, so the
+    ladder falls through to the lowest CIK -- which for AEP happens to be right.
+    """
     result = run_build(
         company_rows(
             *[
@@ -329,11 +335,14 @@ def registrants_primary_is_lowest_cik_for_aep() -> None:
 
 
 def registrants_primary_is_lowest_cik_for_entergy() -> None:
-    """The Entergy group: lowest CIK is WRONG, and asserted anyway.
+    """The Entergy group with no facts and no structural signal: lowest CIK.
 
     0000007323 is Entergy Arkansas; the real parent is Entergy Corp
-    (0000065984). Pinning the wrong answer makes replacing `select_primary_cik`
-    a visible, deliberate diff rather than a silent behavior change.
+    (0000065984). With no company-facts row the prefix rung cannot fire, and the
+    default structure names no registrant as a child, so the ladder falls
+    through to the lowest CIK -- the documented-wrong answer for Entergy. The
+    facts-driven cases (`primary_prefix_names_the_parent_for_entergy`,
+    `primary_agent_filed_uses_structural_signal`) pin the corrected behavior.
     """
     result = run_build(
         company_rows(
@@ -358,6 +367,230 @@ def registrants_primary_is_lowest_cik_for_entergy() -> None:
     assert record["cik"] == "0000007323", (
         f"expected the documented-wrong stub answer 0000007323, got {record['cik']}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Company facts -- per-registrant scalars, and the facts-driven primary CIK
+# ---------------------------------------------------------------------------
+
+# The same synthetic co-registrant groups the lowest-CIK cases above use, reused
+# so the facts-driven and no-facts cases describe one group two ways.
+ENTERGY_CIKS = (
+    "0000065984",
+    "0000007323",
+    "0000044570",
+    "0000055259",
+    "0000071508",
+    "0000202584",
+    "0001999371",
+)
+AEP_CIKS = (
+    "0000004904",
+    "0000006879",
+    "0000050172",
+    "0000073986",
+    "0000081027",
+    "0000092487",
+)
+
+
+def _multi_cik_company(ciks: tuple[str, ...], name_prefix: str):
+    """One PermID (5000000001) carrying every CIK in `ciks`, plus the companion."""
+    return company_rows(
+        *[{"identifier": cik, "entity_name": f"{name_prefix} {cik}"} for cik in ciks],
+        COMPANION,
+    )
+
+
+def facts_single_cik_attaches_to_registrant() -> None:
+    """A registrant's latest 10-K facts attach with currency, as-of, and source."""
+    result = run_build(
+        company_rows({}, COMPANION),
+        structure_rows({}, COMPANION_STRUCTURE),
+        facts=company_facts_rows({}),
+    )
+    facts = result.by_permid("5000000001")["registrants"][0]["facts"]
+    assert facts is not None, "expected facts on the sole registrant"
+    assert facts["publicFloat"] == 1000000000, facts["publicFloat"]
+    assert facts["publicFloatCurrency"] == "USD", facts["publicFloatCurrency"]
+    assert facts["publicFloatAsOf"] == "2023-06-30", facts["publicFloatAsOf"]
+    assert facts["revenue"] == 750000000, facts["revenue"]
+    assert facts["sharesOutstanding"] == 50000000, facts["sharesOutstanding"]
+    assert facts["isShellCompany"] is False, facts["isShellCompany"]
+    assert facts["reportDate"] == "2023-12-31", facts["reportDate"]
+    assert facts["formType"] == "10-K", facts["formType"]
+    assert facts["asOf"] == "2023-12-31", facts["asOf"]
+    source = facts["sources"][0]
+    assert source["name"] == "SEC 10-K", source
+    assert source["url"].endswith("fixture-20231231.htm"), source
+
+
+def facts_absent_registrant_is_null() -> None:
+    """A registrant whose CIK has no filing keeps facts=None; matching is per CIK."""
+    result = run_build(
+        company_rows({}, COMPANION),
+        structure_rows({}, COMPANION_STRUCTURE),
+        facts=company_facts_rows({"company_cik": "0000000002"}),
+    )
+    subject = result.by_permid("5000000001")["registrants"][0]
+    companion = result.by_permid("5000000002")["registrants"][0]
+    assert subject["facts"] is None, "the unmatched registrant must stay null"
+    assert companion["facts"] is not None, "the matched companion must carry facts"
+
+
+def facts_foreign_currency_is_unconverted() -> None:
+    """A 20-F filer's figures stay in their reported currency, uncounverted."""
+    result = run_build(
+        company_rows({}, COMPANION),
+        structure_rows({}, COMPANION_STRUCTURE),
+        facts=company_facts_rows(
+            {
+                "form_type": "20-F",
+                "doc_type": "20-F",
+                "market_value": "28000000000",
+                "market_value_currency": "EUR",
+                "revenue": "28263000000",
+                "revenue_currency": "EUR",
+            }
+        ),
+    )
+    facts = result.by_permid("5000000001")["registrants"][0]["facts"]
+    assert facts["publicFloatCurrency"] == "EUR", facts["publicFloatCurrency"]
+    assert facts["revenueCurrency"] == "EUR", facts["revenueCurrency"]
+    assert facts["revenue"] == 28263000000, facts["revenue"]  # unchanged, not FX'd
+    assert facts["formType"] == "20-F", facts["formType"]
+    assert facts["sources"][0]["name"] == "SEC 20-F", facts["sources"]
+
+
+def facts_missing_values_are_null() -> None:
+    """Blank figures become null and drop their currency; the shell flag reads true."""
+    result = run_build(
+        company_rows({}, COMPANION),
+        structure_rows({}, COMPANION_STRUCTURE),
+        facts=company_facts_rows(
+            {
+                "is_shell_company": "true",
+                "market_value": "",
+                "market_value_currency": "USD",
+                "revenue": "",
+                "revenue_currency": "USD",
+            }
+        ),
+    )
+    facts = result.by_permid("5000000001")["registrants"][0]["facts"]
+    assert facts["isShellCompany"] is True, facts["isShellCompany"]
+    assert facts["publicFloat"] is None, facts["publicFloat"]
+    assert facts["publicFloatCurrency"] is None, facts["publicFloatCurrency"]
+    assert facts["revenue"] is None, facts["revenue"]
+    assert facts["revenueCurrency"] is None, facts["revenueCurrency"]
+
+
+def facts_latest_filing_wins_and_ignores_row_order() -> None:
+    """The most recent report_date wins, regardless of parquet row order."""
+    older = {
+        "accession_number": "0000000001-23-000001",
+        "report_date": "2022-12-31",
+        "filing_date": "2023-02-15",
+        "revenue": "500000000",
+    }
+    newer = {
+        "accession_number": "0000000001-24-000001",
+        "report_date": "2023-12-31",
+        "filing_date": "2024-02-15",
+        "revenue": "750000000",
+    }
+    for facts in (company_facts_rows(older, newer), company_facts_rows(newer, older)):
+        result = run_build(
+            company_rows({}, COMPANION),
+            structure_rows({}, COMPANION_STRUCTURE),
+            facts=facts,
+        )
+        record = result.by_permid("5000000001")["registrants"][0]["facts"]
+        assert record["reportDate"] == "2023-12-31", record["reportDate"]
+        assert record["revenue"] == 750000000, record["revenue"]
+
+
+def primary_prefix_names_the_parent_for_entergy() -> None:
+    """Accession prefix names Entergy Corp (0000065984), not the lowest CIK."""
+    result = run_build(
+        _multi_cik_company(ENTERGY_CIKS, "ENTERGY UNIT"),
+        structure_rows({"parent_cik": "65984"}, COMPANION_STRUCTURE),
+        facts=company_facts_rows(
+            *[
+                {"company_cik": cik, "accession_number": "0000065984-25-000034"}
+                for cik in ENTERGY_CIKS
+            ]
+        ),
+    )
+    record = result.by_permid("5000000001")
+    assert record["cik"] == "0000065984", record["cik"]
+    assert record["registrants"][0]["cik"] == "0000065984", record["registrants"][0]
+    assert record["registrants"][0]["isPrimary"], "primary must sort first"
+    assert sum(r["isPrimary"] for r in record["registrants"]) == 1
+
+
+def primary_prefix_names_the_parent_for_aep() -> None:
+    """Accession prefix names AEP (0000004904); here it agrees with lowest CIK."""
+    result = run_build(
+        _multi_cik_company(AEP_CIKS, "AEP UNIT"),
+        structure_rows({"parent_cik": "4904"}, COMPANION_STRUCTURE),
+        facts=company_facts_rows(
+            *[
+                {"company_cik": cik, "accession_number": "0000004904-25-000012"}
+                for cik in AEP_CIKS
+            ]
+        ),
+    )
+    record = result.by_permid("5000000001")
+    assert record["cik"] == "0000004904", record["cik"]
+
+
+def primary_agent_filed_uses_structural_signal() -> None:
+    """A filing-agent prefix falls to the registrant not listed as a child.
+
+    The accession prefix 0001047469 (Toppan Merrill) is not in the group, so the
+    prefix rung skips. The shared exhibit lists every unit as a subsidiary except
+    Entergy Corp, so the structural signal names Entergy Corp the parent.
+    """
+    child_ciks = [cik for cik in ENTERGY_CIKS if cik != "0000065984"]
+    result = run_build(
+        _multi_cik_company(ENTERGY_CIKS, "ENTERGY UNIT"),
+        structure_rows(
+            *[
+                {
+                    "parent_cik": "65984",
+                    "accession_number": "0001047469-25-000034",
+                    "name": f"ENTERGY UNIT {cik}",
+                }
+                for cik in child_ciks
+            ],
+            COMPANION_STRUCTURE,
+        ),
+        facts=company_facts_rows(
+            *[
+                {"company_cik": cik, "accession_number": "0001047469-25-000034"}
+                for cik in ENTERGY_CIKS
+            ]
+        ),
+    )
+    record = result.by_permid("5000000001")
+    assert record["cik"] == "0000065984", record["cik"]
+
+
+def primary_agent_filed_without_signal_falls_to_lowest() -> None:
+    """A filing-agent prefix and no structural signal fall to the lowest CIK."""
+    result = run_build(
+        _multi_cik_company(ENTERGY_CIKS, "ENTERGY UNIT"),
+        structure_rows(COMPANION_STRUCTURE),
+        facts=company_facts_rows(
+            *[
+                {"company_cik": cik, "accession_number": "0001047469-25-000034"}
+                for cik in ENTERGY_CIKS
+            ]
+        ),
+    )
+    record = result.by_permid("5000000001")
+    assert record["cik"] == "0000007323", record["cik"]
 
 
 # ---------------------------------------------------------------------------
@@ -1155,6 +1388,15 @@ CASES = [
     registrants_survive_across_sources,
     registrants_primary_is_lowest_cik_for_aep,
     registrants_primary_is_lowest_cik_for_entergy,
+    facts_single_cik_attaches_to_registrant,
+    facts_absent_registrant_is_null,
+    facts_foreign_currency_is_unconverted,
+    facts_missing_values_are_null,
+    facts_latest_filing_wins_and_ignores_row_order,
+    primary_prefix_names_the_parent_for_entergy,
+    primary_prefix_names_the_parent_for_aep,
+    primary_agent_filed_uses_structural_signal,
+    primary_agent_filed_without_signal_falls_to_lowest,
     structure_one_extraction_per_accession,
     structure_co_registrants_collapse_to_one_list,
     structure_separate_filings_are_not_deduped,
