@@ -48,14 +48,19 @@ function TooltipContent({
 }: PropsWithChildren<TooltipContentProps>) {
   return (
     <BaseTooltip.Portal>
-      <BaseTooltip.Positioner sideOffset={sideOffset} collisionPadding={8}>
+      {/* z-index goes on the Positioner (the positioned element); a class on
+          the static Popup is ignored. Must beat the sticky tab bar (z-10) so a
+          popup opened near it is not painted over. collisionPadding keeps a long
+          body from clipping against the viewport edge. */}
+      <BaseTooltip.Positioner
+        className="z-50"
+        sideOffset={sideOffset}
+        collisionPadding={8}
+      >
         <BaseTooltip.Popup
           {...popupProps}
           className={cn(
-            // z-50 keeps the portalled popup above header/section stacking
-            // contexts; collisionPadding on the positioner keeps a long body
-            // from clipping against the viewport edge near the top of the page.
-            "z-50 bg-background border border-muted/25 rounded-sm shadow-md p-3 text-sm text-foreground max-w-xs",
+            "bg-background border border-muted/25 rounded-sm shadow-md p-3 text-sm text-foreground max-w-xs",
             className,
           )}
         >

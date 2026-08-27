@@ -42,11 +42,17 @@ function PopoverContent({
 }: PropsWithChildren<PopoverContentProps>) {
   return (
     <BasePopover.Portal>
-      <BasePopover.Positioner sideOffset={sideOffset} collisionPadding={8}>
+      {/* z-index goes on the Positioner (the positioned element); a class on
+          the static Popup is ignored. Must beat the sticky tab bar (z-10). */}
+      <BasePopover.Positioner
+        className="z-50"
+        sideOffset={sideOffset}
+        collisionPadding={8}
+      >
         <BasePopover.Popup
           {...popupProps}
           className={cn(
-            "z-50 bg-background border border-muted/25 rounded-sm shadow-md p-3 text-sm text-foreground max-w-xs",
+            "bg-background border border-muted/25 rounded-sm shadow-md p-3 text-sm text-foreground max-w-xs",
             className,
           )}
         >
