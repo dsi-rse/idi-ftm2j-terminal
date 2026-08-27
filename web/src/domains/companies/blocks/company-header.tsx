@@ -186,9 +186,8 @@ function StatCell({
  * the label is careful to say so; this explains the distinction in place.
  */
 const PUBLIC_FLOAT_INFO =
-  "The market value of shares held by non-affiliates, as reported on the " +
-  "filing's cover page (dei:EntityPublicFloat). It is not market " +
-  "capitalization — it excludes insider and controlling holdings — and is " +
+  "The market value of shares held by non-affiliates. It is similar to market " +
+  "capitalization, but excludes insider and controlling holdings. It is " +
   "measured as of the date shown, not today.";
 
 /**
