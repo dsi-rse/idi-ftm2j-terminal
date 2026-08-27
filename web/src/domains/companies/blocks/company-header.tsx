@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 
 import { InfoButton } from "@/blocks/info-button";
-import { Tooltip } from "@/components/tooltip";
+import { Popover } from "@/components/popover";
 import { formatAmountShort } from "@/lib/format-currency";
 import { cn } from "@/lib/utils";
 import type { Company, CurrentListing, RegistrantFacts } from "@/types/domain";
@@ -113,7 +113,7 @@ type StatCellProps = {
   sub?: string;
   /** Dims the value to mark it as absent rather than reported. */
   muted?: boolean;
-  /** Tooltip body explaining the figure; adds an info trigger by the label. */
+  /** Popover body explaining the figure; adds a click-to-open info trigger by the label. */
   info?: ReactNode;
   /** URL of the filing the figure was extracted from, linked as attribution. */
   href?: string | null;
@@ -145,12 +145,12 @@ function StatCell({
           {label}
         </span>
         {info ? (
-          <Tooltip>
-            <Tooltip.Trigger
+          <Popover>
+            <Popover.Trigger
               render={<InfoButton aria-label={`About ${label}`} />}
             />
-            <Tooltip.Content title={label}>{info}</Tooltip.Content>
-          </Tooltip>
+            <Popover.Content title={label}>{info}</Popover.Content>
+          </Popover>
         ) : null}
       </span>
       <span
@@ -182,7 +182,7 @@ function StatCell({
 }
 
 /**
- * The public-float tooltip body. Public float is not market capitalization, and
+ * The public-float info body. Public float is not market capitalization, and
  * the label is careful to say so; this explains the distinction in place.
  */
 const PUBLIC_FLOAT_INFO =
