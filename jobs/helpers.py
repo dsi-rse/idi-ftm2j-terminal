@@ -3,7 +3,7 @@
 These are the dataset-agnostic building blocks -- cell cleaning, date parsing,
 address/country screening, and the small `build_*` record constructors -- with
 no knowledge of the pipeline that calls them. The pipeline orchestration lives
-in `build_dataset.py`; parquet IO lives in `io_utils.py`.
+in `build_dataset.py`; parquet IO and dataset output live in `output.py`.
 """
 
 # Standard library imports

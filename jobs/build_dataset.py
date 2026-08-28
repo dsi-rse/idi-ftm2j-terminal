@@ -2,10 +2,10 @@
 
 The pipeline entrypoint. Reads the processor parquet outputs, transforms and
 joins them into `Company` records, and writes the NDJSON index + per-company
-detail files. The transform/join/output stages live in sibling modules
-(`company`, `relationships`, `debt`, `shareholders`, `output`); the
-dataset-agnostic building blocks live in `constants`, `helpers`, and
-`io_utils`.
+detail files. The transform/join stages live in sibling modules (`company`,
+`relationships`, `debt`, `shareholders`), parquet IO and dataset output live in
+`output`, and the dataset-agnostic building blocks live in `constants` and
+`helpers`.
 """
 
 # Standard library imports
@@ -20,8 +20,8 @@ import pandas as pd
 from company import build_companies
 from constants import CDT_ITEM_COLUMNS
 from debt import attach_commercial_debt
-from io_utils import load_parquet
 from output import (
+    load_parquet,
     report_unresolved_rows,
     validate_companies,
     write_dataset,

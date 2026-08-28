@@ -20,7 +20,7 @@ from helpers import (
     extract_lender_labels,
     parse_iso_date,
 )
-from io_utils import normalize_cik
+from output import normalize_cik
 
 
 def build_debt_source_name(item: str | None) -> str:

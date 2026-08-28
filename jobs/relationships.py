@@ -16,7 +16,7 @@ from helpers import (
     _clean,
     parse_iso_date,
 )
-from io_utils import normalize_cik
+from output import normalize_cik
 
 
 def select_latest_filings(structure_df: pd.DataFrame) -> pd.DataFrame:
