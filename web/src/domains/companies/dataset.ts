@@ -51,7 +51,7 @@ export type CompanyIndexEntry = {
 
 /**
  * The detail-file subdirectory for a PermID. Mirrors `index_shard` in
- * `build_dataset.py`; if one changes, the other must.
+ * `jobs/output.py`; if one changes, the other must.
  */
 function detailShard(permId: string): string {
   return permId.length >= 2 ? permId.slice(0, 2) : "_";

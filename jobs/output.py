@@ -57,8 +57,9 @@ def index_shard(perm_id: str) -> str:
     """The subdirectory bucket for a PermID's detail file.
 
     Two-character prefix, so no single directory holds every company. Mirrored
-    exactly by the web reader (`detailShard` in the company route); if this
-    changes, that must change with it.
+    exactly by the web reader (`detailShard` in
+    `web/src/domains/companies/dataset.ts`); if this changes, that must change
+    with it.
     """
     return perm_id[:2] if len(perm_id) >= 2 else "_"
 
