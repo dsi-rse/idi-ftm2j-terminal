@@ -1559,7 +1559,9 @@ def attach_commercial_debt(
     )
 
 
-def build_issuer_cusip_map(company_info_df: pd.DataFrame) -> dict[str, str]:
+def build_issuer_cusip_map(
+    company_info_df: pd.DataFrame, logger: logging.Logger
+) -> dict[str, str]:
     """Maps a security CUSIP to the issuer's PermID, using company-info.
 
     The shareholder-tracker output identifies each holding's issuer by the
@@ -1569,8 +1571,16 @@ def build_issuer_cusip_map(company_info_df: pd.DataFrame) -> dict[str, str]:
     from a holding to a company page, and it is why coverage is bounded by
     company-info's resolution rather than by anything the frontend does.
 
+    A CUSIP identifies a single issuer, so it should resolve to one PermID. When
+    company-info nonetheless carries the same CUSIP against different PermIDs,
+    the most recent snapshot wins -- `last_processed` descending, tie-broken on
+    `input_source` -- the same discriminator as `select_latest_snapshot`, so the
+    choice is stable across runs rather than dependent on parquet row order.
+    Conflicts are logged, since they point at an upstream anomaly.
+
     Args:
         company_info_df: The raw company-info dataset.
+        logger: A standard logger instance.
 
     Returns:
         A dict from CUSIP to PermID. A CUSIP with no resolved PermID is omitted.
@@ -1579,14 +1589,48 @@ def build_issuer_cusip_map(company_info_df: pd.DataFrame) -> dict[str, str]:
         company_info_df["identifier_type"].astype(str).str.strip().str.casefold()
         == IDENTIFIER_TYPE_CUSIP
     ]
+    # Order rows most-recent-snapshot first so the first row seen for each CUSIP
+    # is the winner; `input_source` breaks ties for a build-stable choice, and
+    # unparseable stamps sort last. Mirrors `select_latest_snapshot`.
+    order = pd.DataFrame(
+        {
+            "ts": cusip_rows["last_processed"].map(parse_last_processed_timestamp),
+            "src": cusip_rows["input_source"].map(lambda v: _clean(v) or ""),
+        },
+        index=cusip_rows.index,
+    )
+    ranked = cusip_rows.loc[
+        order.sort_values(
+            ["ts", "src"], ascending=[False, True], na_position="last"
+        ).index
+    ]
+
     mapping: dict[str, str] = {}
-    for cusip, permid in zip(
-        cusip_rows["identifier"], cusip_rows["permid_id"], strict=True
-    ):
+    conflicts: dict[str, set[str]] = {}
+    for cusip, permid in zip(ranked["identifier"], ranked["permid_id"], strict=True):
         clean_cusip = _clean(cusip)
         clean_permid = _clean(permid)
-        if clean_cusip and clean_permid:
+        if not (clean_cusip and clean_permid):
+            continue
+        winner = mapping.get(clean_cusip)
+        if winner is None:
             mapping[clean_cusip] = clean_permid
+        elif winner != clean_permid:
+            # Same CUSIP, two issuers: an upstream anomaly. The most recent
+            # snapshot already won (rows are recency-ordered); record the loser
+            # only so the conflict is surfaced rather than silent.
+            conflicts.setdefault(clean_cusip, {winner}).add(clean_permid)
+
+    if conflicts:
+        examples = ", ".join(
+            f"{cusip}->{sorted(pids)}" for cusip, pids in list(conflicts.items())[:5]
+        )
+        logger.warning(
+            "%d CUSIP(s) resolved to multiple PermIDs in company-info; kept the "
+            "most recent snapshot's PermID for each. Examples: %s",
+            len(conflicts),
+            examples,
+        )
     return mapping
 
 
@@ -1669,7 +1713,7 @@ def attach_shareholders(
             otherwise leave every page's Shareholders section empty with no
             error. An individual unresolved CUSIP is expected and never fatal.
     """
-    cusip_to_permid = build_issuer_cusip_map(company_info_df)
+    cusip_to_permid = build_issuer_cusip_map(company_info_df, logger)
 
     permids = shareholders_df["security_cusip"].astype(str).str.strip().map(
         cusip_to_permid

@@ -1140,6 +1140,48 @@ def shareholders_sorted_by_market_value_descending() -> None:
     assert holders[-1]["marketValueUsd"] is None, holders[-1]
 
 
+def shareholders_cusip_conflict_resolves_by_recency() -> None:
+    """A CUSIP claimed by two PermIDs resolves to the most recent snapshot.
+
+    company-info should map a CUSIP to one issuer, but if the same CUSIP appears
+    against two PermIDs `build_issuer_cusip_map` must not pick by parquet row
+    order. It keeps the more recent snapshot's PermID (`last_processed`), so the
+    holding lands on that company and never on the stale one, and it warns.
+
+    Two companies each carry a cusip row for CUSIP "000000000": 5000000001's is
+    older, 5000000002's (COMPANION) is newer, so the default holding attaches to
+    5000000002.
+    """
+    result = run_build(
+        company_rows(
+            {},
+            {
+                **OLDER,
+                "identifier_type": "cusip",
+                "identifier": "000000000",
+                "standard_identifier": "ticker:FIXA",
+            },
+            COMPANION,
+            {
+                **COMPANION,
+                **NEWER,
+                "identifier_type": "cusip",
+                "identifier": "000000000",
+                "standard_identifier": "ticker:FIXB",
+            },
+        ),
+        structure_rows({}, COMPANION_STRUCTURE),
+        shareholders=shareholder_rows({}),
+    )
+
+    newer = result.by_permid("5000000002")["currentShareholders"]
+    older = result.by_permid("5000000001")["currentShareholders"]
+    assert len(newer) == 1, f"expected the holding on the newer PermID, got {newer}"
+    assert older == [], f"stale PermID should hold nothing, got {older}"
+    conflict = result.warnings_matching("multiple PermIDs")
+    assert conflict, f"expected a CUSIP-conflict WARNING, got {result.warnings()}"
+
+
 CASES = [
     smoke_single_cik,
     smoke_unmatched_cik_fails_the_build,
@@ -1185,5 +1227,6 @@ CASES = [
     shareholders_smoke_one_holding,
     shareholders_unmatched_cusip_fails_the_build,
     shareholders_unresolved_cusip_is_dropped_not_failed,
+    shareholders_cusip_conflict_resolves_by_recency,
     shareholders_sorted_by_market_value_descending,
 ]
