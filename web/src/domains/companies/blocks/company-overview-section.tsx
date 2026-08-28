@@ -145,15 +145,17 @@ function debtGateway(company: Company): Gateway {
  * what the section is: a floor on who holds the company.
  */
 function shareholdersGateway(company: Company): Gateway {
-  const holders = company.currentShareholders;
+  const holdings = company.currentShareholders;
   const base = {
     section: "holders",
     kicker: "Shareholders",
-    unit: holders.length === 1 ? "Holder disclosed" : "Holders disclosed",
+    // Holdings, not holders: share classes are not collapsed, so one investor
+    // can be several rows. Counting them "holders" would overstate the roster.
+    unit: holdings.length === 1 ? "Holding disclosed" : "Holdings disclosed",
     link: "View shareholders",
   };
 
-  if (holders.length === 0) {
+  if (holdings.length === 0) {
     return {
       ...base,
       value: "0",
@@ -163,13 +165,13 @@ function shareholdersGateway(company: Company): Gateway {
 
   // ISO-8601 dates compare lexicographically. Holdings come from many filings,
   // so the most recent report date is what dates the card.
-  const latest = holders.reduce(
-    (newest, holder) => (holder.asOf > newest ? holder.asOf : newest),
+  const latest = holdings.reduce(
+    (newest, holding) => (holding.asOf > newest ? holding.asOf : newest),
     "",
   );
   return {
     ...base,
-    value: String(holders.length),
+    value: String(holdings.length),
     meta: `SEC 13-F & pension disclosures · reported ${latest}`,
   };
 }
