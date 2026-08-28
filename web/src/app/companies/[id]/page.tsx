@@ -152,7 +152,7 @@ function readIndex(): CompanyIndexEntry[] {
  */
 let indexCache: CompanyIndexEntry[] | undefined;
 let selectedCache: CompanyIndexEntry[] | undefined;
-const detailCache = new Map<string, Company | null>();
+const detailCache = new Map<string, Company>();
 
 function loadIndex(): CompanyIndexEntry[] {
   indexCache ??= readIndex();
@@ -179,12 +179,22 @@ function findCompany(permId: string): Company | undefined {
       detailShard(permId),
       `${permId}.json`,
     );
-    const company = fs.existsSync(detailPath)
-      ? (JSON.parse(fs.readFileSync(detailPath, "utf-8")) as Company)
-      : null;
-    detailCache.set(permId, company);
+    if (!fs.existsSync(detailPath)) {
+      // A page is only rendered for an id the index vouches for
+      // (generateStaticParams + dynamicParams=false), so a missing detail file
+      // is an index/detail mismatch in our own build, not a real 404. Fail the
+      // build loudly rather than emit a broken page.
+      throw new Error(
+        `Company ${permId} is in the index but has no detail file at ` +
+          `${detailPath}; index.ndjson and detail/ are out of sync.`,
+      );
+    }
+    detailCache.set(
+      permId,
+      JSON.parse(fs.readFileSync(detailPath, "utf-8")) as Company,
+    );
   }
-  return detailCache.get(permId) ?? undefined;
+  return detailCache.get(permId);
 }
 
 export const dynamic = "force-static";
