@@ -11,26 +11,25 @@ import type { Company } from "@/types/domain";
  * per company) plus one `detail/<shard>/<permId>.json` per company; this module
  * reads the index to pick and order the pages that get prerendered, then reads
  * only each rendered page's own detail file. Keeping every shareholding makes
- * the full array >1 GB — past Node's ~536 MB single-string cap — so the dataset
- * can no longer be read as one string.
+ * the full array exceed Node's ~536 MB single-string cap, so the dataset can no
+ * longer be read as one string.
  */
 
 /**
  * How many company pages to prerender.
  *
- * The Workers Free plan accepts 20,000 static asset files per Worker *version*,
- * and Next does not emit one file per page: each company costs a `.html`, a
- * `.rsc`, and five more per-segment prefetch payloads under `.segments/`, about
- * 7.6 of which are uploaded. The full 4,832-company dataset came to 36,765 and
- * Cloudflare refused the deploy (API error 10304), which puts the ceiling near
- * 2,600 companies.
+ * The Workers Free plan caps the number of static asset files per Worker
+ * *version*, and Next emits several files per page (`.html`, `.rsc`, and
+ * per-segment prefetch payloads under `.segments/`), so the full dataset's
+ * asset count exceeds that cap and Cloudflare refuses the deploy (API error
+ * 10304). Prerendering a capped subset keeps the deploy under the limit.
  *
  * This is a billing constraint, not a data or product decision. Workers Paid
- * raises the limit to 100,000 and fits the whole dataset with room to spare; at
- * that point this constant, `rankForDeploy`, and the slice in `selectedIndex`
- * should all be deleted rather than retuned. Until then `MAX_COMPANY_PAGES`
- * overrides it without a code change, and the rejection message reports the
- * exact asset count, so the true ceiling is measurable rather than guessed.
+ * raises the limit enough to fit the whole dataset; at that point this
+ * constant, `rankForDeploy`, and the slice in `selectedIndex` should all be
+ * deleted rather than retuned. Until then `MAX_COMPANY_PAGES` overrides the
+ * default without a code change, and the rejection message reports the exact
+ * asset count, so the true ceiling is measurable rather than guessed.
  */
 const MAX_COMPANY_PAGES = Number(process.env.MAX_COMPANY_PAGES ?? 2000);
 
@@ -69,15 +68,15 @@ const CONTENT_SECTIONS = ["debtCount", "treeCount", "shareholderCount"] as const
  * that section.
  *
  * Ranking by one section (debt, then tree) was also wrong once shareholders
- * landed: 4,482 companies have a tree, so every tree-bearing company outranked
- * every shareholder-only one, and the largest holder lists -- Alphabet (9,538
- * holders, no debt, no tree), Apple, Amazon -- fell past the cap entirely.
+ * landed: most companies have a tree, so every tree-bearing company outranked
+ * every shareholder-only one, and the largest holder lists -- Alphabet (no debt,
+ * no tree), Apple, Amazon -- fell past the cap entirely.
  *
  * So rank each company by its *best* standing in any one section: the top holder
- * pages, the top tree pages, and all 186 debt pages interleave at the front,
- * and no section is washed out by a section that happens to be more common.
- * Total content and then `permId` break ties, keeping the surviving set stable
- * build to build so a page does not silently 404 between deploys.
+ * pages, the top tree pages, and all debt pages interleave at the front, and no
+ * section is washed out by a section that happens to be more common. Total
+ * content and then `permId` break ties, keeping the surviving set stable build
+ * to build so a page does not silently 404 between deploys.
  */
 function rankForDeploy(entries: CompanyIndexEntry[]): CompanyIndexEntry[] {
   const bestRank = new Map<string, number>();
