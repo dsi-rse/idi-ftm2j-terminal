@@ -1779,7 +1779,10 @@ def attach_shareholders(
                 # investor.permId is null: holders are not linked to their own
                 # pages yet, though most resolve. See the plan's decision 4.
                 "investor": {"name": names[i], "permId": None},
-                "investorType": types[i],
+                # Coerced to "" (never None): the FE type declares investorType a
+                # non-null string and searches it with an unguarded
+                # `.toLowerCase()`, so a blank cell must not surface as null.
+                "investorType": types[i] or "",
                 "investorCountry": countries[i],
                 "securityType": security_types[i],
                 "sharesOwned": shares[i],
