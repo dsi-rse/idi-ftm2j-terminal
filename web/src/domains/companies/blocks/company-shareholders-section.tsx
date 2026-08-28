@@ -13,7 +13,18 @@ type CompanyShareholdersSectionProps = {
   company: Company;
 };
 
-type SortState = { direction: "asc" | "desc" };
+/** Every column that can be sorted; the `#` position column cannot. */
+type SortKey =
+  | "holder"
+  | "country"
+  | "security"
+  | "reported"
+  | "shares"
+  | "value";
+type SortState = { key: SortKey; direction: "asc" | "desc" };
+
+/** Keys whose values are numbers; the rest sort as text. */
+const NUMERIC_KEYS: ReadonlySet<SortKey> = new Set(["shares", "value"]);
 
 const INLINE_PAGE_SIZE = 5;
 const EXPANDED_PAGE_SIZE = 15;
@@ -21,9 +32,9 @@ const EXPANDED_PAGE_SIZE = 15;
 /**
  * Largest USD market value first. There is no percent-ownership column to sort
  * on — the shareholder-tracker reports no shares-outstanding denominator — so
- * value is the one meaningful order.
+ * value is the natural default order, but every other column is sortable too.
  */
-const DEFAULT_SORT: SortState = { direction: "desc" };
+const DEFAULT_SORT: SortState = { key: "value", direction: "desc" };
 
 function filterShareholders(
   holdings: CurrentShareholder[],
@@ -40,21 +51,51 @@ function filterShareholders(
 }
 
 /**
- * Sorts by USD market value, keeping holdings with no reported value last in
- * **both** directions. An absent value is missing information, not zero, so
- * ascending order must not open with the blank cells.
+ * The sortable value for one column, normalizing "missing" to null: a blank
+ * `securityType` ("") and an absent date/name are all treated as no value so
+ * they can be forced last.
+ */
+function sortValue(
+  holding: CurrentShareholder,
+  key: SortKey,
+): string | number | null {
+  switch (key) {
+    case "holder":
+      return holding.investor.name;
+    case "country":
+      return holding.investorCountry;
+    case "security":
+      return holding.securityType || null;
+    case "reported":
+      return holding.asOf || null;
+    case "shares":
+      return holding.sharesOwned;
+    case "value":
+      return holding.marketValueUsd;
+  }
+}
+
+/**
+ * Sorts by the active column, keeping holdings with no value for that column
+ * last in **both** directions. An absent value is missing information, not a
+ * zero or an empty string, so neither direction should open with blank cells.
+ * Numeric columns compare as numbers; the rest compare as localized text.
  */
 function sortShareholders(
   holdings: CurrentShareholder[],
   sort: SortState,
 ): CurrentShareholder[] {
   const factor = sort.direction === "desc" ? -1 : 1;
+  const numeric = NUMERIC_KEYS.has(sort.key);
   return [...holdings].sort((a, b) => {
-    if (a.marketValueUsd === null || b.marketValueUsd === null) {
-      if (a.marketValueUsd === b.marketValueUsd) return 0;
-      return a.marketValueUsd === null ? 1 : -1;
+    const av = sortValue(a, sort.key);
+    const bv = sortValue(b, sort.key);
+    if (av === null || bv === null) {
+      if (av === bv) return 0;
+      return av === null ? 1 : -1;
     }
-    return (a.marketValueUsd - b.marketValueUsd) * factor;
+    if (numeric) return ((av as number) - (bv as number)) * factor;
+    return String(av).localeCompare(String(bv)) * factor;
   });
 }
 
@@ -155,10 +196,14 @@ function ShareholdersTable({
   const start = (currentPage - 1) * pageSize;
   const visible = sorted.slice(start, start + pageSize);
 
-  const toggleSort = () =>
-    setSort((prev) => ({
-      direction: prev.direction === "desc" ? "asc" : "desc",
-    }));
+  // Clicking the active column flips its direction; clicking a new column
+  // starts it at the sensible default — numbers largest-first, text A→Z.
+  const toggleSort = (key: SortKey) =>
+    setSort((prev) =>
+      prev.key === key
+        ? { key, direction: prev.direction === "desc" ? "asc" : "desc" }
+        : { key, direction: NUMERIC_KEYS.has(key) ? "desc" : "asc" },
+    );
 
   return (
     <div>
@@ -176,16 +221,47 @@ function ShareholdersTable({
         <Table.Head>
           <tr>
             <Table.HeaderCell className="w-10">#</Table.HeaderCell>
-            <Table.HeaderCell>Holder</Table.HeaderCell>
-            <Table.HeaderCell>Country</Table.HeaderCell>
-            <Table.HeaderCell>Security</Table.HeaderCell>
-            <Table.HeaderCell>Reported</Table.HeaderCell>
-            <Table.HeaderCell align="right">Shares</Table.HeaderCell>
+            <Table.HeaderCell
+              sortable
+              sortDirection={sort.key === "holder" ? sort.direction : null}
+              onSort={() => toggleSort("holder")}
+            >
+              Holder
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sortable
+              sortDirection={sort.key === "country" ? sort.direction : null}
+              onSort={() => toggleSort("country")}
+            >
+              Country
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sortable
+              sortDirection={sort.key === "security" ? sort.direction : null}
+              onSort={() => toggleSort("security")}
+            >
+              Security
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sortable
+              sortDirection={sort.key === "reported" ? sort.direction : null}
+              onSort={() => toggleSort("reported")}
+            >
+              Reported
+            </Table.HeaderCell>
             <Table.HeaderCell
               align="right"
               sortable
-              sortDirection={sort.direction}
-              onSort={toggleSort}
+              sortDirection={sort.key === "shares" ? sort.direction : null}
+              onSort={() => toggleSort("shares")}
+            >
+              Shares
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              align="right"
+              sortable
+              sortDirection={sort.key === "value" ? sort.direction : null}
+              onSort={() => toggleSort("value")}
             >
               Value
             </Table.HeaderCell>
