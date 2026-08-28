@@ -58,6 +58,79 @@ function sortShareholders(
   });
 }
 
+/**
+ * One holding, rendered as a table row. `rowNumber` is the 1-based position in
+ * the full sorted list (already offset by the current page), shown in the `#`
+ * column.
+ */
+function ShareholderRow({
+  holding,
+  rowNumber,
+}: {
+  holding: CurrentShareholder;
+  rowNumber: number;
+}) {
+  const [source] = holding.sources;
+  return (
+    <Table.Row>
+      <Table.Cell>
+        <RowIndex index={rowNumber} />
+      </Table.Cell>
+      <Table.Cell
+        primary={holding.investor.name ?? "Unnamed holder"}
+        secondary={holding.investorType}
+      />
+      <Table.Cell>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+          {holding.investorCountry ?? "—"}
+        </span>
+      </Table.Cell>
+      <Table.Cell>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+          {holding.securityType || "—"}
+        </span>
+      </Table.Cell>
+      <Table.Cell
+        primary={
+          // Per-row click-through to the filing the holding was extracted from.
+          // Holders draw on many filings, so the row is where the citation
+          // belongs.
+          source ? (
+            <a
+              href={source.url}
+              title={`${source.name} — ${source.url}`}
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              {holding.asOf}
+            </a>
+          ) : (
+            holding.asOf
+          )
+        }
+        secondary={source?.name}
+      />
+      <Table.Cell
+        align="right"
+        primary={
+          holding.sharesOwned === null
+            ? "Not reported"
+            : holding.sharesOwned.toLocaleString()
+        }
+      />
+      <Table.Cell
+        align="right"
+        primary={
+          holding.marketValueUsd === null
+            ? "Not reported"
+            : formatAmountShort(holding.marketValueUsd, "USD")
+        }
+      />
+    </Table.Row>
+  );
+}
+
 function ShareholdersTable({
   holdings,
   pageSize,
@@ -122,67 +195,13 @@ function ShareholdersTable({
           {visible.length === 0 ? (
             <Table.Empty colSpan={7}>No holdings match your search.</Table.Empty>
           ) : (
-            visible.map((holding, i) => {
-              const [source] = holding.sources;
-              return (
-                <Table.Row key={`${holding.investor.name}-${start + i}`}>
-                  <Table.Cell>
-                    <RowIndex index={start + i + 1} />
-                  </Table.Cell>
-                  <Table.Cell
-                    primary={holding.investor.name ?? "Unnamed holder"}
-                    secondary={holding.investorType}
-                  />
-                  <Table.Cell>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
-                      {holding.investorCountry ?? "—"}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
-                      {holding.securityType || "—"}
-                    </span>
-                  </Table.Cell>
-                  <Table.Cell
-                    primary={
-                      // Per-row click-through to the filing the holding was
-                      // extracted from. Holders draw on many filings, so the
-                      // row is where the citation belongs.
-                      source ? (
-                        <a
-                          href={source.url}
-                          title={`${source.name} — ${source.url}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="underline hover:text-foreground"
-                        >
-                          {holding.asOf}
-                        </a>
-                      ) : (
-                        holding.asOf
-                      )
-                    }
-                    secondary={source?.name}
-                  />
-                  <Table.Cell
-                    align="right"
-                    primary={
-                      holding.sharesOwned === null
-                        ? "Not reported"
-                        : holding.sharesOwned.toLocaleString()
-                    }
-                  />
-                  <Table.Cell
-                    align="right"
-                    primary={
-                      holding.marketValueUsd === null
-                        ? "Not reported"
-                        : formatAmountShort(holding.marketValueUsd, "USD")
-                    }
-                  />
-                </Table.Row>
-              );
-            })
+            visible.map((holding, i) => (
+              <ShareholderRow
+                key={`${holding.investor.name}-${start + i}`}
+                holding={holding}
+                rowNumber={start + i + 1}
+              />
+            ))
           )}
         </Table.Body>
       </Table>
