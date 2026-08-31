@@ -244,6 +244,46 @@ export type HistoricPublicEquitySecurity = CitedEntity &
     history: HistoricPublicEquityValue[];
   };
 
+/**
+ * A single shareholding as disclosed in one filing (a 13-F, or a pension-fund
+ * report). The filing states the holding *as of* a report date, not a range
+ * over which it stays authoritative, so this is a {@link SnapshotEntity}. See
+ * {@link HistoricShareholder} for the date-ranged, share-class-nested form,
+ * which needs the outstanding-share counts and a security start date this
+ * source does not carry.
+ *
+ * `sharesOwned` and `marketValueUsd` are nullable because the source reports
+ * them per holding and some rows report neither. Percent-of-outstanding stake
+ * is deliberately absent: the numerator (`sharesOwned`) is here, but the
+ * denominator (shares outstanding) lives in company-facts, which is not wired
+ * in — so a `% stake` column would be a derivation presented as sourced fact.
+ */
+export type CurrentShareholder = CitedEntity &
+  SnapshotEntity & {
+    /**
+     * The investor. `permId` is currently always null — holders are not linked
+     * to their own pages yet, though the CIK resolves for most of them.
+     */
+    investor: CompanyReference;
+    /** "INSTITUTIONAL INVESTOR" | "PENSION FUND", verbatim from the source. */
+    investorType: string;
+    /** Investor HQ country name, or null when the filing does not state one. */
+    investorCountry: string | null;
+    /**
+     * Security type verbatim, never a classification — "COM", "CL A", … The
+     * source has dozens of spellings and no type field; normalizing them is a
+     * separate piece of work.
+     */
+    securityType: string;
+    /** Shares held. Null when the filing does not report a count. */
+    sharesOwned: number | null;
+    /**
+     * Market value in USD as produced by the processor. Always USD on today's
+     * data. Null when the filing reports no value.
+     */
+    marketValueUsd: number | null;
+  };
+
 // ---------------------------------------------------------------------------
 // Debt securities
 // ---------------------------------------------------------------------------
@@ -452,6 +492,13 @@ export type Company = CitedEntity & {
    * than a date range — see {@link CurrentCommercialDebt}.
    */
   currentCommercialDebt: CurrentCommercialDebt[];
+  /**
+   * Institutional and pension-fund holdings in this company, as disclosed in
+   * the holders' most recent filings. A snapshot rather than a date range — see
+   * {@link CurrentShareholder}. The holding is attached by resolving the
+   * issuer's CUSIP to this company's PermID through company-info.
+   */
+  currentShareholders: CurrentShareholder[];
 
   // History. Every entry needs a real `from` date; leave these empty rather
   // than inventing one. To get the current CEO, find the HistoricLeader with

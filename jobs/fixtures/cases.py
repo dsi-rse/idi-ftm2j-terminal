@@ -20,6 +20,7 @@ from .harness import (
     cdt_rows,
     company_rows,
     run_build,
+    shareholder_rows,
     structure_rows,
 )
 
@@ -1039,6 +1040,148 @@ def debt_every_rendered_instrument_carries_a_date() -> None:
             assert instrument["asOf"], instrument
 
 
+def run_shareholder_build(*, company=None, shareholders=None, expect_failure=False):
+    """Runs a build wired so a shareholding can resolve to a company.
+
+    The shareholder-tracker carries no issuer PermID; a holding attaches only
+    when company-info has a cusip row mapping the security's CUSIP to a PermID.
+    So the default company frame carries both the ordinary cik row and a cusip
+    row for the same PermID (5000000001, CUSIP "000000000"), and the default
+    shareholders frame is one holding in that CUSIP.
+    """
+    default_company = company_rows(
+        {},
+        {
+            "identifier_type": "cusip",
+            "identifier": "000000000",
+            "standard_identifier": "ticker:FIX",
+        },
+    )
+    return run_build(
+        default_company if company is None else company,
+        structure_rows({}),
+        shareholders=shareholder_rows({}) if shareholders is None else shareholders,
+        expect_failure=expect_failure,
+    )
+
+
+def shareholders_smoke_one_holding() -> None:
+    """One company, one 13-F holding resolved by issuer CUSIP: the ordinary shape.
+
+    Pins the whole record, including the citation and the null investor permId
+    (holders are not linked to their own pages -- plan decision 4).
+    """
+    result = run_shareholder_build()
+
+    holders = result.by_permid("5000000001")["currentShareholders"]
+    assert len(holders) == 1, f"expected 1 holding, got {len(holders)}"
+    holder = holders[0]
+    assert holder["investor"]["name"] == "Fixture Asset Management LLC", holder
+    assert holder["investor"]["permId"] is None, holder["investor"]
+    assert holder["investorType"] == "INSTITUTIONAL INVESTOR", holder
+    assert holder["investorCountry"] == "United States", holder
+    assert holder["securityType"] == "COM", holder
+    assert holder["sharesOwned"] == 1000, holder
+    assert isinstance(holder["sharesOwned"], int), type(holder["sharesOwned"])
+    assert holder["marketValueUsd"] == 50000, holder
+    assert holder["asOf"] == "2025-09-30", holder["asOf"]
+
+    assert len(holder["sources"]) == 1, holder["sources"]
+    source = holder["sources"][0]
+    assert source["name"] == "SEC Form 13-F", source["name"]
+    assert source["url"], "holding carries no url"
+    assert source["lastAccessed"] == "2025-12-18", source["lastAccessed"]
+
+
+def shareholders_unmatched_cusip_fails_the_build() -> None:
+    """A shareholders frame that resolves to no issuer must fail, not render empty.
+
+    Guards the zero-match `RuntimeError` in `attach_shareholders`. Without it a
+    CUSIP-format break looks exactly like "the processor has no data yet".
+    """
+    result = run_shareholder_build(
+        shareholders=shareholder_rows({"security_cusip": "999999999"}),
+        expect_failure=True,
+    )
+    assert result.records == [], "build should not have produced records"
+
+
+def shareholders_unresolved_cusip_is_dropped_not_failed() -> None:
+    """One resolvable holding keeps the guard quiet; an unresolved one is dropped.
+
+    The zero-match guard fires only when *nothing* resolves. A single
+    unresolvable CUSIP alongside a resolvable one is the normal steady state --
+    most CUSIPs in the file are never resolved by company-info -- so it is
+    dropped silently, not fatal.
+    """
+    result = run_shareholder_build(
+        shareholders=shareholder_rows(
+            {"security_cusip": "000000000", "investor_name": "Resolves LLC"},
+            {"security_cusip": "999999999", "investor_name": "Dropped LLC"},
+        ),
+    )
+    holders = result.by_permid("5000000001")["currentShareholders"]
+    assert len(holders) == 1, f"expected 1 holding, got {len(holders)}"
+    assert holders[0]["investor"]["name"] == "Resolves LLC", holders[0]
+
+
+def shareholders_sorted_by_market_value_descending() -> None:
+    """Holdings render largest USD market value first, nulls last."""
+    result = run_shareholder_build(
+        shareholders=shareholder_rows(
+            {"investor_name": "Small LLC", "security_market_value_amount_usd": 10},
+            {"investor_name": "Large LLC", "security_market_value_amount_usd": 999},
+            {"investor_name": "Null LLC", "security_market_value_amount_usd": None},
+        ),
+    )
+    holders = result.by_permid("5000000001")["currentShareholders"]
+    names = [h["investor"]["name"] for h in holders]
+    assert names == ["Large LLC", "Small LLC", "Null LLC"], names
+    assert holders[-1]["marketValueUsd"] is None, holders[-1]
+
+
+def shareholders_cusip_conflict_resolves_by_recency() -> None:
+    """A CUSIP claimed by two PermIDs resolves to the most recent snapshot.
+
+    company-info should map a CUSIP to one issuer, but if the same CUSIP appears
+    against two PermIDs `build_issuer_cusip_map` must not pick by parquet row
+    order. It keeps the more recent snapshot's PermID (`last_processed`), so the
+    holding lands on that company and never on the stale one, and it warns.
+
+    Two companies each carry a cusip row for CUSIP "000000000": 5000000001's is
+    older, 5000000002's (COMPANION) is newer, so the default holding attaches to
+    5000000002.
+    """
+    result = run_build(
+        company_rows(
+            {},
+            {
+                **OLDER,
+                "identifier_type": "cusip",
+                "identifier": "000000000",
+                "standard_identifier": "ticker:FIXA",
+            },
+            COMPANION,
+            {
+                **COMPANION,
+                **NEWER,
+                "identifier_type": "cusip",
+                "identifier": "000000000",
+                "standard_identifier": "ticker:FIXB",
+            },
+        ),
+        structure_rows({}, COMPANION_STRUCTURE),
+        shareholders=shareholder_rows({}),
+    )
+
+    newer = result.by_permid("5000000002")["currentShareholders"]
+    older = result.by_permid("5000000001")["currentShareholders"]
+    assert len(newer) == 1, f"expected the holding on the newer PermID, got {newer}"
+    assert older == [], f"stale PermID should hold nothing, got {older}"
+    conflict = result.warnings_matching("multiple PermIDs")
+    assert conflict, f"expected a CUSIP-conflict WARNING, got {result.warnings()}"
+
+
 CASES = [
     smoke_single_cik,
     smoke_unmatched_cik_fails_the_build,
@@ -1081,4 +1224,9 @@ CASES = [
     debt_unparseable_document_date_fails_the_build,
     debt_unrenderable_instrument_does_not_fail_the_build,
     debt_every_rendered_instrument_carries_a_date,
+    shareholders_smoke_one_holding,
+    shareholders_unmatched_cusip_fails_the_build,
+    shareholders_unresolved_cusip_is_dropped_not_failed,
+    shareholders_cusip_conflict_resolves_by_recency,
+    shareholders_sorted_by_market_value_descending,
 ]

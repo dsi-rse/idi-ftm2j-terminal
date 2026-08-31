@@ -5,83 +5,205 @@ import { useMemo, useState } from "react";
 import { SectionCard } from "@/blocks/section-card";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
-import {
-  DeltaCell,
-  DistributionBar,
-  RowIndex,
-  Table,
-} from "@/components/table";
-import type { Shareholder } from "@/domains/companies/types";
+import { RowIndex, Table } from "@/components/table";
 import { formatAmountShort } from "@/lib/format-currency";
+import type { Company, CurrentShareholder } from "@/types/domain";
 
 type CompanyShareholdersSectionProps = {
-  shareholders: Shareholder[];
-  source: string;
+  company: Company;
 };
 
-type SortKey = "stakePct" | "deltaPct" | "valueUsd";
+/** Every column that can be sorted; the `#` position column cannot. */
+type SortKey =
+  | "holder"
+  | "country"
+  | "security"
+  | "reported"
+  | "shares"
+  | "value";
 type SortState = { key: SortKey; direction: "asc" | "desc" };
+
+/** Keys whose values are numbers; the rest sort as text. */
+const NUMERIC_KEYS: ReadonlySet<SortKey> = new Set(["shares", "value"]);
 
 const INLINE_PAGE_SIZE = 5;
 const EXPANDED_PAGE_SIZE = 15;
 
+/**
+ * Largest USD market value first. There is no percent-ownership column to sort
+ * on — the shareholder-tracker reports no shares-outstanding denominator — so
+ * value is the natural default order, but every other column is sortable too.
+ */
+const DEFAULT_SORT: SortState = { key: "value", direction: "desc" };
+
 function filterShareholders(
-  shareholders: Shareholder[],
+  holdings: CurrentShareholder[],
   query: string,
-): Shareholder[] {
+): CurrentShareholder[] {
   const q = query.trim().toLowerCase();
-  if (!q) return shareholders;
-  return shareholders.filter(
-    (holder) =>
-      holder.name.toLowerCase().includes(q) ||
-      holder.type.toLowerCase().includes(q) ||
-      holder.country.toLowerCase().includes(q),
+  if (!q) return holdings;
+  return holdings.filter(
+    (holding) =>
+      (holding.investor.name ?? "").toLowerCase().includes(q) ||
+      holding.investorType.toLowerCase().includes(q) ||
+      (holding.investorCountry ?? "").toLowerCase().includes(q),
   );
 }
 
+/**
+ * The sortable value for one column, normalizing "missing" to null: a blank
+ * `securityType` ("") and an absent date/name are all treated as no value so
+ * they can be forced last.
+ */
+function sortValue(
+  holding: CurrentShareholder,
+  key: SortKey,
+): string | number | null {
+  switch (key) {
+    case "holder":
+      return holding.investor.name;
+    case "country":
+      return holding.investorCountry;
+    case "security":
+      return holding.securityType || null;
+    case "reported":
+      return holding.asOf || null;
+    case "shares":
+      return holding.sharesOwned;
+    case "value":
+      return holding.marketValueUsd;
+  }
+}
+
+/**
+ * Sorts by the active column, keeping holdings with no value for that column
+ * last in **both** directions. An absent value is missing information, not a
+ * zero or an empty string, so neither direction should open with blank cells.
+ * Numeric columns compare as numbers; the rest compare as localized text.
+ */
 function sortShareholders(
-  shareholders: Shareholder[],
+  holdings: CurrentShareholder[],
   sort: SortState,
-): Shareholder[] {
+): CurrentShareholder[] {
   const factor = sort.direction === "desc" ? -1 : 1;
-  return [...shareholders].sort(
-    (a, b) => (a[sort.key] - b[sort.key]) * factor,
+  const numeric = NUMERIC_KEYS.has(sort.key);
+  return [...holdings].sort((a, b) => {
+    const av = sortValue(a, sort.key);
+    const bv = sortValue(b, sort.key);
+    if (av === null || bv === null) {
+      if (av === bv) return 0;
+      return av === null ? 1 : -1;
+    }
+    if (numeric) return ((av as number) - (bv as number)) * factor;
+    return String(av).localeCompare(String(bv)) * factor;
+  });
+}
+
+/**
+ * One holding, rendered as a table row. `rowNumber` is the 1-based position in
+ * the full sorted list (already offset by the current page), shown in the `#`
+ * column.
+ */
+function ShareholderRow({
+  holding,
+  rowNumber,
+}: {
+  holding: CurrentShareholder;
+  rowNumber: number;
+}) {
+  const [source] = holding.sources;
+  return (
+    <Table.Row>
+      <Table.Cell>
+        <RowIndex index={rowNumber} />
+      </Table.Cell>
+      <Table.Cell
+        primary={holding.investor.name ?? "Unnamed holder"}
+        secondary={holding.investorType}
+      />
+      <Table.Cell>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+          {holding.investorCountry ?? "—"}
+        </span>
+      </Table.Cell>
+      <Table.Cell>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+          {holding.securityType || "—"}
+        </span>
+      </Table.Cell>
+      <Table.Cell
+        primary={
+          // Per-row click-through to the filing the holding was extracted from.
+          // Holders draw on many filings, so the row is where the citation
+          // belongs.
+          source ? (
+            <a
+              href={source.url}
+              title={`${source.name} — ${source.url}`}
+              target="_blank"
+              rel="noreferrer"
+              className="underline hover:text-foreground"
+            >
+              {holding.asOf}
+            </a>
+          ) : (
+            holding.asOf
+          )
+        }
+        secondary={source?.name}
+      />
+      <Table.Cell
+        align="right"
+        primary={
+          holding.sharesOwned === null
+            ? "Not reported"
+            : holding.sharesOwned.toLocaleString()
+        }
+      />
+      <Table.Cell
+        align="right"
+        primary={
+          holding.marketValueUsd === null
+            ? "Not reported"
+            : formatAmountShort(holding.marketValueUsd, "USD")
+        }
+      />
+    </Table.Row>
   );
 }
 
 function ShareholdersTable({
-  shareholders,
+  holdings,
   pageSize,
-  maxStake,
 }: {
-  shareholders: Shareholder[];
+  holdings: CurrentShareholder[];
   pageSize: number;
-  maxStake: number;
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState<SortState>({
-    key: "stakePct",
-    direction: "desc",
-  });
+  const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
 
   const filtered = useMemo(
-    () => filterShareholders(shareholders, query),
-    [shareholders, query],
+    () => filterShareholders(holdings, query),
+    [holdings, query],
   );
-  const sorted = useMemo(() => sortShareholders(filtered, sort), [filtered, sort]);
+  const sorted = useMemo(
+    () => sortShareholders(filtered, sort),
+    [filtered, sort],
+  );
   const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
   const currentPage = Math.min(page, totalPages);
   const start = (currentPage - 1) * pageSize;
   const visible = sorted.slice(start, start + pageSize);
 
-  const toggleSort = (key: SortKey) => {
+  // Clicking the active column flips its direction; clicking a new column
+  // starts it at the sensible default — numbers largest-first, text A→Z.
+  const toggleSort = (key: SortKey) =>
     setSort((prev) =>
       prev.key === key
         ? { key, direction: prev.direction === "desc" ? "asc" : "desc" }
-        : { key, direction: "desc" },
+        : { key, direction: NUMERIC_KEYS.has(key) ? "desc" : "asc" },
     );
-  };
 
   return (
     <div>
@@ -99,67 +221,62 @@ function ShareholdersTable({
         <Table.Head>
           <tr>
             <Table.HeaderCell className="w-10">#</Table.HeaderCell>
-            <Table.HeaderCell>Holder</Table.HeaderCell>
-            <Table.HeaderCell>Country</Table.HeaderCell>
             <Table.HeaderCell
-              align="right"
               sortable
-              sortDirection={sort.key === "stakePct" ? sort.direction : null}
-              onSort={() => toggleSort("stakePct")}
+              sortDirection={sort.key === "holder" ? sort.direction : null}
+              onSort={() => toggleSort("holder")}
             >
-              Stake
+              Holder
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sortable
+              sortDirection={sort.key === "country" ? sort.direction : null}
+              onSort={() => toggleSort("country")}
+            >
+              Country
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sortable
+              sortDirection={sort.key === "security" ? sort.direction : null}
+              onSort={() => toggleSort("security")}
+            >
+              Security
+            </Table.HeaderCell>
+            <Table.HeaderCell
+              sortable
+              sortDirection={sort.key === "reported" ? sort.direction : null}
+              onSort={() => toggleSort("reported")}
+            >
+              Reported
             </Table.HeaderCell>
             <Table.HeaderCell
               align="right"
               sortable
-              sortDirection={sort.key === "deltaPct" ? sort.direction : null}
-              onSort={() => toggleSort("deltaPct")}
+              sortDirection={sort.key === "shares" ? sort.direction : null}
+              onSort={() => toggleSort("shares")}
             >
-              Δ Q-1
+              Shares
             </Table.HeaderCell>
             <Table.HeaderCell
               align="right"
               sortable
-              sortDirection={sort.key === "valueUsd" ? sort.direction : null}
-              onSort={() => toggleSort("valueUsd")}
+              sortDirection={sort.key === "value" ? sort.direction : null}
+              onSort={() => toggleSort("value")}
             >
               Value
             </Table.HeaderCell>
-            <Table.HeaderCell>Distribution</Table.HeaderCell>
           </tr>
         </Table.Head>
         <Table.Body>
           {visible.length === 0 ? (
-            <Table.Empty colSpan={7}>No holders match your search.</Table.Empty>
+            <Table.Empty colSpan={7}>No holdings match your search.</Table.Empty>
           ) : (
-            visible.map((holder, i) => (
-              <Table.Row key={`${holder.name}-${i}`}>
-                <Table.Cell>
-                  <RowIndex index={start + i + 1} />
-                </Table.Cell>
-                <Table.Cell primary={holder.name} secondary={holder.type} />
-                <Table.Cell>
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
-                    {holder.country}
-                  </span>
-                </Table.Cell>
-                <Table.Cell align="right">
-                  <span className="tabular-nums font-medium">
-                    {holder.stakePct.toFixed(2)}%
-                  </span>
-                </Table.Cell>
-                <Table.Cell align="right">
-                  <DeltaCell value={holder.deltaPct} />
-                </Table.Cell>
-                <Table.Cell align="right">
-                  <span className="tabular-nums">
-                    {formatAmountShort(holder.valueUsd, "USD")}
-                  </span>
-                </Table.Cell>
-                <Table.Cell>
-                  <DistributionBar value={holder.stakePct / maxStake} />
-                </Table.Cell>
-              </Table.Row>
+            visible.map((holding, i) => (
+              <ShareholderRow
+                key={`${holding.investor.name}-${start + i}`}
+                holding={holding}
+                rowNumber={start + i + 1}
+              />
             ))
           )}
         </Table.Body>
@@ -178,40 +295,107 @@ function ShareholdersTable({
   );
 }
 
+const INFO_COPY =
+  "Institutional and pension-fund holdings in this company, one row per disclosed holding, each linking to the filing it was extracted from. Institutional holdings come from SEC Form 13-F; pension-fund holdings come from the fund's own reports. Values are reproduced in USD as the processor reported them. Percent-of-outstanding stake is not shown: it needs a shares-outstanding figure that is not yet available, and estimating it would present a derivation as a sourced fact. Coverage is limited to holdings whose issuer resolves to a known company, so this is a floor on who holds the company, not a complete register.";
+
 /**
- * The "Shareholders" section: searchable, sortable, paginated table of
- * institutional and sovereign holders. Inline view paginates 5-per-page;
- * fullscreen modal view paginates 15-per-page and gives the table more
- * horizontal room.
+ * The count line under the section title: how many disclosed holdings, and the
+ * report date they were disclosed as of. This counts holdings, not distinct
+ * holders — share classes are not collapsed, so one investor holding two
+ * classes is two rows. The date is the latest across holdings; today's data
+ * reports a single quarter-end, but a mix would show the most recent.
+ */
+function subtitle(holdings: CurrentShareholder[]): string {
+  const latest = holdings.reduce(
+    (newest, holding) => (holding.asOf > newest ? holding.asOf : newest),
+    "",
+  );
+  const count = `${holdings.length} disclosed holding${
+    holdings.length === 1 ? "" : "s"
+  }`;
+  return latest ? `${count} · reported ${latest}` : count;
+}
+
+/**
+ * The "retrieved" clause of the source footer, honest across all holdings
+ * rather than reading one arbitrary row.
+ *
+ * `lastAccessed` is a real per-holding retrieval date, not a uniform build
+ * stamp (unlike the debt section, where every row shares the pipeline run
+ * date). Today every attached holding carries the same processor stamp, so
+ * this collapses to one date — but a company mixing sources with different
+ * access dates renders the full range instead of misrepresenting the rest with
+ * the first value. Mirrors the corporate tree's earliest–latest treatment.
+ */
+function retrievedLabel(holdings: CurrentShareholder[]): string {
+  const dates = holdings
+    .map((holding) => holding.sources[0]?.lastAccessed)
+    .filter((date): date is string => Boolean(date))
+    .sort();
+  if (dates.length === 0) return "";
+  const earliest = dates[0];
+  const latest = dates[dates.length - 1];
+  return earliest === latest
+    ? `, retrieved ${earliest}`
+    : `, retrieved ${earliest}–${latest}`;
+}
+
+/**
+ * The "Shareholders" section: searchable, sortable, paginated table of the
+ * institutional and pension-fund holders disclosed against this company. Inline
+ * view paginates 5-per-page; the fullscreen view paginates 15-per-page.
+ *
+ * Value leads rather than stake percent, which is the reverse of the original
+ * design: the shareholder-tracker reports no shares-outstanding denominator, so
+ * a percent-of-outstanding figure cannot be produced and its column and the
+ * quarter-over-quarter delta beside it are both gone.
  */
 export function CompanyShareholdersSection({
-  shareholders,
-  source,
+  company,
 }: CompanyShareholdersSectionProps) {
-  const maxStake = Math.max(
-    ...shareholders.map((s) => s.stakePct),
-    0.0001,
-  );
+  const holdings = company.currentShareholders;
+
+  if (holdings.length === 0) {
+    return (
+      <SectionCard
+        id="holders"
+        title="Shareholders"
+        subtitle="No disclosed shareholders"
+        info={INFO_COPY}
+      >
+        <p className="text-sm text-muted leading-relaxed m-0">
+          No shareholding is attached to this company. Holdings are attached by
+          resolving the security a holder reported to a known issuer, and a
+          company whose securities have not been resolved appears here even when
+          holders exist. Coverage improves as issuer resolution fills in
+          upstream.
+        </p>
+      </SectionCard>
+    );
+  }
+
+  const documents = new Set(
+    holdings.map((holding) => holding.sources[0]?.url).filter(Boolean),
+  ).size;
+
   return (
     <SectionCard
       id="holders"
       title="Shareholders"
-      subtitle={`${shareholders.length} institutional holders · illustrative sample`}
-      info="Institutional and sovereign holders aggregated from 13-F filings and beneficial-ownership disclosures. Stake percentages are of outstanding shares. Not yet wired to real filings."
-      source={source}
+      subtitle={subtitle(holdings)}
+      info={INFO_COPY}
+      source={
+        <>
+          {documents} disclosure{documents === 1 ? "" : "s"}
+          {retrievedLabel(holdings)}. Each row links to the filing it was
+          extracted from.
+        </>
+      }
       expanded={
-        <ShareholdersTable
-          shareholders={shareholders}
-          pageSize={EXPANDED_PAGE_SIZE}
-          maxStake={maxStake}
-        />
+        <ShareholdersTable holdings={holdings} pageSize={EXPANDED_PAGE_SIZE} />
       }
     >
-      <ShareholdersTable
-        shareholders={shareholders}
-        pageSize={INLINE_PAGE_SIZE}
-        maxStake={maxStake}
-      />
+      <ShareholdersTable holdings={holdings} pageSize={INLINE_PAGE_SIZE} />
     </SectionCard>
   );
 }

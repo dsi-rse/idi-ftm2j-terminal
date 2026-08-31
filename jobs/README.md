@@ -16,7 +16,8 @@ CORPORATE_STRUCTURE_FILE_PATH=../data/input/latest_corporate_structure.parquet \
 CDT_DEBT_INSTRUMENTS_FILE_PATH=../data/input/latest_cdt.parquet \
 CDT_MENTIONS_FILE_PATH=../data/input/latest_cdt_mentions.parquet \
 CDT_ITEMS_FILE_PATH=../data/input/latest_cdt_items.parquet \
-OUTPUT_FILE_PATH=../data/output/companies.json \
+SHAREHOLDERS_FILE_PATH=../data/input/latest_shareholders_raw.parquet \
+OUTPUT_DIR=../data/output \
 uv run python build_dataset.py
 ```
 
@@ -27,14 +28,29 @@ uv run python build_dataset.py
 | `CDT_DEBT_INSTRUMENTS_FILE_PATH` | `cdt/debt-instruments/latest.parquet` |
 | `CDT_MENTIONS_FILE_PATH` | `cdt/debt-instrument-mentions/latest.parquet` |
 | `CDT_ITEMS_FILE_PATH` | `cdt/items/latest.parquet` |
-| `OUTPUT_FILE_PATH` | Where to write the JSON the web build consumes |
+| `SHAREHOLDERS_FILE_PATH` | `shareholders/latest.parquet` from the processed layer |
+| `OUTPUT_DIR` | Directory to write the dataset into (see *Output layout*) |
 
-In CI all six are set by [`deploy.yaml`](../.github/workflows/deploy.yaml), which
-first syncs the processed layer out of S3. The web build then reads the output
-via `INPUT_DATA_FILE_PATH`.
+In CI all seven are set by [`deploy.yaml`](../.github/workflows/deploy.yaml),
+which first syncs the processed layer out of S3. The web build then reads the
+output via `INPUT_DATA_DIR`.
 
-`data/` is gitignored, so the parquet and the JSON are local artifacts — not
+`data/` is gitignored, so the parquets and the output are local artifacts — not
 fixtures committed to the repo.
+
+### Output layout
+
+The script no longer writes one `companies.json` array. With every shareholding
+kept, that array is >1 GB — past Node's ~536 MB single-string cap — so the web
+reader could not load it. Instead `OUTPUT_DIR` gets:
+
+- `index.ndjson` — one light record per company (`permId`, `name`, `hqCountry`,
+  and the three content-depth counts), newline-delimited so the reader parses it
+  line by line without ever building one huge string. Page selection reads only
+  this.
+- `detail/<shard>/<permId>.json` — the full `Company` record, one file each,
+  sharded by a two-character `permId` prefix. Each rendered page reads only its
+  own file. `index_shard` here and `detailShard` in the web route must agree.
 
 ## Fixtures
 
@@ -71,10 +87,11 @@ coverage.
 company info processor from the LSEG PermID Entity Match and PermID Info APIs.
 Schema is defined in the FTM2J Tech Spec under Processed Layer → Company info.
 
-One row per `(identifier_type, identifier)`. Today that is one CIK per PermID,
-but the Shareholder Tracker will introduce CUSIP-keyed rows and multiple
-identifiers per PermID, so the script groups by `permid_id` rather than assuming
-a 1:1 grain.
+One row per `(identifier_type, identifier)`. Rows are either CIK-keyed or
+CUSIP-keyed: the CUSIP rows are the issuers the company-info processor resolved
+for the Shareholder Tracker, and they are what `attach_shareholders` joins on
+(see *Input 6*). A PermID can carry several identifiers, so the script groups by
+`permid_id` rather than assuming a 1:1 grain.
 
 ## Column mapping
 
@@ -206,6 +223,52 @@ citation name.
 co-registrant on one 8-K gets a row. The naive join turns 1,640 instruments into
 1,861. The merges also pass `validate="many_to_one"`, so removing the de-duplication
 raises rather than quietly inflating.
+
+## Input 6 — shareholders
+
+`s3://{bucket}/database/shareholders/latest.parquet`, produced by the IDI
+shareholder-tracker processor from SEC 13-F filings and European pension-fund
+reports. One row per disclosed holding.
+
+**The join key is the issuer's CUSIP, not a CIK — this is the one dataset that
+does not follow the per-CIK join contract below.** The file carries no issuer
+PermID and no issuer CIK: a holding names the *investor* (by `investor_cik`) and
+the *security* (by `security_cusip`), and the company a holding belongs to is the
+security's *issuer*. `attach_shareholders` resolves it by looking the
+`security_cusip` up in company-info's CUSIP-keyed rows (`identifier_type ==
+"cusip"`) to get the issuer's `permid_id`. Coverage is therefore bounded by how
+many issuers company-info has resolved, and an unresolved CUSIP drops that
+holding silently — only a *total* zero-match fails the build.
+
+Column mapping (`build_shareholder`):
+
+| Field | Source |
+| --- | --- |
+| (issuer join key) | `security_cusip` → company-info cusip row → `permid_id` |
+| `investor.name` | `investor_name` |
+| `investor.permId` | always `null` — holders are not linked to their own pages yet |
+| `investorType` | `investor_type` (`INSTITUTIONAL INVESTOR` / `PENSION FUND`) |
+| `investorCountry` | `investor_country_name` |
+| `securityType` | `security_type`, verbatim |
+| `sharesOwned` | `stock_number_of_shares` |
+| `marketValueUsd` | `security_market_value_amount_usd` (already USD) |
+| `asOf` | `document_report_date` |
+| `sources[].name` | `SEC Form 13-F` for institutions, else the fund's `source` |
+| `sources[].url` | `url` |
+| `sources[].lastAccessed` | `last_accessed_date` |
+
+**No percent-of-outstanding stake.** `stock_percent_ownership` is 0% populated on
+the resolved rows, and the denominator (shares outstanding) lives in
+company-facts, which is not an input here. So the section leads with USD market
+value and no `% stake` is derived — computing one would present a guess as a
+sourced fact. `stock_percent_*`, the pre-conversion value/multiplier/rate
+columns, voting-authority columns, `stock_ticker`, `security_isin`/`figi`, the
+`issuer_*` columns, and `text` are all unused.
+
+No recency or dedup step: the file is already a single snapshot (one report date
+per investor), so "most recent 13-F per CIK" would remove nothing. The large
+holder counts on mega-caps (Alphabet ~9,538) are genuine institutional breadth,
+not duplication.
 
 ## Decisions worth knowing before you change this
 
@@ -361,9 +424,11 @@ format is unsettled.
 
 ## The per-CIK join contract
 
-Corporate structure is the first per-CIK dataset to land. Shareholders and
-commercial debt are both coming, and both join the same way. The rule is written
-down once here so those two processors do not each invent their own.
+Corporate structure and commercial debt are per-CIK datasets and join the same
+way; the rule is written down once here so a future per-CIK processor does not
+invent its own. **Shareholders is the exception — it joins on the issuer's CUSIP,
+not a registrant CIK (see *Input 6*) — so none of the four points below apply to
+it.**
 
 **1. Join on every registrant, not on `Company.cik`.** The join key is all of
 `Company.registrants[].cik`. `cik` is a display convenience naming the primary;
@@ -418,22 +483,24 @@ on every run, so the evidence accumulates without anyone re-deriving it.
 
 ## Scope
 
-The company universe is set by company-info, currently **4,832 PermIDs**. It grows
-as the Shareholder Tracker lands. No filtering is applied here, including on
-`activity_status`: inactive companies still get records.
+The company universe is set by company-info, currently **18,631 PermIDs** (it
+grew sharply as the shareholder-tracker's resolved issuers landed in
+company-info). No filtering is applied here, including on `activity_status`:
+inactive companies still get records.
 
-Corporate structure covers 4,652 registrants, but only those that are also in the
-company universe get a tree: **1,207 of 4,832** companies, carrying 65,318
-subsidiaries between them. The other 3,625 render an empty state.
+Corporate structure gives **4,482 of 18,631** companies a tree, carrying 231,684
+subsidiaries between them; the rest render an empty state.
 
-CDT covers 228 borrower CIKs, of which 219 are in the company universe:
-**186 of 4,832** companies end up with debt, carrying 1,132 instruments — 156
-active, 976 undated. The gap between 219 and 186 is companies whose every
+CDT gives **186 of 18,631** companies debt, carrying ~1,130 instruments (~154
+active, 976 undated) — the gap from the borrower CIKs is companies whose every
 instrument was filtered out as matured or superseded.
 
-110 companies have both a tree and debt; 76 have debt but no tree.
+Shareholders is the highest-coverage section: **7,211 of 18,631** companies
+carry holdings, **1,701,003** in total, resolved from the ~1.7M of 2.2M raw rows
+whose issuer CUSIP company-info knows. The other ~505K rows drop silently.
 
-Both ratios improve from both directions as the processors fill in. Two coverage
-losses are worth watching because they are silent by nature: 14 in-scope
-instruments belong to 9 CIKs that company-info has not resolved to a PermID, and
-those are logged on every run rather than inferred.
+All three ratios move build to build as the processors and company-info fill in,
+so re-derive from the run's INFO logs rather than trusting these. Two coverage
+losses are silent by nature and logged every run: in-scope debt instruments whose
+CIK company-info has not resolved to a PermID, and shareholdings whose issuer
+CUSIP it has not resolved.
