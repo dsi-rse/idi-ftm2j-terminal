@@ -226,7 +226,10 @@ manually (Base UI forwards refs internally).
 
 - Routes set `export const dynamic = "force-static"` and
   `export const dynamicParams = false`.
-- Data comes from `INPUT_DATA_FILE_PATH` at build time via `fs.readFileSync`.
+- Data comes from `INPUT_DATA_DIR` at build time: a light `index.ndjson`
+  selects and orders the pages to prerender, and each page reads only its own
+  `detail/<shard>/<permId>.json`. The access layer lives in
+  [domains/companies/dataset.ts](../web/src/domains/companies/dataset.ts).
 - There is no server runtime. If you need request-time data, the answer is
   probably "generate more static params" or "move it client-side."
 

@@ -475,7 +475,7 @@ def _read_records(output_dir: Path) -> list[dict]:
     `build_dataset` no longer writes one JSON array; it writes `index.ndjson`
     plus one `detail/<shard>/<permId>.json` per company. Records are returned in
     index order, which is the order `build_companies` sorted them, so a case can
-    still assert on ordering. Mirrors `build_dataset.index_shard`.
+    still assert on ordering. Mirrors `output.index_shard`.
     """
     index_path = output_dir / "index.ndjson"
     if not index_path.exists():
