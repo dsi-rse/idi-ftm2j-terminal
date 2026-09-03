@@ -47,9 +47,10 @@ kept, that array is >1 GB — past Node's ~536 MB single-string cap — so the w
 reader could not load it. Instead `OUTPUT_DIR` gets:
 
 - `index.ndjson` — one light record per company (`permId`, `name`, `hqCountry`,
-  and the three content-depth counts), newline-delimited so the reader parses it
-  line by line without ever building one huge string. Page selection reads only
-  this.
+  the registrant `ciks`, and the three content-depth counts), newline-delimited
+  so the reader parses it line by line without ever building one huge string.
+  Page selection reads only this: the web reader pins the CIKs in its
+  `priority-ciks.ts` allowlist, then fills the remaining page budget by rank.
 - `detail/<shard>/<permId>.json` — the full `Company` record, one file each,
   sharded by a two-character `permId` prefix. Each rendered page reads only its
   own file. `index_shard` here and `detailShard` in the web route must agree.
