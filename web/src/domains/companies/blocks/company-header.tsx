@@ -6,7 +6,12 @@ import { InfoButton } from "@/blocks/info-button";
 import { Popover } from "@/components/popover";
 import { formatAmountShort } from "@/lib/format-currency";
 import { cn } from "@/lib/utils";
-import type { Company, CurrentListing, RegistrantFacts } from "@/types/domain";
+import type {
+  CitedFigure,
+  Company,
+  CurrentListing,
+  RegistrantFacts,
+} from "@/types/domain";
 
 type CompanyHeaderProps = {
   company: Company;
@@ -192,21 +197,35 @@ const PUBLIC_FLOAT_INFO =
 
 /**
  * Formats a company-facts figure with its currency symbol, or the not-reported
- * marker when the filing carried no value. Returns the value and a subline
- * naming the as-of date and ISO currency, so a non-USD figure is never mistaken
- * for dollars.
+ * marker when no filing carried a value. Returns the value and a subline naming
+ * the as-of date and ISO currency, so a non-USD figure is never mistaken for
+ * dollars, plus the figure's own citation.
+ *
+ * The citation is per figure rather than per record: a record based on a 10-K/A
+ * can take its revenue from the 10-K that amendment amends, and linking both
+ * figures to the amendment would cite a filing that does not contain the
+ * revenue shown. See {@link RegistrantFacts}.
  */
-function formatStat(
-  value: number | null,
-  currency: string | null,
-  asOf: string | null,
-): { value: string; sub?: string; muted: boolean } {
-  if (value === null) return { value: NOT_REPORTED, muted: true };
-  const subParts = [asOf ? `as of ${asOf}` : null, currency].filter(Boolean);
+function formatStat(figure: CitedFigure | null): {
+  value: string;
+  sub?: string;
+  muted: boolean;
+  href: string | null;
+  hrefLabel: string;
+} {
+  if (figure === null) {
+    return { value: NOT_REPORTED, muted: true, href: null, hrefLabel: "filing" };
+  }
+  const subParts = [
+    figure.asOf ? `as of ${figure.asOf}` : null,
+    figure.currency,
+  ].filter(Boolean);
   return {
-    value: formatAmountShort(value, currency),
+    value: formatAmountShort(figure.value, figure.currency),
     sub: subParts.length ? subParts.join(" · ") : undefined,
     muted: false,
+    href: figure.sources[0]?.url ?? null,
+    hrefLabel: figure.formType || "filing",
   };
 }
 
@@ -233,20 +252,11 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
   const exchange = formatExchange(company.currentListing);
 
   const facts = primaryFacts(company);
-  const publicFloat = formatStat(
-    facts?.publicFloat ?? null,
-    facts?.publicFloatCurrency ?? null,
-    facts?.publicFloatAsOf ?? null,
-  );
-  const revenue = formatStat(
-    facts?.revenue ?? null,
-    facts?.revenueCurrency ?? null,
-    facts?.revenueAsOf ?? null,
-  );
-  // Both figures come from the primary registrant's one filing, so they share
-  // its citation. Linked as attribution; absent when there is no source URL.
-  const filingUrl = facts?.sources?.[0]?.url ?? null;
-  const filingLabel = facts?.formType || "filing";
+  // Each figure carries its own citation -- the two can name different filings
+  // when the record was merged across an amendment. Linked as attribution;
+  // absent when the cited filing has no URL.
+  const publicFloat = formatStat(facts?.publicFloat ?? null);
+  const revenue = formatStat(facts?.revenue ?? null);
 
   return (
     <header className="w-full flex flex-col gap-3 pb-6 border-b border-muted/25">
@@ -283,16 +293,16 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           sub={publicFloat.sub}
           muted={publicFloat.muted}
           info={PUBLIC_FLOAT_INFO}
-          href={publicFloat.muted ? null : filingUrl}
-          hrefLabel={filingLabel}
+          href={publicFloat.href}
+          hrefLabel={publicFloat.hrefLabel}
         />
         <StatCell
           label="Revenue"
           value={revenue.value}
           sub={revenue.sub}
           muted={revenue.muted}
-          href={revenue.muted ? null : filingUrl}
-          hrefLabel={filingLabel}
+          href={revenue.href}
+          hrefLabel={revenue.hrefLabel}
         />
       </div>
     </header>

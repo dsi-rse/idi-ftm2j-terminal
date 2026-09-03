@@ -413,18 +413,25 @@ def facts_single_cik_attaches_to_registrant() -> None:
     )
     facts = result.by_permid("5000000001")["registrants"][0]["facts"]
     assert facts is not None, "expected facts on the sole registrant"
-    assert facts["publicFloat"] == 1000000000, facts["publicFloat"]
-    assert facts["publicFloatCurrency"] == "USD", facts["publicFloatCurrency"]
-    assert facts["publicFloatAsOf"] == "2023-06-30", facts["publicFloatAsOf"]
-    assert facts["revenue"] == 750000000, facts["revenue"]
-    assert facts["sharesOutstanding"] == 50000000, facts["sharesOutstanding"]
-    assert facts["isShellCompany"] is False, facts["isShellCompany"]
+    assert facts["publicFloat"]["value"] == 1000000000, facts["publicFloat"]
+    assert facts["publicFloat"]["currency"] == "USD", facts["publicFloat"]
+    assert facts["publicFloat"]["asOf"] == "2023-06-30", facts["publicFloat"]
+    assert facts["revenue"]["value"] == 750000000, facts["revenue"]
+    assert facts["sharesOutstanding"]["value"] == 50000000, facts["sharesOutstanding"]
+    # A share count is not monetary, so it carries no currency to mis-render.
+    assert facts["sharesOutstanding"]["currency"] is None, facts["sharesOutstanding"]
+    assert facts["isShellCompany"]["value"] is False, facts["isShellCompany"]
     assert facts["reportDate"] == "2023-12-31", facts["reportDate"]
-    assert facts["formType"] == "10-K", facts["formType"]
     assert facts["asOf"] == "2023-12-31", facts["asOf"]
+    # One filing supplied every figure, so the record cites exactly that filing
+    # and each figure repeats it.
+    assert len(facts["sources"]) == 1, facts["sources"]
     source = facts["sources"][0]
     assert source["name"] == "SEC 10-K", source
     assert source["url"].endswith("fixture-20231231.htm"), source
+    for key in ("publicFloat", "revenue", "sharesOutstanding", "isShellCompany"):
+        assert facts[key]["sources"] == [source], (key, facts[key])
+        assert facts[key]["formType"] == "10-K", (key, facts[key])
 
 
 def facts_absent_registrant_is_null() -> None:
@@ -457,10 +464,11 @@ def facts_foreign_currency_is_unconverted() -> None:
         ),
     )
     facts = result.by_permid("5000000001")["registrants"][0]["facts"]
-    assert facts["publicFloatCurrency"] == "EUR", facts["publicFloatCurrency"]
-    assert facts["revenueCurrency"] == "EUR", facts["revenueCurrency"]
-    assert facts["revenue"] == 28263000000, facts["revenue"]  # unchanged, not FX'd
-    assert facts["formType"] == "20-F", facts["formType"]
+    assert facts["publicFloat"]["currency"] == "EUR", facts["publicFloat"]
+    assert facts["revenue"]["currency"] == "EUR", facts["revenue"]
+    # Unchanged, not FX'd.
+    assert facts["revenue"]["value"] == 28263000000, facts["revenue"]
+    assert facts["revenue"]["formType"] == "20-F", facts["revenue"]
     assert facts["sources"][0]["name"] == "SEC 20-F", facts["sources"]
 
 
@@ -480,11 +488,11 @@ def facts_missing_values_are_null() -> None:
         ),
     )
     facts = result.by_permid("5000000001")["registrants"][0]["facts"]
-    assert facts["isShellCompany"] is True, facts["isShellCompany"]
+    assert facts["isShellCompany"]["value"] is True, facts["isShellCompany"]
+    # A blank figure drops out whole, taking its currency with it -- a currency
+    # with no figure would render as a bare "USD" under a not-reported value.
     assert facts["publicFloat"] is None, facts["publicFloat"]
-    assert facts["publicFloatCurrency"] is None, facts["publicFloatCurrency"]
     assert facts["revenue"] is None, facts["revenue"]
-    assert facts["revenueCurrency"] is None, facts["revenueCurrency"]
 
 
 def facts_latest_filing_wins_and_ignores_row_order() -> None:
@@ -509,7 +517,113 @@ def facts_latest_filing_wins_and_ignores_row_order() -> None:
         )
         record = result.by_permid("5000000001")["registrants"][0]["facts"]
         assert record["reportDate"] == "2023-12-31", record["reportDate"]
-        assert record["revenue"] == 750000000, record["revenue"]
+        assert record["revenue"]["value"] == 750000000, record["revenue"]
+
+
+# One fiscal year filed twice: the original 10-K carries the full cover page and
+# the financials; the 10-K/A re-tags only the cover page, which is what the SEC
+# amendments in the production data look like (5 of 12 amendments there report no
+# revenue, against 7 of 94 originals).
+ORIGINAL_10K = {
+    "accession_number": "0000000001-24-000001",
+    "form_type": "10-K",
+    "doc_type": "10-K",
+    "primary_url": "https://www.sec.gov/Archives/fixture/original-10k.htm",
+    "report_date": "2023-12-31",
+    "filing_date": "2024-02-15",
+    "market_value": "1000000000",
+    "shares_outstanding": "50000000",
+    "revenue": "750000000",
+    "is_shell_company": "false",
+}
+AMENDED_10KA = {
+    "accession_number": "0000000001-24-000002",
+    "form_type": "10-K/A",
+    "doc_type": "10-K/A",
+    "primary_url": "https://www.sec.gov/Archives/fixture/amended-10ka.htm",
+    "report_date": "2023-12-31",
+    "filing_date": "2024-06-01",
+    "market_value": "1100000000",
+    "shares_outstanding": "51000000",
+    "revenue": "",
+    "revenue_currency": "USD",
+    "is_shell_company": "",
+}
+
+
+def facts_amendment_backfills_untagged_figures() -> None:
+    """A 10-K/A wins the cover page; the 10-K it amends supplies the revenue."""
+    for facts in (
+        company_facts_rows(ORIGINAL_10K, AMENDED_10KA),
+        company_facts_rows(AMENDED_10KA, ORIGINAL_10K),
+    ):
+        result = run_build(
+            company_rows({}, COMPANION),
+            structure_rows({}, COMPANION_STRUCTURE),
+            facts=facts,
+        )
+        record = result.by_permid("5000000001")["registrants"][0]["facts"]
+        # The amendment is newer, so it wins every figure it actually reports.
+        assert record["publicFloat"]["value"] == 1100000000, record["publicFloat"]
+        assert record["sharesOutstanding"]["value"] == 51000000, record[
+            "sharesOutstanding"
+        ]
+        # Revenue and the shell flag went untagged in the amendment. Reading
+        # only the winning filing would drop both.
+        assert record["revenue"]["value"] == 750000000, record["revenue"]
+        assert record["isShellCompany"]["value"] is False, record["isShellCompany"]
+
+
+def facts_merged_figures_cite_their_own_filing() -> None:
+    """Each figure cites the filing it came from, not the record's base filing."""
+    result = run_build(
+        company_rows({}, COMPANION),
+        structure_rows({}, COMPANION_STRUCTURE),
+        facts=company_facts_rows(ORIGINAL_10K, AMENDED_10KA),
+    )
+    record = result.by_permid("5000000001")["registrants"][0]["facts"]
+    assert record["publicFloat"]["formType"] == "10-K/A", record["publicFloat"]
+    assert record["publicFloat"]["sources"][0]["url"].endswith(
+        "amended-10ka.htm"
+    ), record["publicFloat"]
+    # The revenue link must not point at the amendment: that document does not
+    # contain the figure shown next to it.
+    assert record["revenue"]["formType"] == "10-K", record["revenue"]
+    assert record["revenue"]["sources"][0]["url"].endswith("original-10k.htm"), record[
+        "revenue"
+    ]
+    assert record["revenue"]["sources"][0]["name"] == "SEC 10-K", record["revenue"]
+    # The record cites both filings, base first, with neither repeated.
+    urls = [source["url"] for source in record["sources"]]
+    assert [url.rsplit("/", 1)[-1] for url in urls] == [
+        "amended-10ka.htm",
+        "original-10k.htm",
+    ], urls
+
+
+def facts_backfill_stops_at_the_fiscal_period() -> None:
+    """A figure the whole period leaves untagged stays null, not borrowed from
+    last year -- a stale revenue shown as current is worse than none."""
+    last_year = {
+        **ORIGINAL_10K,
+        "accession_number": "0000000001-23-000001",
+        "primary_url": "https://www.sec.gov/Archives/fixture/prior-10k.htm",
+        "report_date": "2022-12-31",
+        "filing_date": "2023-02-15",
+        "revenue": "500000000",
+    }
+    this_year = {**ORIGINAL_10K, "revenue": ""}
+    result = run_build(
+        company_rows({}, COMPANION),
+        structure_rows({}, COMPANION_STRUCTURE),
+        facts=company_facts_rows(last_year, this_year),
+    )
+    record = result.by_permid("5000000001")["registrants"][0]["facts"]
+    assert record["reportDate"] == "2023-12-31", record["reportDate"]
+    assert record["revenue"] is None, record["revenue"]
+    # Only the one filing contributed, so only it is cited.
+    assert len(record["sources"]) == 1, record["sources"]
+    assert record["sources"][0]["url"].endswith("original-10k.htm"), record["sources"]
 
 
 def primary_prefix_names_the_parent_for_entergy() -> None:
@@ -1513,6 +1627,9 @@ CASES = [
     facts_foreign_currency_is_unconverted,
     facts_missing_values_are_null,
     facts_latest_filing_wins_and_ignores_row_order,
+    facts_amendment_backfills_untagged_figures,
+    facts_merged_figures_cite_their_own_filing,
+    facts_backfill_stops_at_the_fiscal_period,
     primary_prefix_names_the_parent_for_entergy,
     primary_prefix_names_the_parent_for_aep,
     primary_agent_filed_uses_structural_signal,

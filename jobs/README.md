@@ -16,6 +16,7 @@ CORPORATE_STRUCTURE_FILE_PATH=../data/input/latest_corporate_structure.parquet \
 CDT_DEBT_INSTRUMENTS_FILE_PATH=../data/input/latest_cdt.parquet \
 CDT_MENTIONS_FILE_PATH=../data/input/latest_cdt_mentions.parquet \
 CDT_ITEMS_FILE_PATH=../data/input/latest_cdt_items.parquet \
+COMPANY_FACTS_FILE_PATH=../data/input/latest_company_facts.parquet \
 SHAREHOLDERS_FILE_PATH=../data/input/latest_shareholders_raw.parquet \
 OUTPUT_DIR=../data/output \
 uv run python build_dataset.py
@@ -28,10 +29,11 @@ uv run python build_dataset.py
 | `CDT_DEBT_INSTRUMENTS_FILE_PATH` | `cdt/debt-instruments/latest.parquet` |
 | `CDT_MENTIONS_FILE_PATH` | `cdt/debt-instrument-mentions/latest.parquet` |
 | `CDT_ITEMS_FILE_PATH` | `cdt/items/latest.parquet` |
+| `COMPANY_FACTS_FILE_PATH` | `company-facts/latest.parquet` from the processed layer |
 | `SHAREHOLDERS_FILE_PATH` | `shareholders/latest.parquet` from the processed layer |
 | `OUTPUT_DIR` | Directory to write the dataset into (see *Output layout*) |
 
-In CI all seven are set by [`deploy.yaml`](../.github/workflows/deploy.yaml),
+In CI all eight are set by [`deploy.yaml`](../.github/workflows/deploy.yaml),
 which first syncs the processed layer out of S3. The web build then reads the
 output via `INPUT_DATA_DIR`.
 
@@ -284,12 +286,26 @@ off its CIK as `Registrant.facts`.
 
 | `RegistrantFacts` field | Source column |
 | --- | --- |
-| `publicFloat` (+ currency, as-of) | `market_value` = `dei:EntityPublicFloat` — **public float, not market cap** |
-| `revenue` (+ currency, as-of) | `revenue`, the recognized revenue concept |
-| `sharesOutstanding` (+ as-of) | `shares_outstanding` = `dei:EntityCommonStockSharesOutstanding` |
+| `publicFloat` | `market_value` = `dei:EntityPublicFloat` — **public float, not market cap** |
+| `revenue` | `revenue`, the recognized revenue concept |
+| `sharesOutstanding` | `shares_outstanding` = `dei:EntityCommonStockSharesOutstanding` |
 | `isShellCompany` | `is_shell_company` |
-| `reportDate`, `formType` | `report_date`, `form_type` |
-| `sources[0]` | `primary_url` (cited as `SEC {form_type}`), `last_accessed` |
+| `reportDate` | `report_date` |
+
+Each figure is a `CitedFigure`: the value, its `currency` and `asOf` from the
+same row, and the `formType`/`sources` of the filing it came from.
+
+**One record can span two filings.** A 10-K/A re-tags the cover page but usually
+leaves the financial statements untagged when they were not amended, so the
+newest filing for a fiscal year can report public float and shares outstanding
+and no revenue at all — in the current production file, 5 of 12 amendments carry
+no revenue against 7 of 94 originals. Taking only the newest filing would drop a
+revenue the original 10-K reported, so a figure the newest filing leaves untagged
+is backfilled from an earlier filing **for the same `report_date`**. Never across
+fiscal years: a stale revenue rendered as current is worse than none. Currency
+and as-of always travel with the value from one row, and each figure cites the
+filing it actually came from, so the header can link revenue to the 10-K while
+linking public float to the 10-K/A. `RegistrantFacts.sources` is the union.
 
 Facts are **per-registrant scalars** — a REIT and its operating partnership have
 genuinely different public floats — so they are never summed or maxed across a
