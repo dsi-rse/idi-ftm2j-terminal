@@ -227,7 +227,9 @@ def divergence_within_one_snapshot_warns() -> None:
         structure_rows({}, COMPANION_STRUCTURE),
     )
 
-    matches = result.warnings_matching("5000000001", "hq_address", "within one snapshot")
+    matches = result.warnings_matching(
+        "5000000001", "hq_address", "within one snapshot"
+    )
     assert matches, f"expected a divergence WARNING, got {result.warnings()}"
     record = result.by_permid("5000000001")
     assert record["name"] == "Fixture Co", "company should still be rendered"
@@ -593,6 +595,76 @@ def primary_agent_filed_without_signal_falls_to_lowest() -> None:
     assert record["cik"] == "0000007323", record["cik"]
 
 
+# A reorganization shape: a long-filing operating company keeps its low CIK, and
+# a parent registered later -- hence a higher CIK -- takes over transmitting the
+# combined 10-K. Both CIKs appear as accession prefixes, so rung 1 has to choose
+# between them, and the lowest-CIK tie-break picks the subsidiary.
+REORG_OPCO = "0000007323"
+REORG_HOLDCO = "0001999371"
+REORG_CIKS = (REORG_OPCO, REORG_HOLDCO)
+REORG_OLD_FILING = {
+    "accession_number": f"{REORG_OPCO}-23-000001",
+    "report_date": "2022-12-31",
+    "filing_date": "2023-02-15",
+}
+REORG_NEW_FILING = {
+    "accession_number": f"{REORG_HOLDCO}-25-000004",
+    "report_date": "2024-12-31",
+    "filing_date": "2025-02-14",
+}
+
+
+def _reorg_facts(*filings: dict):
+    """Combined filings, each attributed to both co-registrants."""
+    return company_facts_rows(
+        *[{"company_cik": cik, **filing} for filing in filings for cik in REORG_CIKS]
+    )
+
+
+def primary_prefix_prefers_the_newest_transmitter() -> None:
+    """Two in-group prefixes resolve to the one that filed most recently.
+
+    The holdco's CIK is the higher of the two, so `min` over the prefixes would
+    name the opco -- the entity that merely registered with the SEC first.
+    """
+    for filings in (
+        (REORG_OLD_FILING, REORG_NEW_FILING),
+        (REORG_NEW_FILING, REORG_OLD_FILING),
+    ):
+        result = run_build(
+            _multi_cik_company(REORG_CIKS, "REORG UNIT"),
+            structure_rows(COMPANION_STRUCTURE),
+            facts=_reorg_facts(*filings),
+        )
+        record = result.by_permid("5000000001")
+        assert record["cik"] == REORG_HOLDCO, record["cik"]
+        assert record["registrants"][0]["cik"] == REORG_HOLDCO, record["registrants"][0]
+        assert record["registrants"][0]["isPrimary"], "primary must sort first"
+        assert sum(r["isPrimary"] for r in record["registrants"]) == 1
+
+
+def primary_prefix_skips_a_newer_agent_filed_accession() -> None:
+    """The newest filing being agent-filed falls to the next-newest self-filed.
+
+    Toppan Merrill transmits the latest combined filing, so its prefix is not one
+    of the group's CIKs. Rung 1 keeps going down the group's filings rather than
+    giving up, and the older self-filed accession still names the holdco -- so
+    this never reaches the lowest-CIK fallback.
+    """
+    agent_filed = {
+        "accession_number": "0001047469-26-000034",
+        "report_date": "2025-12-31",
+        "filing_date": "2026-02-13",
+    }
+    result = run_build(
+        _multi_cik_company(REORG_CIKS, "REORG UNIT"),
+        structure_rows(COMPANION_STRUCTURE),
+        facts=_reorg_facts(REORG_NEW_FILING, agent_filed),
+    )
+    record = result.by_permid("5000000001")
+    assert record["cik"] == REORG_HOLDCO, record["cik"]
+
+
 # ---------------------------------------------------------------------------
 # Corporate structure -- union across CIKs, one extraction per accession
 # ---------------------------------------------------------------------------
@@ -741,7 +813,9 @@ def structure_separate_filings_are_not_deduped() -> None:
 
     relationships = result.by_permid("5000000001")["currentCorporateRelationships"]
     names = [r["child"]["name"] for r in relationships]
-    assert len(relationships) == 4, f"expected 4 rows, got {len(relationships)}: {names}"
+    assert len(relationships) == 4, (
+        f"expected 4 rows, got {len(relationships)}: {names}"
+    )
     assert names.count("Shared Sub LLC") == 2, (
         f"the subsidiary named in both filings should appear twice: {names}"
     )
@@ -1029,7 +1103,9 @@ def debt_smoke_one_instrument() -> None:
     source = instrument["sources"][0]
     assert source["name"] == "SEC 8-K Item 1.01", source["name"]
     assert source["url"] == CDT_URL, source["url"]
-    assert source["url"].endswith(".txt"), "citation must be the filing, not a transform"
+    assert source["url"].endswith(".txt"), (
+        "citation must be the filing, not a transform"
+    )
     # lastAccessed is when the pipeline ran, not when the 8-K was filed. Nothing
     # in the three CDT files records a retrieval date; asOf carries the filing.
     assert source["lastAccessed"] != source["name"], source
@@ -1256,7 +1332,9 @@ def debt_unrenderable_instrument_does_not_fail_the_build() -> None:
     assert debt[0]["asOf"] == "2016-01-04", debt[0]["asOf"]
 
     matches = result.warnings_matching("none of them renders", "orphan-1")
-    assert matches, f"expected a warning naming the skipped instrument, got {result.warnings()}"
+    assert matches, (
+        f"expected a warning naming the skipped instrument, got {result.warnings()}"
+    )
 
 
 def debt_every_rendered_instrument_carries_a_date() -> None:
@@ -1439,6 +1517,8 @@ CASES = [
     primary_prefix_names_the_parent_for_aep,
     primary_agent_filed_uses_structural_signal,
     primary_agent_filed_without_signal_falls_to_lowest,
+    primary_prefix_prefers_the_newest_transmitter,
+    primary_prefix_skips_a_newer_agent_filed_accession,
     structure_one_extraction_per_accession,
     structure_co_registrants_collapse_to_one_list,
     structure_separate_filings_are_not_deduped,

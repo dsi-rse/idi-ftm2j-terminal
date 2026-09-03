@@ -365,13 +365,21 @@ Primary selection is a **three-rung ladder** in `select_primary_cik`, applied by
 `assign_primary_registrants` once company facts and corporate structure are
 loaded:
 
-1. **Accession prefix.** The prefix of a company-facts filing's accession number
-   is the transmitting CIK — on a combined 10-K, normally the parent. Used when
-   it is one of the group's own CIKs (~69% of co-registrant groups, and it fixes
-   Entergy and Eversource, which the old lowest-CIK stub got wrong).
-2. **Structural signal.** When the prefix is a filing agent not in the group,
-   the registrant *not* listed as a child in the shared Exhibit 21 / Exhibit 8
-   is the parent.
+1. **Accession prefix, newest filing first.** The prefix of a company-facts
+   filing's accession number is the transmitting CIK — on a combined 10-K,
+   normally the parent. Used when it is one of the group's own CIKs (~69% of
+   co-registrant groups, and it fixes Entergy and Eversource, which the old
+   lowest-CIK stub got wrong). Where several of the group's own CIKs have
+   transmitted, the one that filed most recently wins, ordered by `report_date`
+   then `filing_date` then accession. **Not the lowest of them:** CIKs are
+   issued sequentially, so lowest means first-registered, and a
+   holding-company reorganization or an acquisition leaves the newer parent
+   with the higher CIK and the subsidiary with the lower one. Filings the group
+   did not transmit itself are skipped rather than ending the rung, so an
+   agent-filed latest accession falls through to the next-newest self-filed one.
+2. **Structural signal.** When no accession the group transmitted itself is
+   available — every prefix belongs to a filing agent — the registrant *not*
+   listed as a child in the shared Exhibit 21 / Exhibit 8 is the parent.
 3. **Lowest CIK.** Deterministic terminal fallback, for ties, an inconclusive
    structural signal, and companies with no filing.
 

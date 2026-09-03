@@ -29,7 +29,7 @@ from output import normalize_cik
 def select_primary_cik(
     ciks: list[str],
     *,
-    prefix_ciks: frozenset[str] = frozenset(),
+    prefix_ciks: tuple[str, ...] = (),
     non_child_ciks: frozenset[str] | None = None,
 ) -> str | None:
     """Chooses the primary CIK for a company, by a three-rung ladder.
@@ -41,14 +41,25 @@ def select_primary_cik(
     wrong. Only multi-CIK companies are ever re-decided, and production has none
     today, so the ladder is exercised by fixtures.
 
-    1. **Accession prefix.** The prefix of a filing's accession number is the
-       transmitting CIK -- on a combined 10-K, normally the parent. Across the
-       203 co-registrant accessions in corporate-structure it is one of the
-       group's own CIKs 140 times (69%), correctly naming the parent, including
-       Entergy and Eversource, which the lowest-CIK fallback gets wrong.
-       `prefix_ciks` is that set already narrowed to the group's own CIKs, so a
-       filing-agent prefix (the agent-filed 31%, mostly 0001047469 Toppan
-       Merrill) is absent here and falls through.
+    1. **Accession prefix, newest filing first.** The prefix of a filing's
+       accession number is the transmitting CIK -- on a combined 10-K, normally
+       the parent. Across the 203 co-registrant accessions in
+       corporate-structure it is one of the group's own CIKs 140 times (69%),
+       correctly naming the parent, including Entergy and Eversource, which the
+       lowest-CIK fallback gets wrong. `prefix_ciks` is that set already narrowed
+       to the group's own CIKs and ordered newest filing first, so a filing-agent
+       prefix (the agent-filed 31%, mostly 0001047469 Toppan Merrill) is absent
+       here and the rung falls through to the next-newest self-filed accession
+       rather than losing the signal outright.
+
+       Take the newest transmitter, **not** the lowest CIK. Two of a group's own
+       CIKs both appear as prefixes whenever the transmitting entity changed: a
+       holding-company reorganization puts a new, higher-numbered parent above a
+       long-filing operating company, and an acquirer takes over a lower-CIK
+       target's filings. CIKs are issued sequentially, so `min` over them
+       resolves to whichever entity registered with the SEC first -- after a
+       reorganization, the subsidiary. Recency instead asks which entity
+       transmits today, which is what a primary registrant is.
     2. **Structural signal.** `non_child_ciks` is the group's CIKs *not* listed
        as a child in the shared Exhibit 21 / Exhibit 8 -- the ones that look
        like the parent, not a subsidiary. When exactly one registrant is not a
@@ -67,7 +78,8 @@ def select_primary_cik(
 
     Args:
         ciks: Every CIK rolling up to one PermID.
-        prefix_ciks: Group CIKs that equal a filing's accession prefix.
+        prefix_ciks: Group CIKs that equal a filing's accession prefix,
+            ordered by that filing's recency, newest first.
         non_child_ciks: Group CIKs not listed as a child in the shared exhibit,
             or `None` when no exhibit was available to decide.
 
@@ -76,9 +88,12 @@ def select_primary_cik(
     """
     if not ciks:
         return None
-    in_group_prefixes = [cik for cik in ciks if cik in prefix_ciks]
-    if in_group_prefixes:
-        return min(in_group_prefixes)
+    group = set(ciks)
+    # Recency-ordered, so the first transmitter that is one of the group's own
+    # CIKs is the one that filed most recently.
+    for cik in prefix_ciks:
+        if cik in group:
+            return cik
     if non_child_ciks is not None:
         candidates = [cik for cik in ciks if cik in non_child_ciks]
         if len(candidates) == 1:
@@ -175,7 +190,8 @@ def assign_primary_registrants(
 
     Args:
         companies: `Company` records, each carrying a `registrants` list.
-        facts_df: The raw company-facts dataset (accession prefixes live here).
+        facts_df: The raw company-facts dataset (accession prefixes and the
+            filing dates that order them live here).
         structure_df: The raw corporate-structure dataset (the child-name signal
             lives here).
         logger: A standard logger instance.
@@ -195,17 +211,25 @@ def assign_primary_registrants(
         registrant["cik"] for company in multi for registrant in company["registrants"]
     }
 
-    # CIK -> the accession prefixes seen across that CIK's filings.
+    # CIK -> the accession prefixes seen across that CIK's filings, each paired
+    # with its filing's rank in the whole subset's recency order. Carrying the
+    # rank is what lets a group pool several CIKs' filings below and still ask
+    # which of them filed last. Ordered by `report_date` then `filing_date` to
+    # match `attach_company_facts`, with the accession breaking same-date ties so
+    # the pick never depends on parquet row order.
     facts = facts_df.copy()
     facts["cik"] = normalize_cik(facts["company_cik"])
     facts = facts[facts["cik"].isin(relevant_ciks)]
-    prefixes_by_cik: dict[str, set[str]] = {}
-    for cik, group in facts.groupby("cik", sort=False):
-        prefixes_by_cik[cik] = {
-            prefix
-            for prefix in (accession_prefix(a) for a in group["accession_number"])
-            if prefix
-        }
+    facts["_report"] = pd.to_datetime(facts["report_date"], errors="coerce", utc=True)
+    facts["_filing"] = pd.to_datetime(facts["filing_date"], errors="coerce", utc=True)
+    facts = facts.sort_values(
+        ["_report", "_filing", "accession_number"], ascending=False, na_position="last"
+    )
+    prefixes_by_cik: dict[str, list[tuple[int, str]]] = {}
+    for rank, (_, row) in enumerate(facts.iterrows()):
+        prefix = accession_prefix(row["accession_number"])
+        if prefix:
+            prefixes_by_cik.setdefault(row["cik"], []).append((rank, prefix))
 
     # CIK -> the accessions it filed, and accession -> the subsidiary names it
     # discloses. A registrant is a "child" when its own name appears as a
@@ -230,12 +254,20 @@ def assign_primary_registrants(
         registrants = company["registrants"]
         group_ciks = [registrant["cik"] for registrant in registrants]
 
-        group_prefixes: set[str] = set()
+        group_set = set(group_ciks)
+        ranked_prefixes: list[tuple[int, str]] = []
         group_accessions: set[str] = set()
         for cik in group_ciks:
-            group_prefixes |= prefixes_by_cik.get(cik, set())
+            ranked_prefixes += prefixes_by_cik.get(cik, [])
             group_accessions |= accessions_by_cik.get(cik, set())
-        prefix_ciks = frozenset(cik for cik in group_ciks if cik in group_prefixes)
+        # Newest filing first, narrowed to the group's own CIKs and de-duplicated
+        # so a CIK that transmitted repeatedly keeps only its most recent rank.
+        ranked_prefixes.sort()
+        prefix_ciks = tuple(
+            dict.fromkeys(
+                prefix for _, prefix in ranked_prefixes if prefix in group_set
+            )
+        )
 
         non_child_ciks: frozenset[str] | None = None
         if group_accessions:
