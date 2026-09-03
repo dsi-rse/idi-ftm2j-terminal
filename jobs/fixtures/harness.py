@@ -68,6 +68,44 @@ DEFAULT_COMPANY_ROW: dict[str, Any] = {
     "last_processed": "20260801T033040",
 }
 
+# Every column `build_dataset` reads off a company-facts row, mirroring the
+# idi-company-facts processor output. Numbers and dates are strings, the way the
+# parquet carries them; the parsers turn them into typed values. A default row
+# describes a single-CIK 10-K filer in USD, matching DEFAULT_COMPANY_ROW's CIK
+# and PermID so a facts case needs only the columns it varies.
+DEFAULT_COMPANY_FACTS_ROW: dict[str, Any] = {
+    "company_cik": "0000000001",
+    "accession_number": "0000000001-24-000001",
+    "form_type": "10-K",
+    "doc_type": "10-K",
+    "primary_url": (
+        "https://www.sec.gov/Archives/edgar/data/1/000000000124000001/"
+        "fixture-20231231.htm"
+    ),
+    "filing_date": "2024-02-15",
+    "report_date": "2023-12-31",
+    "company_name": "Fixture Co",
+    "market_value": "1000000000",
+    "market_value_as_of_date": "2023-06-30",
+    "market_value_currency": "USD",
+    "shares_outstanding": "50000000",
+    "shares_outstanding_as_of_date": "2024-02-01",
+    "is_shell_company": "false",
+    "revenue": "750000000",
+    "revenue_as_of_date": "2023-12-31",
+    "revenue_currency": "USD",
+    "last_accessed": "2026-08-20",
+    "all_security_names": "Common Stock",
+    "all_tickers": "FIX",
+    "all_exchanges": "New York Stock Exchange",
+    "all_security_types": "common",
+}
+
+# The columns of an empty facts frame -- the default when a case says nothing
+# about facts, so every registrant's `facts` stays None, the same way the CDT
+# frames default to empty.
+COMPANY_FACTS_COLUMNS: tuple[str, ...] = tuple(DEFAULT_COMPANY_FACTS_ROW)
+
 CDT_ITEM_ID = "000000000116000001-1-01"
 CDT_MENTION_ID = "dim::fixture000000000000000001"
 CDT_URL = (
@@ -270,6 +308,11 @@ def shareholder_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
     return rows(DEFAULT_SHAREHOLDER_ROW, overrides)
 
 
+def company_facts_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
+    """Builds a company-facts fixture frame from partial rows."""
+    return rows(DEFAULT_COMPANY_FACTS_ROW, overrides)
+
+
 @dataclass
 class FixtureResult:
     """The output of one build run, plus everything the build said while running."""
@@ -322,6 +365,7 @@ def run_build(
     mentions: pd.DataFrame | None = None,
     items: pd.DataFrame | None = None,
     shareholders: pd.DataFrame | None = None,
+    facts: pd.DataFrame | None = None,
     expect_failure: bool = False,
 ) -> FixtureResult:
     """Runs the whole `build_dataset` pipeline against in-memory frames.
@@ -340,6 +384,9 @@ def run_build(
         shareholders: A shareholder-tracker frame, from `shareholder_rows`.
             Defaults to empty, so a case about another section says nothing about
             shareholders.
+        facts: A company-facts frame, from `company_facts_rows`. Defaults to
+            empty, so a case about another section leaves every registrant's
+            `facts` None.
         expect_failure: When true, a `RuntimeError` from the build is caught and
             recorded rather than raised -- for cases asserting the build refuses
             bad input.
@@ -358,6 +405,9 @@ def run_build(
     mentions = cdt_mention_rows() if mentions is None else mentions
     items = cdt_item_rows() if items is None else items
     shareholders = shareholder_rows() if shareholders is None else shareholders
+    facts = (
+        pd.DataFrame(columns=list(COMPANY_FACTS_COLUMNS)) if facts is None else facts
+    )
 
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
@@ -367,6 +417,7 @@ def run_build(
         mentions_path = tmpdir / "cdt_mentions.parquet"
         items_path = tmpdir / "cdt_items.parquet"
         shareholders_path = tmpdir / "shareholders.parquet"
+        facts_path = tmpdir / "company_facts.parquet"
         output_dir = tmpdir / "output"
         companies.to_parquet(company_path, index=False)
         structure.to_parquet(structure_path, index=False)
@@ -374,6 +425,7 @@ def run_build(
         mentions.to_parquet(mentions_path, index=False)
         items.to_parquet(items_path, index=False)
         shareholders.to_parquet(shareholders_path, index=False)
+        facts.to_parquet(facts_path, index=False)
 
         previous = {
             key: os.environ.get(key)
@@ -383,6 +435,7 @@ def run_build(
                 "CDT_DEBT_INSTRUMENTS_FILE_PATH",
                 "CDT_MENTIONS_FILE_PATH",
                 "CDT_ITEMS_FILE_PATH",
+                "COMPANY_FACTS_FILE_PATH",
                 "SHAREHOLDERS_FILE_PATH",
                 "OUTPUT_DIR",
             )
@@ -392,6 +445,7 @@ def run_build(
         os.environ["CDT_DEBT_INSTRUMENTS_FILE_PATH"] = str(debt_path)
         os.environ["CDT_MENTIONS_FILE_PATH"] = str(mentions_path)
         os.environ["CDT_ITEMS_FILE_PATH"] = str(items_path)
+        os.environ["COMPANY_FACTS_FILE_PATH"] = str(facts_path)
         os.environ["SHAREHOLDERS_FILE_PATH"] = str(shareholders_path)
         os.environ["OUTPUT_DIR"] = str(output_dir)
         try:

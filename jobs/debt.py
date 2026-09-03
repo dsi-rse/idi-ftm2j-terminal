@@ -18,6 +18,7 @@ from constants import (
 from helpers import (
     _clean,
     extract_lender_labels,
+    parse_amount,
     parse_iso_date,
 )
 from output import normalize_cik
@@ -41,36 +42,6 @@ def build_debt_source_name(item: str | None) -> str:
     if not item:
         return f"SEC {CDT_FORM_TYPE}"
     return f"SEC {CDT_FORM_TYPE} Item {item}"
-
-
-def parse_amount(value: object) -> int | float | None:
-    """Parses a reported instrument amount to a JSON-safe number.
-
-    Returns a Python `int` or `float`, never a numpy scalar: `json.dump` cannot
-    serialize `numpy.int64` and would fail the whole build at the write step,
-    long after this value was read.
-
-    No scale or sanity check. Six values dataset-wide are below 1,000 and at
-    least three are plainly interest-rate margins the extractor put in the amount
-    field -- 0.875 on a row named "ABR Loan", 1.875 on "RFR Loan". They are
-    passed through: no threshold separates a misextracted margin from a genuine
-    small private note, and inventing one would silently drop real instruments.
-    The fix belongs upstream.
-
-    Args:
-        value: A raw `amount` cell.
-
-    Returns:
-        The amount, or `None` if the cell was blank or not a number.
-    """
-    text = _clean(value)
-    if not text:
-        return None
-    parsed = pd.to_numeric(text, errors="coerce")
-    if pd.isna(parsed):
-        return None
-    number = float(parsed)
-    return int(number) if number.is_integer() else number
 
 
 def parse_amount_currency(value: object, logger: logging.Logger) -> str | None:

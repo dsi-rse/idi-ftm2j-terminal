@@ -3,7 +3,7 @@
 The pipeline entrypoint. Reads the processor parquet outputs, transforms and
 joins them into `Company` records, and writes the NDJSON index + per-company
 detail files. The transform/join stages live in sibling modules (`company`,
-`relationships`, `debt`, `shareholders`), parquet IO and dataset output live in
+`facts`, `relationships`, `debt`, `shareholders`), parquet IO and dataset output live in
 `output`, and the dataset-agnostic building blocks live in `constants` and
 `helpers`.
 """
@@ -17,9 +17,10 @@ import os
 import pandas as pd
 
 # Local imports
-from company import build_companies
+from company import assign_primary_registrants, build_companies
 from constants import CDT_ITEM_COLUMNS
 from debt import attach_commercial_debt
+from facts import attach_company_facts
 from output import (
     load_parquet,
     report_unresolved_rows,
@@ -53,6 +54,7 @@ def main(logger: logging.Logger) -> None:
         CDT_DEBT_INSTRUMENTS_FILE_PATH: Path to the CDT debt-instruments parquet.
         CDT_MENTIONS_FILE_PATH: Path to the CDT debt-instrument-mentions parquet.
         CDT_ITEMS_FILE_PATH: Path to the CDT items parquet.
+        COMPANY_FACTS_FILE_PATH: Path to the company-facts parquet.
         SHAREHOLDERS_FILE_PATH: Path to the shareholder-tracker parquet.
         OUTPUT_DIR: Directory to write the dataset into, as an index plus one
             detail file per company -- see `write_dataset`.
@@ -74,6 +76,7 @@ def main(logger: logging.Logger) -> None:
         cdt_instruments_fpath = os.environ["CDT_DEBT_INSTRUMENTS_FILE_PATH"]
         cdt_mentions_fpath = os.environ["CDT_MENTIONS_FILE_PATH"]
         cdt_items_fpath = os.environ["CDT_ITEMS_FILE_PATH"]
+        company_facts_fpath = os.environ["COMPANY_FACTS_FILE_PATH"]
         shareholders_fpath = os.environ["SHAREHOLDERS_FILE_PATH"]
         output_dir = os.environ["OUTPUT_DIR"]
     except KeyError as e:
@@ -113,9 +116,23 @@ def main(logger: logging.Logger) -> None:
         len(items_df),
     )
 
+    logger.info("Loading company facts dataset.")
+    facts_df = load_parquet(company_facts_fpath, "company facts")
+    logger.info(
+        "Loaded %d company-facts rows covering %d registrant CIKs.",
+        len(facts_df),
+        facts_df["company_cik"].nunique(),
+    )
+
     logger.info("Transforming to Company records.")
     companies = build_companies(companies_df, logger)
     validate_companies(companies)
+
+    logger.info("Attaching company facts.")
+    attach_company_facts(companies, facts_df, logger)
+
+    logger.info("Selecting the primary registrant per company.")
+    assign_primary_registrants(companies, facts_df, structure_df, logger)
 
     logger.info("Attaching disclosed corporate structures.")
     attach_relationships(companies, structure_df, logger)

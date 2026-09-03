@@ -19,6 +19,15 @@ TooltipRoot.displayName = "Tooltip.Root";
 
 const TooltipTrigger = BaseTooltip.Trigger;
 
+/**
+ * Coordinates all tooltips under it: a shared open/close delay, and — the part
+ * that matters here — it groups their timers so one tooltip's popup is torn down
+ * before the next opens. Mount once near the app root. Without it, moving
+ * between adjacent triggers could leave two popups briefly mounted, which read
+ * as a clipped or doubled tooltip.
+ */
+const TooltipProvider = BaseTooltip.Provider;
+
 type TooltipContentProps = {
   title: string;
   className?: string;
@@ -39,7 +48,15 @@ function TooltipContent({
 }: PropsWithChildren<TooltipContentProps>) {
   return (
     <BaseTooltip.Portal>
-      <BaseTooltip.Positioner sideOffset={sideOffset}>
+      {/* z-index goes on the Positioner (the positioned element); a class on
+          the static Popup is ignored. Must beat the sticky tab bar (z-10) so a
+          popup opened near it is not painted over. collisionPadding keeps a long
+          body from clipping against the viewport edge. */}
+      <BaseTooltip.Positioner
+        className="z-50"
+        sideOffset={sideOffset}
+        collisionPadding={8}
+      >
         <BaseTooltip.Popup
           {...popupProps}
           className={cn(
@@ -70,6 +87,7 @@ TooltipContent.displayName = "Tooltip.Content";
  * ```
  */
 export const Tooltip = Object.assign(TooltipRoot, {
+  Provider: TooltipProvider,
   Root: TooltipRoot,
   Trigger: TooltipTrigger,
   Content: TooltipContent,

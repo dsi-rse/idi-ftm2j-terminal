@@ -1,4 +1,17 @@
-import type { Company, CurrentListing } from "@/types/domain";
+"use client";
+
+import type { ReactNode } from "react";
+
+import { InfoButton } from "@/blocks/info-button";
+import { Popover } from "@/components/popover";
+import { formatAmountShort } from "@/lib/format-currency";
+import { cn } from "@/lib/utils";
+import type {
+  CitedFigure,
+  Company,
+  CurrentListing,
+  RegistrantFacts,
+} from "@/types/domain";
 
 type CompanyHeaderProps = {
   company: Company;
@@ -7,16 +20,10 @@ type CompanyHeaderProps = {
 /**
  * Shown wherever a field has no value. Company info is genuinely sparse — 6 of
  * 219 companies have no industry, 53 no ticker — so this is a normal state, not
- * an error.
+ * an error. Public float and revenue reuse it too: the company-facts source
+ * exists now, so a missing figure is "not reported", not "not built".
  */
 const NOT_REPORTED = "Not reported";
-
-/**
- * Shown for fields whose data source does not exist yet. Distinct from
- * {@link NOT_REPORTED}: this says "we have not built this", not "the source
- * does not have it", and the two should not look alike.
- */
-const PENDING = "Awaiting source";
 
 /** ISO 10383 MICs appearing in the company-info dataset. */
 const MIC_LABELS: Record<string, string> = {
@@ -93,9 +100,10 @@ function LabeledCell({ label, value, muted }: LabeledCellProps) {
         {label}
       </span>
       <span
-        className={`font-mono text-xs whitespace-nowrap ${
-          muted ? "text-muted" : "text-foreground"
-        }`}
+        className={cn(
+          "font-mono text-xs whitespace-nowrap",
+          muted ? "text-muted" : "text-foreground",
+        )}
       >
         {value}
       </span>
@@ -103,80 +111,199 @@ function LabeledCell({ label, value, muted }: LabeledCellProps) {
   );
 }
 
+type StatCellProps = {
+  label: string;
+  value: string;
+  /** Small line under the value, e.g. the as-of date and currency. */
+  sub?: string;
+  /** Dims the value to mark it as absent rather than reported. */
+  muted?: boolean;
+  /** Popover body explaining the figure; adds a click-to-open info trigger by the label. */
+  info?: ReactNode;
+  /** URL of the filing the figure was extracted from, linked as attribution. */
+  href?: string | null;
+  /** Short label for the {@link href} link, e.g. the form type "10-K". */
+  hrefLabel?: string;
+};
+
 /**
- * One column of the stat group. The value is deliberately not a number: market
- * cap, revenue, and employees are all routed through the company-facts
- * processor, which does not exist yet. The grouping matches the design so the
- * shape is already right when real figures arrive, but the muted text keeps it
- * legible as pending rather than as data.
+ * A financial figure in the header cell group. Heavier than {@link LabeledCell}
+ * — the value is Inter Tight rather than mono, and it carries an as-of/currency
+ * subline — so a market figure reads as a headline number rather than as
+ * another categorical tag. Cells share the metadata cells' border and box so
+ * the group reads as one strip; the type weight is the only thing setting the
+ * financials apart.
  */
-function PendingStat({ label }: { label: string }) {
+function StatCell({
+  label,
+  value,
+  sub,
+  muted,
+  info,
+  href,
+  hrefLabel,
+}: StatCellProps) {
   return (
-    <div className="flex flex-col gap-1 px-4 py-3 flex-1 min-w-0">
-      <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium">
-        {label}
+    <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
+      <span className="flex items-center gap-1">
+        <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium whitespace-nowrap">
+          {label}
+        </span>
+        {info ? (
+          <Popover>
+            <Popover.Trigger
+              render={<InfoButton aria-label={`About ${label}`} />}
+            />
+            <Popover.Content title={label}>{info}</Popover.Content>
+          </Popover>
+        ) : null}
       </span>
-      <span className="font-inter-tight text-sm text-muted leading-none py-1">
-        {PENDING}
+      <span
+        className={cn(
+          "font-inter-tight text-base leading-none",
+          muted ? "text-muted" : "text-foreground",
+        )}
+      >
+        {value}
       </span>
-      <span className="font-mono text-[10px] text-muted">
-        pending company facts
-      </span>
+      {sub || href ? (
+        <span className="font-mono text-[10px] text-muted whitespace-nowrap">
+          {sub}
+          {sub && href ? " · " : null}
+          {href ? (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-dotted underline-offset-2 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            >
+              {hrefLabel ?? "filing"}
+            </a>
+          ) : null}
+        </span>
+      ) : null}
     </div>
   );
 }
 
 /**
- * The top-of-page header block for a company: name, primary metadata cells
- * (industry / HQ country / primary listing / ticker), and the three financial stat
- * cells.
+ * The public-float info body. Public float is not market capitalization, and
+ * the label is careful to say so; this explains the distinction in place.
+ */
+const PUBLIC_FLOAT_INFO =
+  "The market value of shares held by non-affiliates. It is similar to market " +
+  "capitalization, but excludes insider and controlling holdings. It is " +
+  "measured as of the date shown, not today.";
+
+/**
+ * Formats a company-facts figure with its currency symbol, or the not-reported
+ * marker when no filing carried a value. Returns the value and a subline naming
+ * the as-of date and ISO currency, so a non-USD figure is never mistaken for
+ * dollars, plus the figure's own citation.
  *
- * Market cap, revenue, and employees have no source in the company-info
- * dataset — the data spec routes all three through the company-facts processor,
- * which does not exist yet — so they render a pending state instead of a
- * figure. Stacks vertically on mobile.
+ * The citation is per figure rather than per record: a record based on a 10-K/A
+ * can take its revenue from the 10-K that amendment amends, and linking both
+ * figures to the amendment would cite a filing that does not contain the
+ * revenue shown. See {@link RegistrantFacts}.
+ */
+function formatStat(figure: CitedFigure | null): {
+  value: string;
+  sub?: string;
+  muted: boolean;
+  href: string | null;
+  hrefLabel: string;
+} {
+  if (figure === null) {
+    return { value: NOT_REPORTED, muted: true, href: null, hrefLabel: "filing" };
+  }
+  const subParts = [
+    figure.asOf ? `as of ${figure.asOf}` : null,
+    figure.currency,
+  ].filter(Boolean);
+  return {
+    value: formatAmountShort(figure.value, figure.currency),
+    sub: subParts.length ? subParts.join(" · ") : undefined,
+    muted: false,
+    href: figure.sources[0]?.url ?? null,
+    hrefLabel: figure.formType || "filing",
+  };
+}
+
+/** The company facts shown in the header come from the primary registrant. */
+function primaryFacts(company: Company): RegistrantFacts | null {
+  return company.registrants.find((r) => r.isPrimary)?.facts ?? null;
+}
+
+/**
+ * The top-of-page header block for a company: name, then one cell group holding
+ * the categorical metadata (industry / HQ country / primary listing / ticker)
+ * and the financial figures (public float / revenue) side by side.
+ *
+ * The financials read from the primary registrant's company-facts. They sit in
+ * the same strip as the metadata rather than a separate panel — the source
+ * boundary is not something a reader needs — but carry heavier type and an
+ * as-of/currency subline so a market figure still reads as a headline number.
+ * There is no market-cap or employee-count field: the figure the cover page
+ * reports is public float, and no headcount is extracted. Stacks on mobile.
  */
 export function CompanyHeader({ company }: CompanyHeaderProps) {
   const industry = company.currentIndustry?.name;
   const ticker = company.currentListing?.ticker;
   const exchange = formatExchange(company.currentListing);
 
+  const facts = primaryFacts(company);
+  // Each figure carries its own citation -- the two can name different filings
+  // when the record was merged across an amendment. Linked as attribution;
+  // absent when the cited filing has no URL.
+  const publicFloat = formatStat(facts?.publicFloat ?? null);
+  const revenue = formatStat(facts?.revenue ?? null);
+
   return (
-    <header className="w-full flex flex-col md:flex-row md:items-start md:justify-between gap-6 pb-6 border-b border-muted/25">
-      <div className="flex flex-col gap-3 min-w-0">
-        <h1 className="font-inter-tight tracking-tight text-3xl md:text-4xl font-semibold text-foreground leading-none">
-          {company.name}
-        </h1>
-        {/* Cells size to their content and wrap, rather than sitting in a
-            fixed grid — mono labels vary enough in width that equal columns
-            either clip or force the longest label onto two lines. */}
-        <div className="flex flex-wrap gap-2 max-w-2xl">
-          <LabeledCell
-            label="Primary Industry"
-            value={industry ?? NOT_REPORTED}
-            muted={!industry}
-          />
-          <LabeledCell
-            label="Country Headquartered"
-            value={company.hqCountry ?? NOT_REPORTED}
-            muted={!company.hqCountry}
-          />
-          <LabeledCell
-            label="Primary Listing"
-            value={exchange}
-            muted={exchange === NOT_REPORTED}
-          />
-          <LabeledCell
-            label="Ticker"
-            value={ticker ?? NOT_REPORTED}
-            muted={!ticker}
-          />
-        </div>
-      </div>
-      <div className="flex flex-col sm:flex-row border border-muted/25 divide-y sm:divide-y-0 sm:divide-x divide-muted/25 md:min-w-[520px]">
-        <PendingStat label="Market Cap" />
-        <PendingStat label="Revenue" />
-        <PendingStat label="Employees" />
+    <header className="w-full flex flex-col gap-3 pb-6 border-b border-muted/25">
+      <h1 className="font-inter-tight tracking-tight text-3xl md:text-4xl font-semibold text-foreground leading-none">
+        {company.name}
+      </h1>
+      {/* Cells size to their content and wrap, rather than sitting in a
+          fixed grid — mono labels vary enough in width that equal columns
+          either clip or force the longest label onto two lines. */}
+      <div className="flex flex-wrap gap-2">
+        <LabeledCell
+          label="Primary Industry"
+          value={industry ?? NOT_REPORTED}
+          muted={!industry}
+        />
+        <LabeledCell
+          label="Country Headquartered"
+          value={company.hqCountry ?? NOT_REPORTED}
+          muted={!company.hqCountry}
+        />
+        <LabeledCell
+          label="Primary Listing"
+          value={exchange}
+          muted={exchange === NOT_REPORTED}
+        />
+        <LabeledCell
+          label="Ticker"
+          value={ticker ?? NOT_REPORTED}
+          muted={!ticker}
+        />
+        <StatCell
+          label="Public Float"
+          value={publicFloat.value}
+          sub={publicFloat.sub}
+          muted={publicFloat.muted}
+          info={PUBLIC_FLOAT_INFO}
+          href={publicFloat.href}
+          hrefLabel={publicFloat.hrefLabel}
+        />
+        <StatCell
+          label="Revenue"
+          value={revenue.value}
+          sub={revenue.sub}
+          muted={revenue.muted}
+          href={revenue.href}
+          hrefLabel={revenue.hrefLabel}
+        />
       </div>
     </header>
   );

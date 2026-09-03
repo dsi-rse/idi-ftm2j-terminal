@@ -408,14 +408,89 @@ export type HistoricProjectAffiliation = CitedEntity &
 // ---------------------------------------------------------------------------
 
 /**
+ * One figure from a registrant's annual filing, with the filing it came from.
+ *
+ * A figure is cited individually because a merged {@link RegistrantFacts}
+ * record can draw its figures from two filings — see that type. `currency` is
+ * null for a non-monetary count such as a share count.
+ */
+export type CitedFigure = CitedEntity & {
+  value: number;
+  /** ISO 4217 currency, or null for a non-monetary count. Never converted. */
+  currency: string | null;
+  /** ISO-8601 date the figure is measured as of. Null when the filing gives none. */
+  asOf: string | null;
+  /** SEC form this figure was extracted from, e.g. `"10-K"`, `"10-K/A"`, `"20-F"`. */
+  formType: string;
+};
+
+/** A boolean fact from a registrant's annual filing, with the filing it came from. */
+export type CitedFlag = CitedEntity & {
+  value: boolean;
+  /** SEC form this flag was extracted from. */
+  formType: string;
+};
+
+/**
+ * Company facts extracted from a registrant's most recent annual filing (10-K /
+ * 20-F) by the idi-company-facts processor. These are scalars reported per
+ * registrant — an operating partnership and its REIT have genuinely different
+ * public floats — so they live on {@link Registrant}, not {@link Company}, and
+ * are never summed or maxed across a company's registrants. The header shows
+ * the primary registrant's facts.
+ *
+ * **A record can span two filings.** An amendment (10-K/A) re-tags the cover
+ * page but usually leaves the financial statements untagged when they were not
+ * amended, so it can report public float and shares outstanding while reporting
+ * no revenue. Where the newest filing for a fiscal period leaves a figure
+ * untagged, the figure is taken from an earlier filing for that *same* period —
+ * never from an earlier period. Each figure therefore carries its own source
+ * and form type, and `CitedEntity.sources` here is the union of the filings the
+ * figures came from. Render a figure's own citation, not `sources[0]`.
+ *
+ * `SnapshotEntity.asOf` is the report date of the filing the record is based
+ * on. Each figure additionally carries its own as-of date, because the
+ * cover-page concepts are measured on different dates — public float as of the
+ * most recent second-quarter close, shares outstanding as of a date near the
+ * filing.
+ */
+export type RegistrantFacts = CitedEntity &
+  SnapshotEntity & {
+    /**
+     * `dei:EntityPublicFloat` — the market value of common equity held by
+     * non-affiliates, from the filing cover page. This is **public float, not
+     * market capitalization**: it excludes affiliate holdings and is not
+     * shares × price. Null when no filing for the period reports one.
+     */
+    publicFloat: CitedFigure | null;
+    /**
+     * Total revenue as reported. Null when no filing for the period carries a
+     * revenue concept the processor recognizes — common on a record based on an
+     * amendment, where only the cover page was re-tagged.
+     */
+    revenue: CitedFigure | null;
+    /**
+     * `dei:EntityCommonStockSharesOutstanding` — common shares outstanding from
+     * the cover page. A count, so its `currency` is null. Null when absent.
+     */
+    sharesOutstanding: CitedFigure | null;
+    /**
+     * `dei:EntityShellCompany`. True when the registrant marks itself a shell
+     * company. Null when no filing for the period reports the flag.
+     */
+    isShellCompany: CitedFlag | null;
+    /**
+     * Fiscal year end of the filings the facts came from. ISO-8601 date, or
+     * null. Shared by every filing merged into the record — they are only
+     * merged when their report dates match.
+     */
+    reportDate: string | null;
+  };
+
+/**
  * One SEC registrant rolling up to a company. A PermID may cover several —
  * holdco/opco pairs, REIT/operating-partnership pairs, and utility groups all
  * file under multiple CIKs that LSEG resolves to one entity.
- *
- * Company-facts fields are the intended next addition here. Facts are scalars
- * reported per registrant — an operating partnership and its REIT have
- * genuinely different market caps — so unlike the list-shaped sections they
- * cannot be collapsed into one array.
  */
 export type Registrant = CitedEntity &
   SnapshotEntity & {
@@ -430,6 +505,12 @@ export type Registrant = CitedEntity &
     registrantName: string | null;
     /** True for exactly one registrant per company. */
     isPrimary: boolean;
+    /**
+     * Company facts from this registrant's most recent 10-K / 20-F, or null
+     * when it has no in-scope filing. Per-registrant scalars — see
+     * {@link RegistrantFacts}.
+     */
+    facts: RegistrantFacts | null;
   };
 
 // ---------------------------------------------------------------------------

@@ -361,3 +361,33 @@ def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
         labels.setdefault(max(spans, key=len), None)
 
     return list(labels)
+
+
+def parse_amount(value: object) -> int | float | None:
+    """Parses a reported monetary or share figure to a JSON-safe number.
+
+    Returns a Python `int` or `float`, never a numpy scalar: `json.dump` cannot
+    serialize `numpy.int64` and would fail the whole build at the write step,
+    long after this value was read.
+
+    No scale or sanity check. In the CDT amounts six values dataset-wide are
+    below 1,000 and at least three are plainly interest-rate margins the
+    extractor put in the amount field -- 0.875 on a row named "ABR Loan", 1.875
+    on "RFR Loan". They are passed through: no threshold separates a
+    misextracted margin from a genuine small private note, and inventing one
+    would silently drop real instruments. The fix belongs upstream.
+
+    Args:
+        value: A raw numeric cell (a debt `amount`, or a company-facts figure).
+
+    Returns:
+        The number, or `None` if the cell was blank or not a number.
+    """
+    text = _clean(value)
+    if not text:
+        return None
+    parsed = pd.to_numeric(text, errors="coerce")
+    if pd.isna(parsed):
+        return None
+    number = float(parsed)
+    return int(number) if number.is_integer() else number
