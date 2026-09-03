@@ -68,14 +68,17 @@ def build_index_entry(company: dict) -> dict:
     """The light per-company record written to `index.ndjson`.
 
     Carries only what page selection and search need without loading a
-    company's heavy nested lists: identity fields and the content-depth counts
-    `generateStaticParams` sorts on. Reading the full detail for all companies
-    just to pick and order a subset is what did not scale.
+    company's heavy nested lists: identity fields, every registrant CIK (the
+    web reader pins allowlisted CIKs to a page regardless of rank), and the
+    content-depth counts `generateStaticParams` sorts on. Reading the full
+    detail for all companies just to pick and order a subset is what did not
+    scale.
     """
     return {
         "permId": company["permId"],
         "name": company["name"],
         "hqCountry": company["hqCountry"],
+        "ciks": [registrant["cik"] for registrant in company["registrants"]],
         "debtCount": len(company["currentCommercialDebt"]),
         "treeCount": len(company["currentCorporateRelationships"]),
         "shareholderCount": len(company["currentShareholders"]),

@@ -3,6 +3,8 @@ import path from "path";
 
 import type { Company } from "@/types/domain";
 
+import { PRIORITY_CIKS } from "./priority-ciks";
+
 /**
  * Build-time access to the company dataset the static site is generated from.
  *
@@ -30,20 +32,25 @@ import type { Company } from "@/types/domain";
  * deleted rather than retuned. Until then `MAX_COMPANY_PAGES` overrides the
  * default without a code change, and the rejection message reports the exact
  * asset count, so the true ceiling is measurable rather than guessed.
+ *
+ * Within the cap, the companies in `priority-ciks.ts` are always kept and the
+ * remaining budget is filled by `rankForDeploy`.
  */
 const MAX_COMPANY_PAGES = Number(process.env.MAX_COMPANY_PAGES ?? 2000);
 
 const DATA_DIR = process.env.INPUT_DATA_DIR;
 
 /**
- * The light per-company record in `index.ndjson`: identity plus the
- * content-depth counts `rankForDeploy` sorts on. The heavy nested lists live
- * in the detail file and are never loaded to pick or order pages.
+ * The light per-company record in `index.ndjson`: identity, the registrant
+ * CIKs `pinnedEntries` matches the allowlist against, and the content-depth
+ * counts `rankForDeploy` sorts on. The heavy nested lists live in the detail
+ * file and are never loaded to pick or order pages.
  */
 export type CompanyIndexEntry = {
   permId: string;
   name: string;
   hqCountry: string | null;
+  ciks: string[];
   debtCount: number;
   treeCount: number;
   shareholderCount: number;
@@ -101,6 +108,50 @@ function rankForDeploy(entries: CompanyIndexEntry[]): CompanyIndexEntry[] {
 }
 
 /**
+ * The allowlisted companies, in allowlist order, deduplicated by PermID.
+ *
+ * A listed CIK is only as good as the dataset's CIK-to-PermID resolution:
+ * foreign issuers in particular are often absent from the company-info
+ * source. Those are reported rather than failed on, because the allowlist is
+ * a review aid and a stale row in it must not block a deploy. An index written
+ * before `ciks` existed cannot be matched at all, and that is reported too, so
+ * a silently unpinned build is not mistaken for a resolution gap.
+ */
+function pinnedEntries(entries: CompanyIndexEntry[]): CompanyIndexEntry[] {
+  if (entries.length > 0 && entries.every((e) => e.ciks === undefined)) {
+    console.warn(
+      "index.ndjson carries no `ciks`; rebuild the dataset to apply the " +
+        "priority allowlist. Falling back to rank alone.",
+    );
+    return [];
+  }
+  const byCik = new Map<string, CompanyIndexEntry>();
+  for (const entry of entries) {
+    for (const cik of entry.ciks ?? []) byCik.set(cik, entry);
+  }
+  const pinned: CompanyIndexEntry[] = [];
+  const seen = new Set<string>();
+  const unresolved: string[] = [];
+  for (const { company, cik } of PRIORITY_CIKS) {
+    const entry = byCik.get(cik);
+    if (!entry) {
+      unresolved.push(`${company} (${cik})`);
+      continue;
+    }
+    if (seen.has(entry.permId)) continue;
+    seen.add(entry.permId);
+    pinned.push(entry);
+  }
+  if (unresolved.length > 0) {
+    console.warn(
+      `${unresolved.length} of ${PRIORITY_CIKS.length} priority CIKs have no ` +
+        `company in the dataset and get no page:\n  ${unresolved.join("\n  ")}`,
+    );
+  }
+  return pinned;
+}
+
+/**
  * Reads `index.ndjson` as a Buffer split on newlines rather than as one UTF-8
  * string: the index grows with the company count, and a single-string read
  * would reintroduce the ~536 MB cap this split exists to avoid. Each line is
@@ -138,12 +189,25 @@ function loadIndex(): CompanyIndexEntry[] {
   return indexCache;
 }
 
-/** The companies that get a prerendered page, capped and content-ordered. */
+/**
+ * The companies that get a prerendered page: the allowlist first, then the
+ * best-ranked of the rest up to the cap.
+ */
 export function selectedIndex(): CompanyIndexEntry[] {
   selectedCache ??= (() => {
     const all = loadIndex();
     if (all.length <= MAX_COMPANY_PAGES) return all;
-    return rankForDeploy(all).slice(0, MAX_COMPANY_PAGES);
+    const pinned = pinnedEntries(all);
+    if (pinned.length >= MAX_COMPANY_PAGES) {
+      console.warn(
+        `${pinned.length} priority companies meet or exceed the ` +
+          `${MAX_COMPANY_PAGES}-page cap; no ranked pages fit.`,
+      );
+      return pinned;
+    }
+    const pinnedIds = new Set(pinned.map((e) => e.permId));
+    const ranked = rankForDeploy(all.filter((e) => !pinnedIds.has(e.permId)));
+    return [...pinned, ...ranked.slice(0, MAX_COMPANY_PAGES - pinned.length)];
   })();
   return selectedCache;
 }
