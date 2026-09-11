@@ -14,13 +14,43 @@ import { useRecentCompaniesSearch } from "../hooks/use-recent-companies-search";
 import { useSavedCompaniesSearch } from "../hooks/use-saved-companies-search";
 import { useCompaniesStore } from "../stores/companies";
 import { SearchResult } from "./search-result";
-import {
-  ChevronLeftIcon,
-  ClockIcon,
-  ListIcon,
-  Search,
-  StarIcon,
-} from "lucide-react";
+import { ClockIcon, ListIcon, Search, StarIcon } from "lucide-react";
+import type { ButtonHTMLAttributes } from "react";
+
+import { cn } from "@/lib/utils";
+
+type InspectorHandleProps = Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "children" | "type"
+> & { "aria-label": string };
+
+/**
+ * The tab that opens and closes the company search rail. One component for
+ * both states so the two are visually identical apart from where they sit:
+ * a gold tab carrying the search glyph, which reads as "company search" in
+ * either direction rather than as an arrow that points the wrong way once the
+ * rail has moved. Desktop-only: below `md` the rail is a full-screen sheet.
+ *
+ * Callers position it via `className` (`absolute` on the rail's edge while
+ * open, `fixed` to the viewport edge while closed).
+ */
+function InspectorHandle({ className, ...props }: InspectorHandleProps) {
+  return (
+    <button
+      type="button"
+      {...props}
+      className={cn(
+        "hidden md:flex items-center justify-center w-6 h-20 rounded-r-md",
+        "bg-primary text-primary-foreground shadow-md cursor-pointer",
+        "hover:brightness-110 hover:shadow-lg transition-all duration-200",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+        className,
+      )}
+    >
+      <Search className={cn("size-4")} />
+    </button>
+  );
+}
 
 type PanelBodyProps = {
   emptyMessage: string;
@@ -132,14 +162,11 @@ export function CompanySearchDrawer() {
       className="md:relative md:h-full"
     >
       {isInspectorOpen ? (
-        <button
-          type="button"
-          aria-label="Collapse company search panel"
+        <InspectorHandle
+          aria-label="Collapse company search"
           onClick={() => setInspectorOpen(false)}
-          className="absolute -right-3 top-1/2 z-10 hidden h-16 w-6 -translate-y-1/2 items-center justify-center rounded-r-md border border-muted/40 border-l-0 bg-muted-foreground text-muted hover:text-foreground md:flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
-          <ChevronLeftIcon className="size-4" />
-        </button>
+          className={cn("absolute -right-6 top-1/2 z-10 -translate-y-1/2")}
+        />
       ) : null}
       <Drawer.Header>
         <div className="flex flex-col gap-1">
@@ -239,13 +266,10 @@ export function CompanyInspectorOpener() {
   const setInspectorOpen = useCompaniesStore((s) => s.setInspectorOpen);
   if (isInspectorOpen) return null;
   return (
-    <button
-      type="button"
-      aria-label="Open Inspector panel"
+    <InspectorHandle
+      aria-label="Open company search"
       onClick={() => setInspectorOpen(true)}
-      className="fixed left-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-6 h-20 rounded-r-md bg-primary text-black shadow-md hover:brightness-110 hover:shadow-lg transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground cursor-pointer"
-    >
-      <Search className="size-4" />
-    </button>
+      className={cn("fixed left-0 top-1/2 z-20 -translate-y-1/2")}
+    />
   );
 }
