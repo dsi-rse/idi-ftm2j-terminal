@@ -22,7 +22,7 @@ import {
   useCompaniesStore,
 } from "../stores/companies";
 import { SearchResult } from "./search-result";
-import { Search } from "lucide-react";
+import { CircleQuestionMark, Search } from "lucide-react";
 import type { ButtonHTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
@@ -313,26 +313,26 @@ export function CompanySearchDrawer() {
         </>
       ) : null}
       <Drawer.Header>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="inline-flex items-center gap-1.5 type-label-sm tracking-label-wide text-foreground">
-              <Search className="size-3.5" /> Company Search
-            </h2>
-          </div>
-          {/* A Popover, not a Tooltip: the tooltip opens on hover only, after
-              a delay, and closes on click -- so the one thing a reader does
-              with a line of text that asks a question did nothing. */}
+        <div className="flex items-center gap-2">
+          <h2 className="inline-flex items-center gap-1.5 type-label-sm tracking-label-wide text-foreground">
+            <Search className="size-3.5" /> Company Search
+          </h2>
+          {/* A question-mark glyph beside the title, as the design has it. A
+              Popover, not a Tooltip: the tooltip opens on hover only, after a
+              delay, and closes on click -- so clicking it did nothing. */}
           <Popover>
             <Popover.Trigger
               render={
                 <button
                   type="button"
+                  aria-label="How do I use this tool?"
+                  title="How do I use this tool?"
                   className={cn(
-                    "self-start type-caption hover:text-foreground cursor-pointer",
+                    "inline-flex text-muted hover:text-foreground cursor-pointer",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                   )}
                 >
-                  How do I use this tool?
+                  <CircleQuestionMark className="size-3.5" aria-hidden />
                 </button>
               }
             />
@@ -342,14 +342,6 @@ export function CompanySearchDrawer() {
                   Search by company name, subsidiary name, PermID, or ticker.
                   Select a result to open its profile.
                 </p>
-                <dl className={cn("grid grid-cols-[auto_1fr] gap-x-3 gap-y-1")}>
-                  <dt className={cn("text-muted")}>All</dt>
-                  <dd>Every indexed company.</dd>
-                  <dt className={cn("text-muted")}>Recent</dt>
-                  <dd>Companies you have visited.</dd>
-                  <dt className={cn("text-muted")}>Saved</dt>
-                  <dd>Your bookmarks.</dd>
-                </dl>
                 <Link
                   href="/help"
                   className={cn("text-primary hover:underline self-start")}
