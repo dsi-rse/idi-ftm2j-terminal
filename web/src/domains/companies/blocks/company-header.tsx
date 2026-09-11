@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { InfoButton } from "@/blocks/info-button";
+import { SourceCitation } from "@/blocks/source-citation";
 import { Popover } from "@/components/popover";
 import { formatAmountShort } from "@/lib/format-currency";
 import { cn } from "@/lib/utils";
@@ -258,6 +259,11 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
   const publicFloat = formatStat(facts?.publicFloat ?? null);
   const revenue = formatStat(facts?.revenue ?? null);
 
+  // The categorical cells are all read off one LSEG PermID record, so they
+  // share one citation beneath the group rather than repeating it four times.
+  // The financial cells cite their own SEC filing inline and are excluded.
+  const [companyInfoSource] = company.sources;
+
   return (
     <header className="w-full flex flex-col gap-3 pb-6 border-b border-muted/25">
       <h1 className="font-inter-tight tracking-tight text-3xl md:text-4xl font-semibold text-foreground leading-none">
@@ -305,6 +311,22 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           hrefLabel={revenue.hrefLabel}
         />
       </div>
+      {companyInfoSource ? (
+        <p className={cn("text-[10px] md:text-xs text-muted leading-relaxed")}>
+          <span
+            className={cn(
+              "font-mono uppercase tracking-wider font-medium mr-2",
+            )}
+          >
+            Source.
+          </span>
+          <SourceCitation
+            source={companyInfoSource}
+            detail={`last accessed ${companyInfoSource.lastAccessed}`}
+          />{" "}
+          Public float and revenue cite their own filings above.
+        </p>
+      ) : null}
     </header>
   );
 }
