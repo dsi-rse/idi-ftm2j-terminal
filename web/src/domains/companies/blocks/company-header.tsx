@@ -128,12 +128,11 @@ type StatCellProps = {
 };
 
 /**
- * A financial figure in the header cell group. Heavier than {@link LabeledCell}
- * — the value is Inter Tight rather than mono, and it carries an as-of/currency
- * subline — so a market figure reads as a headline number rather than as
- * another categorical tag. Cells share the metadata cells' border and box so
- * the group reads as one strip; the type weight is the only thing setting the
- * financials apart.
+ * A financial figure in the header cell group. Set in the same mono value face
+ * as {@link LabeledCell}, whether the figure is reported or not, so the strip
+ * reads as one row of cells rather than two type treatments — what sets the
+ * financials apart is the as-of/currency subline and the optional info button,
+ * not the weight of the number.
  */
 function StatCell({
   label,
@@ -161,7 +160,7 @@ function StatCell({
       </span>
       <span
         className={cn(
-          "type-display text-base leading-none",
+          "type-value whitespace-nowrap",
           muted ? "text-muted" : "text-foreground",
         )}
       >
@@ -324,7 +323,6 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
             source={companyInfoSource}
             detail={`last accessed ${companyInfoSource.lastAccessed}`}
           />{" "}
-          Public float and revenue cite their own filings above.
         </p>
       ) : null}
     </header>
