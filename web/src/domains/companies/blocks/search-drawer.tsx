@@ -95,6 +95,7 @@ function PanelBody({
       {totalPages > 1 && (
         <div className="p-3">
           <Pagination
+            compact
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={onPageChange}

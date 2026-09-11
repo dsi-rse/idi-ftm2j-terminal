@@ -193,7 +193,7 @@ export function SearchResult({
       </div>
       <div className={cn("min-w-0")}>
         <div className={cn("flex flex-col gap-1")}>
-          <p className={cn("font-bold text-xs leading-none")}>
+          <p className={cn("font-bold text-xs leading-none break-words")}>
             {nameMatched && nameSegments ? (
               <Highlighted segments={nameSegments} />
             ) : (

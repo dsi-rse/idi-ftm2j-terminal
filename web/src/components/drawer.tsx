@@ -135,6 +135,10 @@ DrawerHeader.displayName = "Drawer.Header";
 /**
  * The main scrollable body of the {@link Drawer}. Hidden when the drawer is
  * collapsed. Takes remaining vertical space via `flex-1`.
+ *
+ * Scrolls vertically only. Without an explicit `overflow-x`, `overflow-y-auto`
+ * makes the horizontal axis compute to `auto` too, and any child wider than
+ * the drawer grows a horizontal scrollbar instead of being clipped.
  */
 function DrawerBody({ className, children, ...props }: DrawerSlotProps) {
   const { open } = useDrawerContext("Drawer.Body");
@@ -142,7 +146,10 @@ function DrawerBody({ className, children, ...props }: DrawerSlotProps) {
   return (
     <div
       {...props}
-      className={cn("flex-1 overflow-y-auto px-4 py-2", className)}
+      className={cn(
+        "flex-1 overflow-y-auto overflow-x-hidden px-4 py-2",
+        className,
+      )}
     >
       {children}
     </div>

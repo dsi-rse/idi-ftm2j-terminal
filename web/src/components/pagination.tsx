@@ -10,6 +10,12 @@ type PaginationProps = {
   onPageChange: (page: number) => void;
   className?: string;
   variant?: PaginationVariant;
+  /**
+   * Render `‹ 3 / 22 ›` instead of the numbered page list. For narrow
+   * containers: the full list with both ellipses runs to ~304px, wider than
+   * the 312px company search rail's usable width.
+   */
+  compact?: boolean;
 };
 
 type PaginationItem = number | "ellipsis";
@@ -66,6 +72,7 @@ export function Pagination({
   onPageChange,
   className,
   variant = "solid",
+  compact = false,
 }: PaginationProps) {
   const items = getPaginationRange(currentPage, totalPages);
   const isFirst = currentPage <= 1;
@@ -102,32 +109,47 @@ export function Pagination({
           </button>
         </li>
 
-        {items.map((item, i) =>
-          item === "ellipsis" ? (
-            <li key={`ellipsis-${i}`}>
-              <span
-                aria-hidden="true"
-                className="inline-flex items-center justify-center h-8 min-w-6 px-1 text-sm text-muted"
-              >
-                …
+        {compact ? (
+          <li>
+            <span
+              aria-current="page"
+              className={cn(cellBase, "text-muted tabular-nums")}
+            >
+              <span className={cn("text-foreground font-semibold")}>
+                {currentPage}
               </span>
-            </li>
-          ) : (
-            <li key={item}>
-              <button
-                type="button"
-                aria-label={`Page ${item}`}
-                aria-current={item === currentPage ? "page" : undefined}
-                onClick={() => onPageChange(item)}
-                className={cn(
-                  cellBase,
-                  item === currentPage ? activeClass : inactiveClass,
-                )}
-              >
-                {item}
-              </button>
-            </li>
-          ),
+              <span className={cn("px-1")}>/</span>
+              {totalPages}
+            </span>
+          </li>
+        ) : (
+          items.map((item, i) =>
+            item === "ellipsis" ? (
+              <li key={`ellipsis-${i}`}>
+                <span
+                  aria-hidden="true"
+                  className="inline-flex items-center justify-center h-8 min-w-6 px-1 text-sm text-muted"
+                >
+                  …
+                </span>
+              </li>
+            ) : (
+              <li key={item}>
+                <button
+                  type="button"
+                  aria-label={`Page ${item}`}
+                  aria-current={item === currentPage ? "page" : undefined}
+                  onClick={() => onPageChange(item)}
+                  className={cn(
+                    cellBase,
+                    item === currentPage ? activeClass : inactiveClass,
+                  )}
+                >
+                  {item}
+                </button>
+              </li>
+            ),
+          )
         )}
 
         <li>
