@@ -87,42 +87,15 @@ function formatExchange(listing: CurrentListing | null): string {
   return NOT_REPORTED;
 }
 
-type LabeledCellProps = {
+type HeaderCellProps = {
   label: string;
   value: string;
-  /** Dims the value to mark it as absent rather than reported. */
-  muted?: boolean;
-};
-
-function LabeledCell({ label, value, muted }: LabeledCellProps) {
-  return (
-    <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
-      {/* Same fixed-height label row as StatCell, so labels line up across
-          the strip whether or not a cell carries an info button. */}
-      <span className="flex h-4 items-center type-label whitespace-nowrap">
-        {label}
-      </span>
-      <span
-        className={cn(
-          "type-value whitespace-nowrap",
-          muted ? "text-muted" : "text-foreground",
-        )}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-type StatCellProps = {
-  label: string;
-  value: string;
-  /** Small line under the value, e.g. the as-of date and currency. */
-  sub?: string;
   /** Dims the value to mark it as absent rather than reported. */
   muted?: boolean;
   /** Popover body explaining the figure; adds a click-to-open info trigger by the label. */
   info?: ReactNode;
+  /** Small line under the value, e.g. the as-of date and currency. */
+  sub?: string;
   /** URL of the filing the figure was extracted from, linked as attribution. */
   href?: string | null;
   /** Short label for the {@link href} link, e.g. the form type "10-K". */
@@ -130,29 +103,25 @@ type StatCellProps = {
 };
 
 /**
- * A financial figure in the header cell group. Set in the same mono value face
- * as {@link LabeledCell}, whether the figure is reported or not, so the strip
- * reads as one row of cells rather than two type treatments — what sets the
- * financials apart is the as-of/currency subline and the optional info button,
- * not the weight of the number.
+ * One cell of the header strip: a micro-label over a mono value. The
+ * categorical cells pass only those; a financial figure adds an info popover
+ * and an as-of/currency subline linking the filing it came from. One component
+ * rather than two so the cells cannot drift apart — the label row is a fixed
+ * height so the 16px info icon never pushes one label below its neighbours.
  */
-function StatCell({
+function HeaderCell({
   label,
   value,
-  sub,
   muted,
   info,
+  sub,
   href,
   hrefLabel,
-}: StatCellProps) {
+}: HeaderCellProps) {
   return (
     <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
-      {/* Fixed height: the 16px info icon must not make this row taller than
-          LabeledCell's and push the label down relative to its neighbours. */}
       <span className="flex h-4 items-center gap-1">
-        <span className="type-label whitespace-nowrap">
-          {label}
-        </span>
+        <span className="type-label whitespace-nowrap">{label}</span>
         {info ? (
           <Popover>
             <Popover.Trigger
@@ -276,27 +245,27 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           fixed grid — mono labels vary enough in width that equal columns
           either clip or force the longest label onto two lines. */}
       <div className="flex flex-wrap gap-2">
-        <LabeledCell
+        <HeaderCell
           label="Primary Industry"
           value={industry ?? NOT_REPORTED}
           muted={!industry}
         />
-        <LabeledCell
+        <HeaderCell
           label="Country Headquartered"
           value={company.hqCountry ?? NOT_REPORTED}
           muted={!company.hqCountry}
         />
-        <LabeledCell
+        <HeaderCell
           label="Primary Listing"
           value={exchange}
           muted={exchange === NOT_REPORTED}
         />
-        <LabeledCell
+        <HeaderCell
           label="Ticker"
           value={ticker ?? NOT_REPORTED}
           muted={!ticker}
         />
-        <StatCell
+        <HeaderCell
           label="Public Float"
           value={publicFloat.value}
           sub={publicFloat.sub}
@@ -305,7 +274,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           href={publicFloat.href}
           hrefLabel={publicFloat.hrefLabel}
         />
-        <StatCell
+        <HeaderCell
           label="Revenue"
           value={revenue.value}
           sub={revenue.sub}
