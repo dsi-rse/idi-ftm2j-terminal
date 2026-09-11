@@ -1,15 +1,19 @@
 type StatisticProps = {
   value: string;
   description: string;
+  /** Hover text for the value, e.g. the exact figure behind a compact one. */
+  title?: string;
 };
 
 /**
  * A single statistic with a value and description.
  */
-export function Statistic({ value, description }: StatisticProps) {
+export function Statistic({ value, description, title }: StatisticProps) {
   return (
     <div className="flex flex-col items-center text-center md:items-start md:text-left gap-0 w-[150px]">
-      <h3 className="type-display text-2xl">{value}</h3>
+      <h3 className="type-display text-2xl" title={title}>
+        {value}
+      </h3>
       <p className="type-label-sm text-primary">
         {description}
       </p>

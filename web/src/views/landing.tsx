@@ -7,6 +7,7 @@ import { Article, StatisticGrid } from "@/blocks";
 import { HeroGlobe } from "@/components/hero-globe";
 import { SearchBar } from "@/components/search";
 import type { CorpusStats } from "@/domains/companies/dataset";
+import { formatCountShort } from "@/lib/format-count";
 import { StandardPageLayout } from "@/layouts";
 
 type LandingProps = {
@@ -15,32 +16,27 @@ type LandingProps = {
 };
 
 /**
- * Formats a count for a statistic tile. The tiles are built once per deploy,
- * so the exact figure is stated rather than rounded; a missing dataset shows
- * a dash rather than an invented number.
+ * A statistic tile's value and hover text. The tile shows the compact reading
+ * (`1.7M`) and carries the exact count in its title, so the hero stays legible
+ * without the figure being lost; a missing dataset shows a dash rather than an
+ * invented number.
  */
-function formatCount(value: number | undefined) {
-  return value === undefined ? "—" : value.toLocaleString("en-US");
+function countTile(value: number | undefined, description: string) {
+  return value === undefined
+    ? { value: "—", description }
+    : {
+        value: formatCountShort(value),
+        title: `${value.toLocaleString("en-US")} ${description}`,
+        description,
+      };
 }
 
 function Header({ stats }: LandingProps) {
   const tiles = [
-    {
-      value: formatCount(stats?.companies),
-      description: "companies tracked",
-    },
-    {
-      value: formatCount(stats?.subsidiaries),
-      description: "subsidiary relationships disclosed",
-    },
-    {
-      value: formatCount(stats?.shareholdings),
-      description: "shareholdings tracked",
-    },
-    {
-      value: formatCount(stats?.debtInstruments),
-      description: "debt instruments disclosed",
-    },
+    countTile(stats?.companies, "companies tracked"),
+    countTile(stats?.subsidiaries, "ownership links"),
+    countTile(stats?.shareholdings, "shareholdings tracked"),
+    countTile(stats?.debtInstruments, "debt instruments tracked"),
   ];
   return (
     <Article id="landing" className="md:max-w-xl md:justify-self-start">
