@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 
 import { Drawer } from "@/components/drawer";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { Tabs } from "@/components/tabs";
-import { Tooltip } from "@/components/tooltip";
+import { Popover } from "@/components/popover";
 
 import type { CompanySearchHookReturn } from "../hooks/use-all-companies-search";
 import { useAllCompaniesSearch } from "../hooks/use-all-companies-search";
@@ -175,28 +176,46 @@ export function CompanySearchDrawer() {
               <Search className="size-3.5" /> Company Search
             </h2>
           </div>
-          <Tooltip>
-            <Tooltip.Trigger
+          {/* A Popover, not a Tooltip: the tooltip opens on hover only, after
+              a delay, and closes on click -- so the one thing a reader does
+              with a line of text that asks a question did nothing. */}
+          <Popover>
+            <Popover.Trigger
               render={
                 <button
                   type="button"
-                  className="self-start text-muted hover:text-foreground text-[11px] text-xs cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  className={cn(
+                    "self-start text-muted hover:text-foreground text-xs cursor-pointer",
+                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  )}
                 >
                   How do I use this tool?
                 </button>
               }
             />
-            <Tooltip.Content title="Tabs">
-              <dl className="grid grid-cols-2 grid-rows-3 gap-x-3 gap-y-1 text-xs">
-                <dt className="text-muted tracking-wider">All</dt>
-                <dd>Every indexed company.</dd>
-                <dt className="text-muted tracking-wider text-xs">Recent</dt>
-                <dd>Recently visited.</dd>
-                <dt className="text-muted tracking-wider">Saved</dt>
-                <dd>Your bookmarks.</dd>
-              </dl>
-            </Tooltip.Content>
-          </Tooltip>
+            <Popover.Content title="Using company search">
+              <div className={cn("flex flex-col gap-2 text-xs")}>
+                <p>
+                  Search by company name, subsidiary name, PermID, or ticker.
+                  Select a result to open its profile.
+                </p>
+                <dl className={cn("grid grid-cols-[auto_1fr] gap-x-3 gap-y-1")}>
+                  <dt className={cn("text-muted")}>All</dt>
+                  <dd>Every indexed company.</dd>
+                  <dt className={cn("text-muted")}>Recent</dt>
+                  <dd>Companies you have visited.</dd>
+                  <dt className={cn("text-muted")}>Saved</dt>
+                  <dd>Your bookmarks.</dd>
+                </dl>
+                <Link
+                  href="/help"
+                  className={cn("text-primary hover:underline self-start")}
+                >
+                  Read the help page →
+                </Link>
+              </div>
+            </Popover.Content>
+          </Popover>
         </div>
       </Drawer.Header>
       <Drawer.Body>
