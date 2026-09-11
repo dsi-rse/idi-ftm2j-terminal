@@ -1,16 +1,11 @@
 "use client";
 
 import { SectionCard } from "@/blocks/section-card";
-import { SourceCitation } from "@/blocks/source-citation";
 import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
-import type {
-  Company,
-  CurrentCorporateRelationship,
-  Source,
-} from "@/types/domain";
+import type { Company, CurrentCorporateRelationship } from "@/types/domain";
 
 type CompanyOverviewSectionProps = {
   company: Company;
@@ -183,21 +178,6 @@ function shareholdersGateway(company: Company): Gateway {
   };
 }
 
-/**
- * The section's citation. Company-info reports no filing date, so the citation
- * is dated by when the record was last accessed.
- */
-function OverviewSource({ sources }: { sources: Source[] }) {
-  const [source] = sources;
-  if (!source) return null;
-  return (
-    <SourceCitation
-      source={source}
-      detail={`last accessed ${source.lastAccessed}`}
-    />
-  );
-}
-
 const NOT_REPORTED = "Not reported";
 
 const identifierLinkClassName =
@@ -350,7 +330,11 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
  * There is no section-level date: the three stats draw on datasets with
  * genuinely different vintages — corporate structure is 2016–2018, commercial
  * debt runs to the present, company info is current — so each card carries its
- * own instead of one date that would be wrong for at least one of them.
+ * own instead of one date that would be wrong for at least one of them. Nor a
+ * section-level source: none of the three counts draws on the LSEG record
+ * (they are Exhibit 21, 13-F, and 8-K data), so each card names its own SEC
+ * source in its meta line and the LSEG citation sits under the header, with
+ * the fields it actually covers.
  */
 export function CompanyOverviewSection({
   company,
@@ -367,7 +351,6 @@ export function CompanyOverviewSection({
       title="Overview"
       subtitle="Headline counts"
       info="Headline counts for the sections below, each sourced from a processor. Commercial debt is counted in instruments rather than totalled in money — amounts are reported in several currencies with no conversion rate available, and a third of instruments report no amount at all. Shareholders are counted in holdings rather than totalled in value, since coverage is limited to holders whose issuer resolves and a total would overstate it."
-      source={<OverviewSource sources={company.sources} />}
       expanded={
         <div className="max-w-3xl mx-auto">
           <IdentifiersRow company={company} />
