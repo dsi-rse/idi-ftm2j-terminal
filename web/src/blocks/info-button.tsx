@@ -13,10 +13,9 @@ type InfoButtonProps = Omit<
 /**
  * An icon-only info button — visually just the {@link InfoIcon}, with no
  * border, background, extra padding, or hover recoloring. Commonly composed
- * as a {@link Tooltip.Trigger} to reveal supplemental info on hover
- * (desktop) or on tap (mobile).
+ * as a {@link Popover.Trigger} to reveal supplemental info on click or tap.
  *
- * Forwards its ref so Base UI's `Tooltip.Trigger` (which uses a render prop)
+ * Forwards its ref so Base UI's `Popover.Trigger` (which uses a render prop)
  * can attach event handlers.
  */
 export const InfoButton = forwardRef<HTMLButtonElement, InfoButtonProps>(
