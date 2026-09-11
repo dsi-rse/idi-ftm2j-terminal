@@ -302,7 +302,7 @@ function ShareholdersTable({
 }
 
 const INFO_COPY =
-  "Institutional and pension-fund holdings in this company, one row per disclosed holding, each linking to the filing it was extracted from. Institutional holdings come from SEC Form 13-F; pension-fund holdings come from the fund's own reports. Values are reproduced in USD as the processor reported them. Percent-of-outstanding stake is still not shown: the shares-outstanding denominator is now available from the company's latest 10-K or 20-F, but it counts common shares as of that filing's cover date, which mismatches each holding's own report date and share class — so a derived percentage stays deferred pending review rather than presenting a mismatched ratio as a sourced fact. Coverage is limited to holdings whose issuer resolves to a known company, so this is a floor on who holds the company, not a complete register.";
+  "Institutional holdings in this company, one row per disclosed holding, each linking to the filing it was extracted from. Institutional holdings come from SEC Form 13-F. Coverage is limited to holdings whose issuer resolves to a known company, and only managers that exercise investment discretion over $100 million or more have to file Form 13-F.";
 
 /**
  * The count line under the section title: how many disclosed holdings, and the
@@ -316,9 +316,8 @@ function subtitle(holdings: CurrentShareholder[]): string {
     (newest, holding) => (holding.asOf > newest ? holding.asOf : newest),
     "",
   );
-  const count = `${holdings.length} disclosed holding${
-    holdings.length === 1 ? "" : "s"
-  }`;
+  const count = `${holdings.length} disclosed holding${holdings.length === 1 ? "" : "s"
+    }`;
   return latest ? `${count} · reported ${latest}` : count;
 }
 
@@ -397,8 +396,7 @@ export function CompanyShareholdersSection({
       source={
         <>
           {documents} disclosure{documents === 1 ? "" : "s"}
-          {retrievedLabel(holdings)}. Each row links to the filing it was
-          extracted from.
+          {retrievedLabel(holdings)}.
         </>
       }
       expanded={

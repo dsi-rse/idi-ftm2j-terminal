@@ -287,7 +287,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
             ? `${rows.length} entities · filings from ${earliest} to ${latest}`
             : `${rows.length} entities · filed on ${earliest}`
       }
-      info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F, taken from this company's most recent such filing. The right-hand column is the jurisdiction of incorporation as disclosed, reproduced verbatim — it may name a US state or a country, and is not normalized. Exhibit 21 reports no ownership percentages, so no stake is shown."
+      info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F, taken from this company's most recent such filing. The jurisdiction of incorporation is shown as disclosed, and is not normalized."
       source={<TreeSources company={company} relationships={relationships} />}
       expanded={
         <div className="max-w-3xl mx-auto">

@@ -25,17 +25,17 @@ function countTile(value: number | undefined, description: string) {
   return value === undefined
     ? { value: "—", description }
     : {
-        value: formatCountShort(value),
-        title: `${value.toLocaleString("en-US")} ${description}`,
-        description,
-      };
+      value: formatCountShort(value),
+      title: `${value.toLocaleString("en-US")} ${description}`,
+      description,
+    };
 }
 
 function Header({ stats }: LandingProps) {
   const tiles = [
     countTile(stats?.companies, "companies tracked"),
     countTile(stats?.subsidiaries, "ownership links"),
-    countTile(stats?.shareholdings, "shareholdings tracked"),
+    countTile(stats?.shareholdings, "investments tracked"),
     countTile(stats?.debtInstruments, "debt instruments tracked"),
   ];
   return (

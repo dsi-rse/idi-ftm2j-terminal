@@ -277,9 +277,9 @@ function DebtTable({
                       instrument.amount === null
                         ? "Not reported"
                         : formatAmountShort(
-                            instrument.amount,
-                            instrument.currency,
-                          )
+                          instrument.amount,
+                          instrument.currency,
+                        )
                     }
                     secondary={instrument.currency ?? undefined}
                   />
@@ -304,7 +304,7 @@ function DebtTable({
 }
 
 const INFO_COPY =
-  "Commercial debt instruments disclosed in this company's 8-K filings, one row per instrument, each linking to the filing it was extracted from. Amounts are reproduced as reported and are not converted — instruments occur in several currencies and no exchange rate is available, so figures in different currencies are not comparable and are never totalled. Most instruments disclose no end date; those are shown as undated rather than assumed current or expired. A lender appears as the filing describes it, which is sometimes a role such as \"the lenders party thereto\" rather than a name. Interest rates are not extracted. Matured and superseded instruments are excluded, and private debt never disclosed in an 8-K does not appear at all.";
+  "Commercial debt instruments disclosed in this company's 8-K filings, one row per instrument, each linking to the filing it was extracted from. Matured and superseded instruments are excluded, and private debt never disclosed in an 8-K does not appear at all.";
 
 /**
  * The count line under the section title: how many instruments, how they split
@@ -379,8 +379,7 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
       source={
         <>
           {documents} SEC 8-K filing{documents === 1 ? "" : "s"}
-          {retrieved ? `, retrieved ${retrieved}` : null}. Each row links to the
-          filing it was extracted from.
+          {retrieved ? `, retrieved ${retrieved}` : null}.
         </>
       }
       expanded={<DebtTable debt={debt} pageSize={EXPANDED_PAGE_SIZE} />}
