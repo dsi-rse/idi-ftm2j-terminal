@@ -97,7 +97,9 @@ type LabeledCellProps = {
 function LabeledCell({ label, value, muted }: LabeledCellProps) {
   return (
     <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
-      <span className="type-label whitespace-nowrap">
+      {/* Same fixed-height label row as StatCell, so labels line up across
+          the strip whether or not a cell carries an info button. */}
+      <span className="flex h-4 items-center type-label whitespace-nowrap">
         {label}
       </span>
       <span
@@ -145,7 +147,9 @@ function StatCell({
 }: StatCellProps) {
   return (
     <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
-      <span className="flex items-center gap-1">
+      {/* Fixed height: the 16px info icon must not make this row taller than
+          LabeledCell's and push the label down relative to its neighbours. */}
+      <span className="flex h-4 items-center gap-1">
         <span className="type-label whitespace-nowrap">
           {label}
         </span>
