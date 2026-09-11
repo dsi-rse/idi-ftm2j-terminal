@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 import { Drawer } from "@/components/drawer";
 import { Pagination } from "@/components/pagination";
@@ -13,7 +14,13 @@ import type { CompanySearchHookReturn } from "../hooks/use-all-companies-search"
 import { useAllCompaniesSearch } from "../hooks/use-all-companies-search";
 import { useRecentCompaniesSearch } from "../hooks/use-recent-companies-search";
 import { useSavedCompaniesSearch } from "../hooks/use-saved-companies-search";
-import { useCompaniesStore } from "../stores/companies";
+import {
+  clampInspectorWidth,
+  INSPECTOR_WIDTH_DEFAULT,
+  INSPECTOR_WIDTH_MAX,
+  INSPECTOR_WIDTH_MIN,
+  useCompaniesStore,
+} from "../stores/companies";
 import { SearchResult } from "./search-result";
 import { ClockIcon, ListIcon, Search, StarIcon } from "lucide-react";
 import type { ButtonHTMLAttributes } from "react";
@@ -137,6 +144,121 @@ function PanelBody({
   );
 }
 
+const RESIZE_KEY_STEP = 16;
+
+/**
+ * Whether the persisted store has been read back from IndexedDB. The storage
+ * is asynchronous, so the first paint uses the default width; until the real
+ * one arrives the width transition is held off so the rail snaps to the
+ * persisted width once rather than animating there on every load.
+ */
+function useStoreHydrated() {
+  const [hydrated, setHydrated] = useState(() =>
+    useCompaniesStore.persist.hasHydrated(),
+  );
+  useEffect(() => {
+    if (useCompaniesStore.persist.hasHydrated()) {
+      setHydrated(true);
+      return;
+    }
+    return useCompaniesStore.persist.onFinishHydration(() =>
+      setHydrated(true),
+    );
+  }, []);
+  return hydrated;
+}
+
+type ResizeHandleProps = {
+  width: number;
+  onResize: (width: number) => void;
+  onResizeStart: () => void;
+  /** Called with the final width, so the caller commits what was last
+   *  applied rather than whatever its state held at the previous render. */
+  onResizeEnd: (width: number) => void;
+};
+
+/**
+ * The strip on the rail's right edge that drags its width. Base UI has no
+ * splitter primitive, so the pointer handling is written out: capture the
+ * pointer on press, apply the delta to the width the drag started from, and
+ * release on lift or cancel. Exposed as a vertical separator whose value is
+ * the width, with arrow keys for keyboard users. Desktop-only, like the rail
+ * width itself.
+ */
+function ResizeHandle({
+  width,
+  onResize,
+  onResizeStart,
+  onResizeEnd,
+}: ResizeHandleProps) {
+  const drag = useRef<{ startX: number; startWidth: number } | null>(null);
+  // The last width handed to onResize. A move and the release that follows
+  // it can land in one tick, before React has re-rendered with the new
+  // width, so the release reads it from here rather than from props.
+  const last = useRef(width);
+  const apply = (next: number) => {
+    last.current = next;
+    onResize(next);
+  };
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize company search"
+      aria-valuenow={width}
+      aria-valuemin={INSPECTOR_WIDTH_MIN}
+      aria-valuemax={INSPECTOR_WIDTH_MAX}
+      tabIndex={0}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        event.currentTarget.setPointerCapture(event.pointerId);
+        drag.current = { startX: event.clientX, startWidth: width };
+        last.current = width;
+        onResizeStart();
+      }}
+      onPointerMove={(event) => {
+        if (!drag.current) return;
+        apply(
+          clampInspectorWidth(
+            drag.current.startWidth + event.clientX - drag.current.startX,
+          ),
+        );
+      }}
+      onPointerUp={(event) => {
+        if (!drag.current) return;
+        drag.current = null;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        onResizeEnd(last.current);
+      }}
+      onPointerCancel={() => {
+        if (!drag.current) return;
+        drag.current = null;
+        onResizeEnd(last.current);
+      }}
+      onKeyDown={(event) => {
+        const delta =
+          event.key === "ArrowRight"
+            ? RESIZE_KEY_STEP
+            : event.key === "ArrowLeft"
+              ? -RESIZE_KEY_STEP
+              : event.key === "Home"
+                ? INSPECTOR_WIDTH_MIN - width
+                : event.key === "End"
+                  ? INSPECTOR_WIDTH_MAX - width
+                  : 0;
+        if (delta === 0) return;
+        event.preventDefault();
+        onResizeEnd(clampInspectorWidth(width + delta));
+      }}
+      className={cn(
+        "absolute inset-y-0 right-0 z-10 hidden w-1.5 -mr-0.5 cursor-col-resize md:block",
+        "hover:bg-primary/40 focus-visible:bg-primary/60 focus-visible:outline-none transition-colors",
+      )}
+    />
+  );
+}
+
 export function CompanySearchDrawer() {
   const searchQuery = useCompaniesStore((s) => s.searchQuery);
   const setSearchQuery = useCompaniesStore((s) => s.setSearchQuery);
@@ -144,6 +266,15 @@ export function CompanySearchDrawer() {
   const setActiveTab = useCompaniesStore((s) => s.setActiveTab);
   const isInspectorOpen = useCompaniesStore((s) => s.isInspectorOpen);
   const setInspectorOpen = useCompaniesStore((s) => s.setInspectorOpen);
+  const storedWidth = useCompaniesStore((s) => s.inspectorWidth);
+  const setInspectorWidth = useCompaniesStore((s) => s.setInspectorWidth);
+  const hydrated = useStoreHydrated();
+
+  // The width follows the pointer locally during a drag and is written to the
+  // store -- and through it to IndexedDB -- once on release, not per move.
+  const [draftWidth, setDraftWidth] = useState<number | null>(null);
+  const width = draftWidth ?? storedWidth;
+  const resizing = draftWidth !== null;
 
   const params = useParams<{ id?: string }>();
   const activeCompanyId = params?.id;
@@ -156,18 +287,30 @@ export function CompanySearchDrawer() {
     <Drawer
       open={isInspectorOpen}
       onOpenChange={setInspectorOpen}
-      openWidthClassName="md:w-[312px]"
+      openWidth={hydrated ? width : INSPECTOR_WIDTH_DEFAULT}
+      resizing={resizing || !hydrated}
       // `md:` scoped deliberately: an unprefixed `relative` is merged over the
       // Drawer's own `fixed` positioning by tailwind-merge, which silently breaks
       // the mobile overlay. The chevron that needs this context is desktop-only.
       className="md:relative md:h-full"
     >
       {isInspectorOpen ? (
-        <InspectorHandle
-          aria-label="Collapse company search"
-          onClick={() => setInspectorOpen(false)}
-          className={cn("absolute -right-6 top-1/2 z-10 -translate-y-1/2")}
-        />
+        <>
+          <ResizeHandle
+            width={width}
+            onResizeStart={() => setDraftWidth(storedWidth)}
+            onResize={setDraftWidth}
+            onResizeEnd={(finalWidth) => {
+              setInspectorWidth(finalWidth);
+              setDraftWidth(null);
+            }}
+          />
+          <InspectorHandle
+            aria-label="Collapse company search"
+            onClick={() => setInspectorOpen(false)}
+            className={cn("absolute -right-6 top-1/2 z-10 -translate-y-1/2")}
+          />
+        </>
       ) : null}
       <Drawer.Header>
         <div className="flex flex-col gap-1">
