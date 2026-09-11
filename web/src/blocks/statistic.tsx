@@ -28,7 +28,7 @@ export function StatisticGrid({ stats }: StatisticGridProps) {
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-4 border-y border-y-muted/25 py-3">
       {stats.map((stat) => (
-        <Statistic key={stat.value} {...stat} />
+        <Statistic key={stat.description} {...stat} />
       ))}
     </div>
   );

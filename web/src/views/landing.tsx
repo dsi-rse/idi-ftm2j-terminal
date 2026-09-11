@@ -6,16 +6,40 @@ import Link from "next/link";
 import { Article, StatisticGrid } from "@/blocks";
 import { HeroGlobe } from "@/components/hero-globe";
 import { SearchBar } from "@/components/search";
+import type { CorpusStats } from "@/domains/companies/dataset";
 import { StandardPageLayout } from "@/layouts";
 
-function Header() {
-  const stats = [
-    { value: "5,000+", description: "publicly-traded corporations" },
-    { value: "26,000+", description: "subsidiaries" },
-    { value: "$1.5B", description: "In shareholdings" },
+type LandingProps = {
+  /** Corpus-wide counts from the build's dataset index; `null` when none. */
+  stats: CorpusStats | null;
+};
+
+/**
+ * Formats a count for a statistic tile. The tiles are built once per deploy,
+ * so the exact figure is stated rather than rounded; a missing dataset shows
+ * a dash rather than an invented number.
+ */
+function formatCount(value: number | undefined) {
+  return value === undefined ? "—" : value.toLocaleString("en-US");
+}
+
+function Header({ stats }: LandingProps) {
+  const tiles = [
     {
-      value: "Daily data",
-      description: "refreshes from the U.S. Securities and Exchange Commission",
+      value: formatCount(stats?.companies),
+      description: "companies tracked",
+    },
+    {
+      value: formatCount(stats?.subsidiaries),
+      description: "subsidiary relationships disclosed",
+    },
+    {
+      value: formatCount(stats?.shareholdings),
+      description: "shareholdings tracked",
+    },
+    {
+      value: formatCount(stats?.debtInstruments),
+      description: "debt instruments disclosed",
     },
   ];
   return (
@@ -35,7 +59,10 @@ function Header() {
           associated with harmful development projects.
         </Article.Header.Lead>
         <div className="flex justify-end text-white hover:text-primary hover:cursor-pointer">
-          <Link className="inline-flex items-center gap-1 text-xs" href="/about">
+          <Link
+            className="inline-flex items-center gap-1 text-xs"
+            href="/about"
+          >
             Learn More <ChevronRightIcon className="size-2" />
           </Link>
         </div>
@@ -50,7 +77,7 @@ function Header() {
           long: "Search for a company by name, subsidiary, PermID, or ticker",
         }}
       />
-      <StatisticGrid stats={stats} />
+      <StatisticGrid stats={tiles} />
       <div className="flex gap-4 justify-end font-inter-tight font-semibold mt-8">
         <Link
           className="inline-flex items-center gap-1 bg-primary text-white dark:text-black border border-muted/25 hover:bg-primary-hover hover:cursor-pointer text-sm rounded-sm p-2"
@@ -71,11 +98,11 @@ function Header() {
   );
 }
 
-export function Landing() {
+export function Landing({ stats }: LandingProps) {
   return (
     <StandardPageLayout>
       <div className="grid w-full grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-12 [&>*]:min-w-0">
-        <Header />
+        <Header stats={stats} />
         <div
           className="relative w-full [contain:layout_size]"
           style={{ paddingBottom: "100%" }}

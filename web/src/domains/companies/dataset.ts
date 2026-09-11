@@ -64,7 +64,11 @@ function detailShard(permId: string): string {
   return permId.length >= 2 ? permId.slice(0, 2) : "_";
 }
 
-const CONTENT_SECTIONS = ["debtCount", "treeCount", "shareholderCount"] as const;
+const CONTENT_SECTIONS = [
+  "debtCount",
+  "treeCount",
+  "shareholderCount",
+] as const;
 
 /**
  * Orders companies so the cap keeps the pages worth reviewing, richest first.
@@ -90,7 +94,9 @@ function rankForDeploy(entries: CompanyIndexEntry[]): CompanyIndexEntry[] {
   for (const section of CONTENT_SECTIONS) {
     const ranked = entries
       .filter((e) => e[section] > 0)
-      .sort((a, b) => b[section] - a[section] || a.permId.localeCompare(b.permId));
+      .sort(
+        (a, b) => b[section] - a[section] || a.permId.localeCompare(b.permId),
+      );
     ranked.forEach((entry, i) => {
       if (i < (bestRank.get(entry.permId) ?? Infinity)) {
         bestRank.set(entry.permId, i);
@@ -101,7 +107,8 @@ function rankForDeploy(entries: CompanyIndexEntry[]): CompanyIndexEntry[] {
     e.debtCount + e.treeCount + e.shareholderCount;
   return [...entries].sort(
     (a, b) =>
-      (bestRank.get(a.permId) ?? Infinity) - (bestRank.get(b.permId) ?? Infinity) ||
+      (bestRank.get(a.permId) ?? Infinity) -
+        (bestRank.get(b.permId) ?? Infinity) ||
       total(b) - total(a) ||
       a.permId.localeCompare(b.permId),
   );
@@ -187,6 +194,43 @@ const detailCache = new Map<string, Company>();
 function loadIndex(): CompanyIndexEntry[] {
   indexCache ??= readIndex();
   return indexCache;
+}
+
+/**
+ * Corpus-wide counts for the landing page, summed from the index the build
+ * already reads. "Companies" is every company in the dataset, not the capped
+ * page set: the cap is a billing constraint (see `MAX_COMPANY_PAGES`), not a
+ * statement about coverage. Subsidiaries are relationship rows (a subsidiary
+ * of two parents is two relationships) and shareholdings are holding rows, not
+ * distinct investors -- the same definitions the Overview cards count by.
+ */
+export type CorpusStats = {
+  companies: number;
+  subsidiaries: number;
+  shareholdings: number;
+  debtInstruments: number;
+};
+
+/**
+ * The corpus-wide counts, or `null` when no dataset is available (local
+ * development without `INPUT_DATA_DIR`), so a build without data renders a
+ * placeholder rather than a fabricated number.
+ */
+export function corpusStats(): CorpusStats | null {
+  const all = loadIndex();
+  if (all.length === 0) return null;
+  const stats: CorpusStats = {
+    companies: all.length,
+    subsidiaries: 0,
+    shareholdings: 0,
+    debtInstruments: 0,
+  };
+  for (const entry of all) {
+    stats.subsidiaries += entry.treeCount;
+    stats.shareholdings += entry.shareholderCount;
+    stats.debtInstruments += entry.debtCount;
+  }
+  return stats;
 }
 
 /**
