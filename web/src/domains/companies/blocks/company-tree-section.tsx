@@ -5,6 +5,9 @@ import { useMemo, useState } from "react";
 import { SectionCard } from "@/blocks/section-card";
 import { SourceCitation } from "@/blocks/source-citation";
 import { Pagination } from "@/components/pagination";
+import { SearchInput } from "@/components/search-input";
+import { foldDiacritics } from "@/lib/fold-diacritics";
+import { cn } from "@/lib/utils";
 import type {
   Company,
   CurrentCorporateRelationship,
@@ -39,6 +42,22 @@ type TreeRow = {
 function guidePrefix(depth: number): string {
   if (depth === 0) return "";
   return "   │  ".repeat(depth - 1) + "└── ";
+}
+
+/**
+ * Subsidiary rows matching `query` on name or jurisdiction. Diacritics are
+ * folded on both sides, as the site search does: 751 subsidiary names carry
+ * them, and a filter that made "Farmaceutica" miss "Farmacéutica" would be
+ * strictly worse than the search rail it sits beside.
+ */
+function filterRows(rows: TreeRow[], query: string): TreeRow[] {
+  const needle = foldDiacritics(query).trim().toLowerCase();
+  if (!needle) return rows;
+  return rows.filter((row) =>
+    [row.name, row.jurisdiction ?? ""].some((field) =>
+      foldDiacritics(field).toLowerCase().includes(needle),
+    ),
+  );
 }
 
 function TreeLines({ rows }: { rows: TreeRow[] }) {
@@ -173,6 +192,7 @@ function TreeSources({
  */
 export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
   const [page, setPage] = useState(1);
+  const [query, setQuery] = useState("");
   const relationships = company.currentCorporateRelationships;
 
   const rows = useMemo<TreeRow[]>(
@@ -205,18 +225,47 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
   }
 
   const { earliest, latest, spansFilings } = filingRange(relationships);
+
+  // The registrant is the tree's root, not a subsidiary: it stays at the top
+  // whatever the filter says, and only the rows beneath it are searched.
+  const [registrant, ...subsidiaries] = rows;
+  const filtered = filterRows(subsidiaries, query);
+  const filtering = query.trim() !== "";
+
   const totalPages = Math.max(
     1,
-    Math.ceil(relationships.length / SUBSIDIARIES_PER_PAGE),
+    Math.ceil(filtered.length / SUBSIDIARIES_PER_PAGE),
   );
+  // A filter can leave fewer pages than the one the reader was on.
+  const currentPage = Math.min(page, totalPages);
   // The registrant heads page 1 only; subsidiaries paginate beneath it.
-  const start = (page - 1) * SUBSIDIARIES_PER_PAGE;
+  const start = (currentPage - 1) * SUBSIDIARIES_PER_PAGE;
   const visible: TreeRow[] = [
-    ...(page === 1 ? [rows[0]] : []),
-    ...rows.slice(1 + start, 1 + start + SUBSIDIARIES_PER_PAGE),
+    ...(currentPage === 1 ? [registrant] : []),
+    ...filtered.slice(start, start + SUBSIDIARIES_PER_PAGE),
   ];
 
   const subsidiaryCount = relationships.length;
+  // A filter above a tree that fits on one page is noise; it appears once
+  // there is something to page through, as the pager itself does.
+  const filterable = subsidiaryCount > SUBSIDIARIES_PER_PAGE;
+  const filter = filterable ? (
+    <SearchInput
+      value={query}
+      onValueChange={(next) => {
+        setQuery(next);
+        setPage(1);
+      }}
+      placeholder="Filter subsidiaries by name or jurisdiction…"
+      className={cn("mb-3")}
+    />
+  ) : null;
+  const noMatches =
+    filtering && filtered.length === 0 ? (
+      <p className={cn("text-sm text-muted leading-relaxed m-0 mt-2")}>
+        No subsidiaries match your search.
+      </p>
+    ) : null;
 
   return (
     <SectionCard
@@ -241,7 +290,9 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
       source={<TreeSources company={company} relationships={relationships} />}
       expanded={
         <div className="max-w-3xl mx-auto">
-          <TreeLines rows={rows} />
+          {filter}
+          <TreeLines rows={[registrant, ...filtered]} />
+          {noMatches}
           <p className="mt-8 text-xs text-muted leading-relaxed">
             <span className="font-mono uppercase tracking-wider font-medium mr-2">
               Source.
@@ -251,18 +302,24 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
         </div>
       }
     >
+      {filter}
       <TreeLines rows={visible} />
-      {totalPages > 1 ? (
+      {noMatches}
+      {totalPages > 1 || filtering ? (
         <div className="mt-4 flex items-center justify-between gap-4">
           <p className="font-mono text-[10px] uppercase tracking-wider text-muted m-0">
-            {subsidiaryCount} subsidiaries
+            {filtering
+              ? `${filtered.length} of ${subsidiaryCount} subsidiaries`
+              : `${subsidiaryCount} subsidiaries`}
           </p>
-          <Pagination
-            variant="subtle"
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-          />
+          {totalPages > 1 ? (
+            <Pagination
+              variant="subtle"
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          ) : null}
         </div>
       ) : null}
     </SectionCard>
