@@ -349,8 +349,6 @@ export function CompanyOverviewSection({
     <SectionCard
       id="overview"
       title="Overview"
-      subtitle="Headline counts"
-      info="Headline counts for the sections below, each sourced from a processor. Commercial debt is counted in instruments rather than totalled in money — amounts are reported in several currencies with no conversion rate available, and a third of instruments report no amount at all. Shareholders are counted in holdings rather than totalled in value, since coverage is limited to holders whose issuer resolves and a total would overstate it."
       expanded={
         <div className="max-w-3xl mx-auto">
           <IdentifiersRow company={company} />

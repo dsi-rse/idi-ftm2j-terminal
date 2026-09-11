@@ -12,8 +12,11 @@ type SectionCardProps = {
   id: string;
   title: string;
   subtitle?: string;
-  /** Body of the info popover that opens from the (i) button on click. */
-  info: ReactNode;
+  /**
+   * Body of the info popover that opens from the (i) button on click. Omit it
+   * for a section whose contents explain themselves; the button is not shown.
+   */
+  info?: ReactNode;
   /** Aria-label for the info button. Defaults to "About {title}". */
   infoLabel?: string;
   /** Source citation rendered as the small "SOURCE. …" footer inside the card. */
@@ -29,7 +32,7 @@ type SectionCardProps = {
 
 /**
  * A section panel used to compose the company detail page: dark card with a
- * title, subtitle, info tooltip, expand-to-fullscreen button, and a source
+ * title, subtitle, optional info popover, expand-to-fullscreen button, and a source
  * footer.
  *
  * The `expanded` prop lets a section render one variant inline (paginated,
@@ -62,12 +65,14 @@ export function SectionCard({
               a 600ms delay, and closes when its trigger is clicked -- so the
               one thing a reader does with an (i) icon dismissed it, and a tap
               never opened it. Same fix as the header's Public Float. */}
-          <Popover>
-            <Popover.Trigger
-              render={<InfoButton aria-label={infoLabel ?? `About ${title}`} />}
-            />
-            <Popover.Content title={title}>{info}</Popover.Content>
-          </Popover>
+          {info ? (
+            <Popover>
+              <Popover.Trigger
+                render={<InfoButton aria-label={infoLabel ?? `About ${title}`} />}
+              />
+              <Popover.Content title={title}>{info}</Popover.Content>
+            </Popover>
+          ) : null}
           <Modal open={isExpanded} onOpenChange={setIsExpanded}>
             <Modal.Trigger
               aria-label={`Expand ${title}`}
