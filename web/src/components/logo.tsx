@@ -3,7 +3,7 @@
  */
 export function SiteLogo() {
   return (
-    <div className="text-lg font-bold tracking-wide text-foreground uppercase">
+    <div className="type-display text-xl font-bold uppercase">
       FTM<span className="text-primary">2</span>J
     </div>
   );

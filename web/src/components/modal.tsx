@@ -59,6 +59,29 @@ function ModalContent({
 }
 ModalContent.displayName = "Modal.Content";
 
+type ModalHeadingProps = {
+  title: string;
+  subtitle?: string;
+  className?: string;
+};
+
+/**
+ * A title with an optional mono subtitle beneath it -- the heading block that
+ * opens both a modal and a {@link SectionCard}, so the two cannot drift apart.
+ * Size is set by the caller; the modal runs one step larger than a card.
+ */
+function ModalHeading({ title, subtitle, className }: ModalHeadingProps) {
+  return (
+    <div className={cn("flex flex-col gap-1 min-w-0", className)}>
+      <h2 className={cn("type-display text-lg md:text-xl truncate")}>
+        {title}
+      </h2>
+      {subtitle ? <p className={cn("type-caption")}>{subtitle}</p> : null}
+    </div>
+  );
+}
+ModalHeading.displayName = "Modal.Heading";
+
 type ModalHeaderProps = {
   title: string;
   subtitle?: string;
@@ -78,14 +101,7 @@ function ModalHeader({ title, subtitle, className }: ModalHeaderProps) {
         className,
       )}
     >
-      <div className="flex flex-col gap-1 min-w-0">
-        <h2 className="font-inter-tight tracking-tight text-xl font-semibold text-foreground truncate">
-          {title}
-        </h2>
-        {subtitle ? (
-          <p className="font-mono text-[11px] text-muted">{subtitle}</p>
-        ) : null}
-      </div>
+      <ModalHeading title={title} subtitle={subtitle} className="[&>h2]:text-xl" />
       <Dialog.Close
         aria-label="Close"
         className="p-2 rounded-sm bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
@@ -136,6 +152,7 @@ ModalBody.displayName = "Modal.Body";
  * ```
  */
 export const Modal = Object.assign(ModalRoot, {
+  Heading: ModalHeading,
   Root: ModalRoot,
   Trigger: ModalTrigger,
   Content: ModalContent,

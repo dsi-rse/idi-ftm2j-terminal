@@ -53,7 +53,7 @@ ArticleHeaderRoot.displayName = "Article.Header";
  */
 function ArticleHeaderEyebrow({ children }: PropsWithChildren) {
   return (
-    <p className="font-inter text-primary uppercase tracking-wide text-center text-xs md:text-left font-bold dark:font-normal">
+    <p className="type-label-sm text-primary text-center md:text-left">
       {children}
     </p>
   );
@@ -66,7 +66,7 @@ ArticleHeaderEyebrow.displayName = "Article.Header.Eyebrow";
  */
 function ArticleHeaderTitle({ children }: PropsWithChildren) {
   return (
-    <h1 className="font-inter-tight tracking-tight font-semibold text-foreground text-3xl text-center md:text-5xl md:text-left m-0 leading-none">
+    <h1 className="type-display text-3xl text-center md:text-5xl md:text-left m-0 leading-none">
       {children}
     </h1>
   );
@@ -79,7 +79,7 @@ ArticleHeaderTitle.displayName = "Article.Header.Title";
  */
 function ArticleHeaderLead({ children }: PropsWithChildren) {
   return (
-    <p className="font-inter text-muted text-sm text-justified md:text-base md:text-left">
+    <p className="type-body text-justified md:text-base md:text-left">
       {children}
     </p>
   );
@@ -140,16 +140,16 @@ function ArticleBulkDownload({
   return (
     <div className="flex flex-col md:flex-row md:items-center gap-6 border border-muted/25 border-l-2 border-l-primary rounded-md p-6 bg-overlay">
       <div className="flex-1 space-y-2">
-        <p className="font-inter text-primary uppercase tracking-wide text-xs">
+        <p className="type-label-sm text-primary">
           {label}
         </p>
-        <h2 className="font-inter-tight tracking-tight font-bold text-foreground text-xl md:text-2xl">
+        <h2 className="type-display text-xl md:text-2xl">
           {title}
         </h2>
-        <p className="font-inter text-muted text-sm md:text-base">
+        <p className="type-body md:text-base">
           {description}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 font-mono text-xs uppercase tracking-wide text-muted">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-label-sm">
           <span>{format}</span>
           <span aria-hidden>·</span>
           <span>{size}</span>
@@ -159,7 +159,7 @@ function ArticleBulkDownload({
       </div>
       <a
         href={href}
-        className="inline-flex items-center justify-center gap-2 rounded-md border border-primary/60 bg-primary/10 px-5 py-3 font-inter text-sm font-medium text-foreground hover:bg-primary/20 hover:border-primary transition-colors self-start md:self-center"
+        className="inline-flex items-center justify-center gap-2 rounded-md border border-primary/60 bg-primary/10 px-5 py-3 type-label-sm text-xs tracking-label-tight text-foreground hover:bg-primary/20 hover:border-primary transition-colors self-start md:self-center"
       >
         <DownloadIcon className="size-4 text-primary" />
         Download {format}
@@ -209,9 +209,9 @@ function ArticleSectionTitle({
   children,
 }: PropsWithChildren<{ number?: string }>) {
   return (
-    <h2 className="text-xl font-inter-tight tracking-tight font-bold">
+    <h2 className="type-display text-xl">
       {number && (
-        <span className="text-primary mr-2 font-mono text-xs font-medium align-middle">
+        <span className="type-label-sm text-primary mr-2 align-middle">
           {number}
         </span>
       )}
@@ -226,7 +226,7 @@ ArticleSectionTitle.displayName = "Article.Body.Section.Title";
  */
 function ArticleSectionParagraph({ children }: PropsWithChildren) {
   return (
-    <p className="font-inter text-muted text-sm text-justified md:text-base md:text-left">
+    <p className="type-body text-justified md:text-base md:text-left">
       {children}
     </p>
   );
@@ -241,7 +241,7 @@ function ArticleCallout({ children }: PropsWithChildren) {
   return (
     <div className="flex flex-row items-start gap-2 border-1 border-muted/25 border-l-2 border-l-primary pl-4 py-4">
       <CircleAlertIcon className="size-4 text-primary" />
-      <p className="font-inter text-muted text-xs text-justified md:text-sm md:text-left">
+      <p className="type-body text-xs text-justified md:text-sm md:text-left">
         {children}
       </p>
     </div>
@@ -261,11 +261,11 @@ type ArticleQAProps = {
 function ArticleQA({ question, children }: PropsWithChildren<ArticleQAProps>) {
   return (
     <div className="space-y-3">
-      <h3 className="text-lg md:text-xl font-inter-tight tracking-tight font-bold text-foreground">
+      <h3 className="type-display text-lg md:text-xl">
         <span className="text-primary mr-2">Q.</span>
         {question}
       </h3>
-      <p className="font-inter text-muted text-base md:text-lg text-justified md:text-left">
+      <p className="type-body text-base md:text-lg text-justified md:text-left">
         {children}
       </p>
     </div>
@@ -316,13 +316,13 @@ function ArticleDataset({
   return (
     <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 py-5">
       <div className="flex-1 space-y-1">
-        <h3 className="font-inter-tight tracking-tight font-bold text-foreground text-base md:text-lg">
+        <h3 className="type-display text-base md:text-lg">
           {name}
         </h3>
-        <p className="font-inter text-muted text-sm md:text-base">
+        <p className="type-body md:text-base">
           {description}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 font-mono text-xs uppercase tracking-wide text-muted">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-label-sm">
           <span>{size}</span>
           {rows && (
             <>
@@ -339,7 +339,7 @@ function ArticleDataset({
           <a
             key={f.label}
             href={f.href}
-            className="inline-flex items-center rounded-md border border-muted/40 px-3 py-1.5 font-mono text-xs uppercase tracking-wide text-foreground hover:border-primary hover:text-primary transition-colors"
+            className="inline-flex items-center rounded-md border border-muted/40 px-3 py-1.5 type-label-sm tracking-label-tight text-foreground hover:border-primary hover:text-primary transition-colors"
           >
             {f.label}
           </a>
@@ -368,18 +368,18 @@ function ArticleBlockQuote({ quote }: ArticleBlockQuoteProps) {
     <figure className="md:float-right md:w-2/5 md:ml-8 md:mt-2 md:mb-4 mb-6 flex flex-col gap-4 border border-muted/25 border-l-2 border-l-primary rounded-md p-6 bg-overlay">
       <div
         aria-hidden
-        className="font-inter-tight text-primary text-5xl leading-none"
+        className="type-display text-primary text-5xl leading-none"
       >
         &ldquo;
       </div>
-      <blockquote className="font-inter-tight text-foreground text-lg leading-snug">
+      <blockquote className="type-display font-normal text-lg leading-snug">
         {quote.text}
       </blockquote>
       <figcaption className="flex flex-col gap-0.5 mt-2">
-        <span className="font-inter text-foreground text-sm font-medium">
+        <span className="type-body text-foreground font-medium leading-normal">
           {quote.author.name}
         </span>
-        <span className="font-inter text-muted text-xs uppercase tracking-wide">
+        <span className="type-label-sm">
           {quote.author.affiliation}
         </span>
       </figcaption>

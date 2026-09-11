@@ -26,7 +26,7 @@ function TableRoot({ className, children, ...props }: TableRootProps) {
       <table
         {...props}
         className={cn(
-          "w-full text-xs md:text-sm border-collapse",
+          "w-full type-value border-collapse",
           className,
         )}
       >
@@ -100,7 +100,7 @@ function TableHeaderCell({
     <th
       {...props}
       className={cn(
-        "px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-muted font-medium",
+        "px-3 py-2 type-label",
         alignmentClass,
         className,
       )}
@@ -119,7 +119,7 @@ function TableHeaderCell({
           type="button"
           onClick={onSort}
           className={cn(
-            "inline-flex items-center gap-1 font-mono uppercase tracking-wider",
+            "inline-flex items-center gap-1",
             "cursor-pointer hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm",
             align === "right" && "ml-auto",
           )}
@@ -221,7 +221,7 @@ function TableCell({
       >
         <span className="text-foreground">{primary}</span>
         {secondary ? (
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+          <span className="type-label-sm">
             {secondary}
           </span>
         ) : null}
@@ -274,7 +274,7 @@ function TableEmpty({
     <tr {...props} className={cn(className)}>
       <td
         colSpan={colSpan}
-        className="px-3 py-8 text-center text-xs text-muted"
+        className="px-3 py-8 text-center type-caption"
       >
         {children}
       </td>
@@ -288,7 +288,7 @@ TableEmpty.displayName = "Table.Empty";
  */
 export function RowIndex({ index }: { index: number }) {
   return (
-    <span className="font-mono text-[10px] text-muted tabular-nums">
+    <span className="type-meta tabular-nums">
       {String(index).padStart(2, "0")}
     </span>
   );

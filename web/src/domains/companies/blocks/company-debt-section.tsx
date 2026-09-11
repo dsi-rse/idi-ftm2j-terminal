@@ -109,7 +109,12 @@ function LenderCell({
 }) {
   const [first, ...rest] = instrument.lenders;
   if (!first) return <Table.Cell primary="Lender not disclosed" />;
-  if (rest.length === 0) return <Table.Cell primary={first} />;
+  if (rest.length === 0)
+    return (
+      <Table.Cell
+        primary={<span className={cn("type-display text-name")}>{first}</span>}
+      />
+    );
 
   return (
     <Table.Cell
@@ -132,7 +137,7 @@ function LenderCell({
           onClick={onToggle}
           aria-expanded={expanded}
           className={cn(
-            "font-mono text-[10px] uppercase tracking-wider cursor-pointer",
+            "type-label-sm cursor-pointer",
             "hover:text-foreground rounded-sm",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
@@ -348,7 +353,7 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
         subtitle="No disclosed commercial debt"
         info={INFO_COPY}
       >
-        <p className="text-sm text-muted leading-relaxed m-0">
+        <p className="type-body m-0">
           No commercial debt instrument is in scope for this company. Instruments
           are extracted from 8-K filings, and only those that have neither
           matured nor been superseded are shown — a company with no 8-K debt

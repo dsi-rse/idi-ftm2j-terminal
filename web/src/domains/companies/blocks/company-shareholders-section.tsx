@@ -7,6 +7,7 @@ import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { RowIndex, Table } from "@/components/table";
 import { formatAmountShort } from "@/lib/format-currency";
+import { cn } from "@/lib/utils";
 import type { Company, CurrentShareholder } from "@/types/domain";
 
 type CompanyShareholdersSectionProps = {
@@ -118,16 +119,21 @@ function ShareholderRow({
         <RowIndex index={rowNumber} />
       </Table.Cell>
       <Table.Cell
-        primary={holding.investor.name ?? "Unnamed holder"}
+        primary={
+          // Names are the display voice; the rest of the table is data.
+          <span className={cn("type-display text-name")}>
+            {holding.investor.name ?? "Unnamed holder"}
+          </span>
+        }
         secondary={holding.investorType}
       />
       <Table.Cell>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+        <span className="type-label-sm">
           {holding.investorCountry ?? "—"}
         </span>
       </Table.Cell>
       <Table.Cell>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+        <span className="type-label-sm">
           {holding.securityType || "—"}
         </span>
       </Table.Cell>
@@ -367,7 +373,7 @@ export function CompanyShareholdersSection({
         subtitle="No disclosed shareholders"
         info={INFO_COPY}
       >
-        <p className="text-sm text-muted leading-relaxed m-0">
+        <p className="type-body m-0">
           No shareholding is attached to this company. Holdings are attached by
           resolving the security a holder reported to a known issuer, and a
           company whose securities have not been resolved appears here even when

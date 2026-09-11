@@ -62,7 +62,7 @@ function filterRows(rows: TreeRow[], query: string): TreeRow[] {
 
 function TreeLines({ rows }: { rows: TreeRow[] }) {
   return (
-    <div className="font-inter-tight text-[13px] text-foreground">
+    <div className="type-display font-medium text-name">
       <ul className="list-none m-0 p-0">
         {rows.map((row, i) => (
           <li
@@ -71,17 +71,18 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
           >
             {/* Guides are a fixed-width prefix that does not shrink, so a name
                 long enough to wrap flows under itself rather than under the
-                guide column. */}
+                guide column. Raw font-mono on purpose: box-drawing glyphs, not
+                a text role. */}
             <span className="flex min-w-0 items-start">
               <span
                 aria-hidden
-                className="shrink-0 whitespace-pre font-mono text-muted"
+                className="shrink-0 whitespace-pre font-mono font-normal tracking-normal text-muted"
               >
                 {guidePrefix(row.depth)}
               </span>
               <span className="min-w-0">{row.name}</span>
             </span>
-            <span className="font-mono text-[10px] uppercase tracking-wider text-muted whitespace-nowrap">
+            <span className="type-label-sm font-normal tracking-widest whitespace-nowrap">
               {row.jurisdiction ?? ""}
             </span>
           </li>
@@ -215,7 +216,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
         subtitle="No disclosed subsidiaries"
         info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F. Only companies that have filed one of those since the corporate-structure processor's coverage window have a tree."
       >
-        <p className="text-sm text-muted leading-relaxed m-0">
+        <p className="type-body m-0">
           No subsidiary disclosure is available for this company. A corporate
           tree requires an Exhibit 21 or Exhibit 8 subsidiary list attached to a
           10-K or 20-F, and none is in scope for this registrant.
@@ -262,7 +263,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
   ) : null;
   const noMatches =
     filtering && filtered.length === 0 ? (
-      <p className={cn("text-sm text-muted leading-relaxed m-0 mt-2")}>
+      <p className={cn("type-body m-0 mt-2")}>
         No subsidiaries match your search.
       </p>
     ) : null;
@@ -293,8 +294,8 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
           {filter}
           <TreeLines rows={[registrant, ...filtered]} />
           {noMatches}
-          <p className="mt-8 text-xs text-muted leading-relaxed">
-            <span className="font-mono uppercase tracking-wider font-medium mr-2">
+          <p className="mt-8 type-caption leading-relaxed">
+            <span className="type-source-kicker">
               Source.
             </span>
             <TreeSources company={company} relationships={relationships} />
@@ -307,7 +308,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
       {noMatches}
       {totalPages > 1 || filtering ? (
         <div className="mt-4 flex items-center justify-between gap-4">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-muted m-0">
+          <p className="type-label-sm m-0">
             {filtering
               ? `${filtered.length} of ${subsidiaryCount} subsidiaries`
               : `${subsidiaryCount} subsidiaries`}

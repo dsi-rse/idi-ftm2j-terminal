@@ -22,7 +22,7 @@ import {
   useCompaniesStore,
 } from "../stores/companies";
 import { SearchResult } from "./search-result";
-import { ClockIcon, ListIcon, Search, StarIcon } from "lucide-react";
+import { Search } from "lucide-react";
 import type { ButtonHTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
@@ -84,14 +84,14 @@ function PanelBody({
 
   if (isLoading && results.length === 0) {
     return (
-      <p className="px-4 py-3 text-xs text-muted">
+      <p className="px-4 py-3 type-caption">
         {loadingMessage ?? "Loading…"}
       </p>
     );
   }
 
   if (results.length === 0) {
-    return <p className="px-4 py-3 text-xs text-muted">{emptyMessage}</p>;
+    return <p className="px-4 py-3 type-caption">{emptyMessage}</p>;
   }
 
   const startIndex = (currentPage - 1) * pageSize;
@@ -103,11 +103,11 @@ function PanelBody({
   return (
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between gap-2 px-3 py-2 border-b border-muted/25">
-        <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium">
+        <span className="type-label tracking-label-wide text-foreground">
           Results
         </span>
         <span
-          className="font-mono text-[11px] text-muted"
+          className="type-caption"
           title={`Viewing ${rangeText} of ${data.totalCount} ${noun}`}
         >
           {data.totalCount}
@@ -315,7 +315,7 @@ export function CompanySearchDrawer() {
       <Drawer.Header>
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="inline-flex items-center gap-1.5 font-mono font-semibold text-foreground text-xs uppercase tracking-wider">
+            <h2 className="inline-flex items-center gap-1.5 type-label-sm tracking-label-wide text-foreground">
               <Search className="size-3.5" /> Company Search
             </h2>
           </div>
@@ -328,7 +328,7 @@ export function CompanySearchDrawer() {
                 <button
                   type="button"
                   className={cn(
-                    "self-start text-muted hover:text-foreground text-xs cursor-pointer",
+                    "self-start type-caption hover:text-foreground cursor-pointer",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                   )}
                 >
@@ -367,22 +367,11 @@ export function CompanySearchDrawer() {
           onValueChange={(v) => setActiveTab(v as "all" | "recent" | "saved")}
         >
           <Tabs.Header className="-mx-4">
-            <Tabs.Trigger value="all">
-              <div className="inline-flex items-center gap-1">
-                <ListIcon className="h-3 w-3" /> All ({allData.totalCount})
-              </div>
-            </Tabs.Trigger>
-            <Tabs.Trigger value="recent">
-              <div className="inline-flex items-center gap-1">
-                <ClockIcon className="h-3 w-3" /> Recent (
-                {recentData.totalCount})
-              </div>
-            </Tabs.Trigger>
-            <Tabs.Trigger value="saved">
-              <div className="inline-flex items-center gap-1">
-                <StarIcon className="h-3 w-3" /> Saved ({savedData.totalCount})
-              </div>
-            </Tabs.Trigger>
+            {/* Bare labels, as the design has them: the RESULTS count below
+                already says how many, and icons only crowd a 312px rail. */}
+            <Tabs.Trigger value="all">All</Tabs.Trigger>
+            <Tabs.Trigger value="recent">Recent</Tabs.Trigger>
+            <Tabs.Trigger value="saved">Saved</Tabs.Trigger>
           </Tabs.Header>
           <Tabs.Body className="-mx-4 py-0">
             <Tabs.Panel value="all">

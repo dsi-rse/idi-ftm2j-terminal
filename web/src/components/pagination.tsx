@@ -62,7 +62,7 @@ function getPaginationRange(
 }
 
 const cellBase =
-  "inline-flex items-center justify-center h-8 min-w-8 px-2 text-sm rounded-sm " +
+  "inline-flex items-center justify-center h-8 min-w-8 px-2 type-value text-sm rounded-sm " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary " +
   "transition-colors";
 
@@ -128,7 +128,7 @@ export function Pagination({
               <li key={`ellipsis-${i}`}>
                 <span
                   aria-hidden="true"
-                  className="inline-flex items-center justify-center h-8 min-w-6 px-1 text-sm text-muted"
+                  className="inline-flex items-center justify-center h-8 min-w-6 px-1 type-value text-sm text-muted"
                 >
                   …
                 </span>

@@ -195,14 +195,14 @@ function Identifier({
     <div className={cn("flex flex-col gap-1 min-w-0")}>
       <span
         className={cn(
-          "font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium whitespace-nowrap",
+          "type-label whitespace-nowrap",
         )}
       >
         {label}
       </span>
       <span
         className={cn(
-          "flex flex-wrap gap-x-3 gap-y-1 font-mono text-xs text-foreground",
+          "flex flex-wrap gap-x-3 gap-y-1 type-value",
         )}
       >
         {children}
@@ -286,12 +286,12 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       }}
       className="group flex flex-col gap-1 p-4 md:p-6 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
-      <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+      <span className="type-label">
         {gateway.kicker}
       </span>
       <span
         className={cn(
-          "font-inter-tight tracking-tight",
+          "type-display",
           unavailable
             ? "text-lg md:text-xl font-medium text-muted"
             : "text-3xl md:text-4xl font-semibold text-foreground",
@@ -299,11 +299,11 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       >
         {unavailable ? "Not available" : gateway.value}
       </span>
-      <span className="text-sm text-foreground">{gateway.unit}</span>
-      <span className="font-mono text-[10px] text-muted leading-relaxed">
+      <span className="type-value">{gateway.unit}</span>
+      <span className="type-meta leading-relaxed">
         {gateway.meta}
       </span>
-      <span className="mt-2 font-mono text-[10px] uppercase tracking-wider text-primary">
+      <span className="mt-2 type-label-sm text-primary">
         {gateway.link} →
       </span>
     </a>

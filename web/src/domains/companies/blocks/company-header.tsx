@@ -97,12 +97,12 @@ type LabeledCellProps = {
 function LabeledCell({ label, value, muted }: LabeledCellProps) {
   return (
     <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
-      <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium whitespace-nowrap">
+      <span className="type-label whitespace-nowrap">
         {label}
       </span>
       <span
         className={cn(
-          "font-mono text-xs whitespace-nowrap",
+          "type-value whitespace-nowrap",
           muted ? "text-muted" : "text-foreground",
         )}
       >
@@ -147,7 +147,7 @@ function StatCell({
   return (
     <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
       <span className="flex items-center gap-1">
-        <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium whitespace-nowrap">
+        <span className="type-label whitespace-nowrap">
           {label}
         </span>
         {info ? (
@@ -161,14 +161,14 @@ function StatCell({
       </span>
       <span
         className={cn(
-          "font-inter-tight text-base leading-none",
+          "type-display text-base leading-none",
           muted ? "text-muted" : "text-foreground",
         )}
       >
         {value}
       </span>
       {sub || href ? (
-        <span className="font-mono text-[10px] text-muted whitespace-nowrap">
+        <span className="type-meta whitespace-nowrap">
           {sub}
           {sub && href ? " · " : null}
           {href ? (
@@ -266,7 +266,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
 
   return (
     <header className="w-full flex flex-col gap-3 pb-6 border-b border-muted/25">
-      <h1 className="font-inter-tight tracking-tight text-3xl md:text-4xl font-semibold text-foreground leading-none">
+      <h1 className="type-display text-3xl md:text-4xl leading-none">
         {company.name}
       </h1>
       {/* Cells size to their content and wrap, rather than sitting in a
@@ -312,10 +312,10 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
         />
       </div>
       {companyInfoSource ? (
-        <p className={cn("text-[10px] md:text-xs text-muted leading-relaxed")}>
+        <p className={cn("type-caption leading-relaxed")}>
           <span
             className={cn(
-              "font-mono uppercase tracking-wider font-medium mr-2",
+              "type-source-kicker",
             )}
           >
             Source.

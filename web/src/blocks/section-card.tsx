@@ -56,14 +56,7 @@ export function SectionCard({
       )}
     >
       <header className="flex items-start justify-between gap-4 mb-4">
-        <div className="flex flex-col gap-1 min-w-0">
-          <h2 className="font-inter-tight tracking-tight text-lg md:text-xl font-semibold text-foreground">
-            {title}
-          </h2>
-          {subtitle ? (
-            <p className="font-mono text-[11px] text-muted">{subtitle}</p>
-          ) : null}
-        </div>
+        <Modal.Heading title={title} subtitle={subtitle} />
         <div className="flex items-center gap-1 shrink-0">
           <Tooltip>
             <Tooltip.Trigger
@@ -87,8 +80,8 @@ export function SectionCard({
       </header>
       <div>{children}</div>
       {source ? (
-        <footer className="mt-6 pt-4 border-t border-muted/15 text-[10px] md:text-xs text-muted leading-relaxed">
-          <span className="font-mono uppercase tracking-wider font-medium mr-2">
+        <footer className="mt-6 pt-4 border-t border-muted/15 type-caption leading-relaxed">
+          <span className="type-source-kicker">
             Source.
           </span>
           {source}

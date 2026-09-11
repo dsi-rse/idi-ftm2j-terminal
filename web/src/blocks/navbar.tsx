@@ -123,7 +123,7 @@ function NavbarList({ children }: PropsWithChildren) {
   const { isOpen, setIsOpen, close, brand, extras } = useNavbar();
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
-      <NavigationMenu.List className="hidden lg:flex ml-auto items-center gap-6 text-sm list-none p-0 m-0">
+      <NavigationMenu.List className="hidden lg:flex ml-auto items-center gap-6 text-name font-medium list-none p-0 m-0">
         {children}
       </NavigationMenu.List>
       <Dialog.Trigger

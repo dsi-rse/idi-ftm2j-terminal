@@ -46,7 +46,7 @@ function TabsTrigger({ className, ...props }: TabsTriggerProps) {
       {...props}
       className={cn(
         "flex-1 text-left cursor-pointer",
-        "px-3 py-2 text-xs text-muted",
+        "px-3 py-2 type-label-sm tracking-widest",
         "border-b-2 border-transparent -mb-px",
         "data-[active]:text-primary data-[active]:border-primary",
         "hover:text-foreground transition-colors",

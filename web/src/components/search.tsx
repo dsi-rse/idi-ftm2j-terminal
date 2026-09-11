@@ -133,7 +133,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
         />
         <Autocomplete.Input
           placeholder={resolvedPlaceholder}
-          className="bg-muted-foreground text-sm w-full pl-8 pr-2 py-3 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
+          className="bg-muted-foreground type-value text-sm w-full pl-8 pr-2 py-3 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
         />
       </div>
 
@@ -165,15 +165,16 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                     className="px-3 py-2 flex items-start justify-between gap-3 text-sm cursor-pointer data-[highlighted]:bg-overlay"
                   >
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className="font-medium truncate">
+                      <span className="type-display text-name truncate">
                         <Marked segments={field.name} />
                       </span>
                       {match ? (
                         <span
                           className={cn(
-                            "text-xs flex items-baseline gap-1 mt-0.5 min-w-0 text-foreground",
+                            "type-meta text-foreground flex items-baseline gap-1 mt-0.5 min-w-0",
                           )}
                         >
+                          {/* Raw font-mono on purpose: a glyph, not a text role. */}
                           <span
                             aria-hidden
                             className={cn("shrink-0 font-mono text-primary")}
@@ -191,13 +192,13 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                           </span>
                         </span>
                       ) : field.permId.some((s) => s.matched) ? (
-                        <span className="opacity-60 text-xs mt-0.5">
+                        <span className="type-meta mt-0.5">
                           PermID: <Marked segments={field.permId} />
                         </span>
                       ) : (
                         <>
                           {(sector || country) && (
-                            <span className="opacity-60 text-xs flex items-center mt-0.5">
+                            <span className="type-meta flex items-center mt-0.5">
                               {sector && (
                                 <span className="truncate">
                                   <Marked segments={field.sector} />
@@ -214,7 +215,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                             </span>
                           )}
                           {field.hint && (
-                            <span className="opacity-60 text-xs italic mt-0.5">
+                            <span className="type-meta italic mt-0.5">
                               {field.hint}
                             </span>
                           )}
@@ -222,7 +223,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                       )}
                     </div>
                     {tickers.length > 0 && (
-                      <span className="opacity-60 text-xs whitespace-nowrap shrink-0">
+                      <span className="type-chip text-muted whitespace-nowrap shrink-0">
                         {tickers.map((ticker, i) => (
                           <span key={ticker}>
                             {i > 0 && ", "}
@@ -244,7 +245,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
 
             <Autocomplete.Empty>
               {trimmed.length > 0 && (
-                <div className="px-3 py-2 text-sm">
+                <div className="px-3 py-2 type-caption">
                   No matches. Try a subsidiary name, PermID, or ticker.
                 </div>
               )}
