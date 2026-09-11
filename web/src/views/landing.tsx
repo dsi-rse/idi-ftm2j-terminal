@@ -80,13 +80,6 @@ function Header({ stats }: LandingProps) {
       <StatisticGrid stats={tiles} />
       <div className="flex gap-4 justify-end font-inter-tight font-semibold mt-8">
         <Link
-          className="inline-flex items-center gap-1 bg-primary text-white dark:text-black border border-muted/25 hover:bg-primary-hover hover:cursor-pointer text-sm rounded-sm p-2"
-          href="/#"
-        >
-          Browse companies{" "}
-          <ChevronRightIcon className="size-4 text-white dark:text-black" />
-        </Link>
-        <Link
           className="inline-flex items-center gap-1 hover:bg-overlay border border-muted/25 rounded-sm text-sm p-2 hover:cursor-pointer"
           href="/methodology"
         >

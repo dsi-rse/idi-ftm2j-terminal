@@ -2,8 +2,7 @@
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
-import { ArrowRightIcon, Dot, Search } from "lucide-react";
-import Link from "next/link";
+import { Dot, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -58,7 +57,7 @@ type SearchBarProps = {
 export function SearchBar({ placeholder }: SearchBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const { results, totalCount, handleSearch } =
+  const { results, handleSearch } =
     useSiteSearch<PagefindCompanyMeta>({
       limit: 3,
       identify: identifyCompany,
@@ -246,25 +245,13 @@ export function SearchBar({ placeholder }: SearchBarProps) {
             <Autocomplete.Empty>
               {trimmed.length > 0 && (
                 <div className="px-3 py-2 text-sm">
-                  No matches.{" "}
-                  <Link href="/companies" className="text-primary hover:underline">
-                    Browse the full dataset
-                  </Link>
+                  No matches. Try a subsidiary name, PermID, or ticker.
                 </div>
               )}
             </Autocomplete.Empty>
-
-            {totalCount > 3 && (
-              <Link
-                href={`/companies?q=${encodeURIComponent(trimmed)}`}
-                className="block px-3 py-2 text-sm border-t border-muted/25 text-primary hover:underline"
-              >
-                <span className="inline-flex items-center gap-1 font-bold dark:font-normal">
-                  <span>View all {totalCount} results</span>
-                  <ArrowRightIcon className="size-3" />
-                </span>
-              </Link>
-            )}
+            {/* No "view all" footer: there is no browse page. The popup shows
+                the top hits, and the search rail on every company page is the
+                exhaustive, paginated surface. */}
           </Autocomplete.Popup>
         </Autocomplete.Positioner>
       </Autocomplete.Portal>
