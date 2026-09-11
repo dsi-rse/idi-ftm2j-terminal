@@ -169,10 +169,11 @@ const PUBLIC_FLOAT_INFO =
   "measured as of the date shown, not today.";
 
 /**
- * Formats a company-facts figure with its currency symbol, or the not-reported
- * marker when no filing carried a value. Returns the value and a subline naming
- * the as-of date and ISO currency, so a non-USD figure is never mistaken for
- * dollars, plus the figure's own citation.
+ * Formats a company-facts figure with its currency symbol and ISO code -- `$53.60B
+ * USD` -- or the not-reported marker when no filing carried a value. The code
+ * rides with the value rather than the subline so a non-USD figure is never
+ * mistaken for dollars at a glance; the subline names only the as-of date and
+ * the figure's own citation.
  *
  * The citation is per figure rather than per record: a record based on a 10-K/A
  * can take its revenue from the 10-K that amendment amends, and linking both
@@ -189,13 +190,10 @@ function formatStat(figure: CitedFigure | null): {
   if (figure === null) {
     return { value: NOT_REPORTED, muted: true, href: null, hrefLabel: "filing" };
   }
-  const subParts = [
-    figure.asOf ? `as of ${figure.asOf}` : null,
-    figure.currency,
-  ].filter(Boolean);
+  const amount = formatAmountShort(figure.value, figure.currency);
   return {
-    value: formatAmountShort(figure.value, figure.currency),
-    sub: subParts.length ? subParts.join(" · ") : undefined,
+    value: figure.currency ? `${amount} ${figure.currency}` : amount,
+    sub: figure.asOf ? `as of ${figure.asOf}` : undefined,
     muted: false,
     href: figure.sources[0]?.url ?? null,
     hrefLabel: figure.formType || "filing",
