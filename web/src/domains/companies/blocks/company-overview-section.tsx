@@ -4,7 +4,13 @@ import { SectionCard } from "@/blocks/section-card";
 import { SourceCitation } from "@/blocks/source-citation";
 import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
-import type { Company, CurrentCorporateRelationship, Source } from "@/types/domain";
+import type { ReactNode } from "react";
+
+import type {
+  Company,
+  CurrentCorporateRelationship,
+  Source,
+} from "@/types/domain";
 
 type CompanyOverviewSectionProps = {
   company: Company;
@@ -106,8 +112,7 @@ function debtGateway(company: Company): Gateway {
   const base = {
     section: "debt",
     kicker: "Commercial Debt",
-    unit:
-      debt.length === 1 ? "Instrument disclosed" : "Instruments disclosed",
+    unit: debt.length === 1 ? "Instrument disclosed" : "Instruments disclosed",
     link: "View commercial debt",
   };
 
@@ -119,7 +124,9 @@ function debtGateway(company: Company): Gateway {
     };
   }
 
-  const withLender = debt.filter((instrument) => instrument.lenders.length).length;
+  const withLender = debt.filter(
+    (instrument) => instrument.lenders.length,
+  ).length;
   // ISO-8601 dates compare lexicographically. A company's debt is assembled from
   // every 8-K that disclosed an instrument, so unlike the tree there is no single
   // filing date for the section — the most recent is what dates the card.
@@ -191,6 +198,101 @@ function OverviewSource({ sources }: { sources: Source[] }) {
   );
 }
 
+const NOT_REPORTED = "Not reported";
+
+const identifierLinkClassName =
+  "underline decoration-dotted underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+
+/** One labelled identifier: a micro-label over one or more mono values. */
+function Identifier({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("flex flex-col gap-1 min-w-0")}>
+      <span
+        className={cn(
+          "font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium whitespace-nowrap",
+        )}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          "flex flex-wrap gap-x-3 gap-y-1 font-mono text-xs text-foreground",
+        )}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The company's stable identifiers. A reader following the money needs the
+ * keys other registries use: the PermID this record is built on, every SEC
+ * registrant CIK (linked to its EDGAR filing index), and the CUSIPs its
+ * securities trade under. CIK absence is a data gap and is said so; CUSIP
+ * absence is the norm (most issuers' securities are unresolved) and the pair
+ * is simply omitted.
+ */
+function IdentifiersRow({ company }: { company: Company }) {
+  const permIdUrl =
+    company.sources[0]?.url ?? `https://permid.org/1-${company.permId}`;
+  const several = company.registrants.length > 1;
+  return (
+    <div
+      className={cn("flex flex-wrap gap-x-8 gap-y-3 pb-4 md:pb-6")}
+      aria-label="Identifiers"
+    >
+      <Identifier label="PermID">
+        <a
+          href={permIdUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(identifierLinkClassName)}
+        >
+          {company.permId}
+        </a>
+      </Identifier>
+      <Identifier label={several ? "CIKs" : "CIK"}>
+        {company.registrants.length === 0 ? (
+          <span className={cn("text-muted")}>{NOT_REPORTED}</span>
+        ) : (
+          company.registrants.map((registrant) => (
+            <span key={registrant.cik} className={cn("whitespace-nowrap")}>
+              <a
+                href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${registrant.cik}`}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(identifierLinkClassName)}
+              >
+                {registrant.cik}
+              </a>
+              {several && registrant.registrantName ? (
+                <span className={cn("text-muted")}>
+                  {" "}
+                  {registrant.registrantName}
+                </span>
+              ) : null}
+            </span>
+          ))
+        )}
+      </Identifier>
+      {company.cusips.length > 0 ? (
+        <Identifier label={company.cusips.length > 1 ? "CUSIPs" : "CUSIP"}>
+          {company.cusips.map((cusip) => (
+            <span key={cusip}>{cusip}</span>
+          ))}
+        </Identifier>
+      ) : null}
+    </div>
+  );
+}
+
 function GatewayCard({ gateway }: { gateway: Gateway }) {
   const unavailable = gateway.value === null;
   return (
@@ -230,7 +332,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
 
 function Gateways({ gateways }: { gateways: Gateway[] }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-muted/15 -m-4 md:-m-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-muted/15 border-t border-muted/15 -mx-4 md:-mx-6 -mb-4 md:-mb-6">
       {gateways.map((gateway) => (
         <GatewayCard key={gateway.section} gateway={gateway} />
       ))}
@@ -250,7 +352,9 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
  * debt runs to the present, company info is current — so each card carries its
  * own instead of one date that would be wrong for at least one of them.
  */
-export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps) {
+export function CompanyOverviewSection({
+  company,
+}: CompanyOverviewSectionProps) {
   const gateways = [
     treeGateway(company),
     shareholdersGateway(company),
@@ -266,10 +370,12 @@ export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps)
       source={<OverviewSource sources={company.sources} />}
       expanded={
         <div className="max-w-3xl mx-auto">
+          <IdentifiersRow company={company} />
           <Gateways gateways={gateways} />
         </div>
       }
     >
+      <IdentifiersRow company={company} />
       <Gateways gateways={gateways} />
     </SectionCard>
   );
