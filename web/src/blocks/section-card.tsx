@@ -27,6 +27,11 @@ type SectionCardProps = {
    * inline view but a full unpaginated view in the modal.
    */
   expanded?: ReactNode;
+  /**
+   * Whether the card offers the expand-to-fullscreen button. Off for a
+   * section that fits inline in full and gains nothing from a modal.
+   */
+  expandable?: boolean;
   className?: string;
 };
 
@@ -46,6 +51,7 @@ export function SectionCard({
   infoLabel,
   source,
   expanded,
+  expandable = true,
   className,
   children,
 }: PropsWithChildren<SectionCardProps>) {
@@ -73,18 +79,20 @@ export function SectionCard({
               <Popover.Content title={title}>{info}</Popover.Content>
             </Popover>
           ) : null}
-          <Modal open={isExpanded} onOpenChange={setIsExpanded}>
-            <Modal.Trigger
-              aria-label={`Expand ${title}`}
-              className="text-muted cursor-pointer p-1 rounded-sm hover:text-foreground hover:bg-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            >
-              <Maximize2 className="size-4" aria-hidden />
-            </Modal.Trigger>
-            <Modal.Content title={title}>
-              <Modal.Header title={title} subtitle={subtitle} />
-              <Modal.Body>{expanded ?? children}</Modal.Body>
-            </Modal.Content>
-          </Modal>
+          {expandable ? (
+            <Modal open={isExpanded} onOpenChange={setIsExpanded}>
+              <Modal.Trigger
+                aria-label={`Expand ${title}`}
+                className="text-muted cursor-pointer p-1 rounded-sm hover:text-foreground hover:bg-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              >
+                <Maximize2 className="size-4" aria-hidden />
+              </Modal.Trigger>
+              <Modal.Content title={title}>
+                <Modal.Header title={title} subtitle={subtitle} />
+                <Modal.Body>{expanded ?? children}</Modal.Body>
+              </Modal.Content>
+            </Modal>
+          ) : null}
         </div>
       </header>
       <div>{children}</div>

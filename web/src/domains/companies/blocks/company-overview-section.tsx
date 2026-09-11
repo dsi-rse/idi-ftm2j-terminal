@@ -349,12 +349,9 @@ export function CompanyOverviewSection({
     <SectionCard
       id="overview"
       title="Overview"
-      expanded={
-        <div className="max-w-3xl mx-auto">
-          <IdentifiersRow company={company} />
-          <Gateways gateways={gateways} />
-        </div>
-      }
+      // Three counts and an identifier row fit inline in full; a modal would
+      // show the same thing larger.
+      expandable={false}
     >
       <IdentifiersRow company={company} />
       <Gateways gateways={gateways} />
