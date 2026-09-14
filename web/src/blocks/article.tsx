@@ -143,7 +143,7 @@ function ArticleBulkDownload({
         <p className="type-label-sm text-primary">
           {label}
         </p>
-        <h2 className="type-display tracking-tight text-xl md:text-2xl">
+        <h2 className="type-display text-xl md:text-2xl">
           {title}
         </h2>
         <p className="type-body md:text-base">
@@ -209,7 +209,7 @@ function ArticleSectionTitle({
   children,
 }: PropsWithChildren<{ number?: string }>) {
   return (
-    <h2 className="type-display tracking-tight text-xl">
+    <h2 className="type-display text-xl">
       {number && (
         <span className="type-label-sm text-primary mr-2 align-middle">
           {number}
@@ -261,7 +261,7 @@ type ArticleQAProps = {
 function ArticleQA({ question, children }: PropsWithChildren<ArticleQAProps>) {
   return (
     <div className="space-y-3">
-      <h3 className="type-display tracking-tight text-lg md:text-xl">
+      <h3 className="type-display text-lg md:text-xl">
         <span className="text-primary mr-2">Q.</span>
         {question}
       </h3>

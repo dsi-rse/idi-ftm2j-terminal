@@ -133,8 +133,9 @@
 @utility type-display {
 	/* Names and headline numbers. Size is set at the call site, and so is any
 	   negative tracking: Inter Tight is already a tight cut, and pulling its
-	   letters closer at 13px crowds a name. Only large headings add
-	   `tracking-tight`. */
+	   letters closer at 13px crowds a name, and at 20px still reads cramped.
+	   Only elements of roughly 30px and up add `tracking-tight`: the company
+	   title, the article page titles, and the KPI numbers. */
 	@apply font-inter-tight tracking-normal font-semibold text-foreground;
 }
 @utility type-body {
