@@ -256,6 +256,24 @@ export function selectedIndex(): CompanyIndexEntry[] {
   return selectedCache;
 }
 
+/**
+ * A company's position in the search rail's browse order, or `null` if it has
+ * no page. The rail's ALL tab with an empty query lists every prerendered
+ * company sorted by Pagefind on the `companyName` sort key, and Pagefind sorts
+ * strings by code point -- "A-Smart" before "A2A", uppercase before lowercase.
+ * Plain `<` comparison on the same names reproduces that order, so the rail can
+ * open on the page holding the current company without loading every result.
+ */
+let rankCache: Map<string, number> | undefined;
+export function browseRank(permId: string): number | null {
+  rankCache ??= new Map(
+    [...selectedIndex()]
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+      .map((entry, i) => [entry.permId, i] as const),
+  );
+  return rankCache.get(permId) ?? null;
+}
+
 /** Reads one company's full record from its detail file. */
 export function findCompany(permId: string): Company | undefined {
   if (!DATA_DIR) return undefined;

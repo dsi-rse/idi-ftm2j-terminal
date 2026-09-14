@@ -11,7 +11,10 @@ import { Tabs } from "@/components/tabs";
 import { Popover } from "@/components/popover";
 
 import type { CompanySearchHookReturn } from "../hooks/use-all-companies-search";
-import { useAllCompaniesSearch } from "../hooks/use-all-companies-search";
+import {
+  PAGE_SIZE,
+  useAllCompaniesSearch,
+} from "../hooks/use-all-companies-search";
 import { useRecentCompaniesSearch } from "../hooks/use-recent-companies-search";
 import { useSavedCompaniesSearch } from "../hooks/use-saved-companies-search";
 import {
@@ -259,8 +262,18 @@ function ResizeHandle({
   );
 }
 
-export function CompanySearchDrawer() {
+type CompanySearchDrawerProps = {
+  /**
+   * The current company's position in the ALL tab's browse order (see
+   * `browseRank`), so the rail opens on the page that holds it and the row is
+   * highlighted rather than the list sitting on page 1 regardless.
+   */
+  activeRank?: number | null;
+};
+
+export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
   const searchQuery = useCompaniesStore((s) => s.searchQuery);
+  const setPage = useCompaniesStore((s) => s.setPage);
   const setSearchQuery = useCompaniesStore((s) => s.setSearchQuery);
   const activeTab = useCompaniesStore((s) => s.activeTab);
   const setActiveTab = useCompaniesStore((s) => s.setActiveTab);
@@ -278,6 +291,16 @@ export function CompanySearchDrawer() {
 
   const params = useParams<{ id?: string }>();
   const activeCompanyId = params?.id;
+
+  // Follow the selected company: when the reader lands on a page with no
+  // query typed, show the browse page that holds it. A typed query is the
+  // reader's own view of the list and is left alone.
+  useEffect(() => {
+    if (activeRank == null || searchQuery.trim() !== "") return;
+    setPage("all", Math.floor(activeRank / PAGE_SIZE) + 1);
+    // Re-run only when the company changes, not when the query is edited.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeCompanyId, activeRank, setPage]);
 
   const allData = useAllCompaniesSearch();
   const recentData = useRecentCompaniesSearch();

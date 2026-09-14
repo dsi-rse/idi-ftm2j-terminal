@@ -1,4 +1,5 @@
 import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import type { CompanySearchMeta } from "@/domains/companies/stores/companies";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -169,12 +170,19 @@ export function SearchResult({
   matchHint,
 }: SearchResultProps) {
   const router = useRouter();
+  const rowRef = useRef<HTMLDivElement>(null);
+  // The rail follows the selected company to its page; this brings the row
+  // itself into view when that page is longer than the rail.
+  useEffect(() => {
+    if (active) rowRef.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
   const { permId, companyName, sector, country, tickers } = company;
   const shown = matches?.slice(0, MAX_SUBSIDIARY_LINES) ?? [];
   const hidden = (matches?.length ?? 0) - shown.length;
   const nameMatched = nameSegments?.some((segment) => segment.matched) ?? false;
   return (
     <div
+      ref={rowRef}
       // Columns are content-sized rather than fixed fractions: the rank grows
       // past two digits deep in the result set and, pinned to one eighth of the
       // panel, would otherwise overrun the name beside it.

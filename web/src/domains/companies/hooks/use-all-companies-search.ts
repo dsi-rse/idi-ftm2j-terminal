@@ -12,7 +12,7 @@ import type { MatchSegment, SubsidiaryMatch } from "@/lib/match-subsidiaries";
 import { parseJsonList } from "@/lib/parse-json-list";
 import type { PagefindCompanyMeta } from "@/types/company-search";
 
-const PAGE_SIZE = 10;
+export const PAGE_SIZE = 10;
 const DEBOUNCE_MS = 200;
 /**
  * Alphabetical order, applied only to the empty query.

@@ -11,7 +11,11 @@ import {
   CompanyInspectorOpener,
   CompanySearchDrawer,
 } from "@/domains/companies/blocks/search-drawer";
-import { findCompany, selectedIndex } from "@/domains/companies/dataset";
+import {
+  browseRank,
+  findCompany,
+  selectedIndex,
+} from "@/domains/companies/dataset";
 import { StandardPageLayout, TerminalShell } from "@/layouts";
 import { foldDiacritics } from "@/lib/fold-diacritics";
 import type { Company } from "@/types/domain";
@@ -161,7 +165,9 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
   }
 
   return (
-    <TerminalShell sidebar={<CompanySearchDrawer />}>
+    <TerminalShell
+      sidebar={<CompanySearchDrawer activeRank={browseRank(company.permId)} />}
+    >
       <RecentlyViewedTracker
         company={{
           permId: company.permId,
