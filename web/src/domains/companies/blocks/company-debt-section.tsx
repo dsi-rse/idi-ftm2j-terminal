@@ -108,13 +108,19 @@ function LenderCell({
   onToggle: () => void;
 }) {
   const [first, ...rest] = instrument.lenders;
-  if (!first) return <Table.Cell primary="Lender not disclosed" />;
-  if (rest.length === 0)
+  // Every branch sets the lender in the display face, as holder names are;
+  // the placeholder too, muted, so one column does not switch faces by row.
+  const name = "type-display text-name";
+  if (!first)
     return (
       <Table.Cell
-        primary={<span className={cn("type-display text-name")}>{first}</span>}
+        primary={
+          <span className={cn(name, "text-muted")}>Lender not disclosed</span>
+        }
       />
     );
+  if (rest.length === 0)
+    return <Table.Cell primary={<span className={cn(name)}>{first}</span>} />;
 
   return (
     <Table.Cell
@@ -122,13 +128,13 @@ function LenderCell({
         expanded ? (
           // Labels are de-duplicated per instrument in the pipeline, so a label
           // is its own key.
-          <span className="flex flex-col gap-0.5">
+          <span className={cn(name, "flex flex-col gap-0.5")}>
             {instrument.lenders.map((lender) => (
               <span key={lender}>{lender}</span>
             ))}
           </span>
         ) : (
-          first
+          <span className={cn(name)}>{first}</span>
         )
       }
       secondary={
