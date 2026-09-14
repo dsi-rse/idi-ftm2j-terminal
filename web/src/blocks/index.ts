@@ -1,5 +1,4 @@
 export { Article } from "./article";
-export { FeatureCard } from "./feature-card";
 export { Footer } from "./footer";
 export { InfoButton } from "./info-button";
 export { Navbar } from "./navbar";
