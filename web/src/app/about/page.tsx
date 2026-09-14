@@ -93,13 +93,15 @@ export default function AboutPage() {
               What the data covers
             </Article.Body.Section.Title>
             <Article.Body.Section.Paragraph>
-              The current release covers more than four thousand companies, and
-              coverage differs sharply by dataset rather than being uniform
-              across them. Roughly a quarter have a corporate tree traced from
-              their subsidiary disclosures; a smaller share have commercial-debt
-              instruments extracted from their 8-K filings; and institutional
-              and pension-fund shareholdings are attached wherever a holder&rsquo;s
-              disclosures resolve to the company. Every company page states what it does and
+              The current release covers every publicly-traded company the
+              company-information source resolves &mdash; the landing page
+              carries the live count &mdash; and coverage differs sharply by
+              dataset rather than being uniform across them. Roughly a third
+              have a corporate tree traced from their subsidiary disclosures; a
+              smaller share have commercial-debt instruments extracted from
+              their 8-K filings; and institutional and pension-fund
+              shareholdings are attached wherever a holder&rsquo;s disclosures
+              resolve to the company. Every company page states what it does and
               does not have, and coverage expands as new filings are reconciled
               into the graph.
             </Article.Body.Section.Paragraph>

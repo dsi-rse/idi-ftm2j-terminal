@@ -1,4 +1,5 @@
 import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import type { CompanySearchMeta } from "@/domains/companies/stores/companies";
 import { formatRelativeTime } from "@/lib/format-relative-time";
@@ -132,12 +133,13 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
   return (
     <p
       className={cn(
-        "flex min-w-0 items-baseline gap-1 text-xs font-light leading-none text-foreground",
+        "flex min-w-0 items-baseline gap-1 type-meta text-foreground leading-none",
       )}
     >
       {/* Fixed-width and non-shrinking, so a long name truncates on its own
           side rather than squeezing the guide out of the row. Teal stays on the
-          guide alone; the name text is foreground so it clears AA at 12px. */}
+          guide alone; the name text is foreground so it clears AA at 12px.
+          Raw font-mono on purpose: a glyph, not a text role. */}
       <span aria-hidden className={cn("shrink-0 font-mono text-primary")}>
         ↳
       </span>
@@ -168,12 +170,19 @@ export function SearchResult({
   matchHint,
 }: SearchResultProps) {
   const router = useRouter();
+  const rowRef = useRef<HTMLDivElement>(null);
+  // The rail follows the selected company to its page; this brings the row
+  // itself into view when that page is longer than the rail.
+  useEffect(() => {
+    if (active) rowRef.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
   const { permId, companyName, sector, country, tickers } = company;
   const shown = matches?.slice(0, MAX_SUBSIDIARY_LINES) ?? [];
   const hidden = (matches?.length ?? 0) - shown.length;
   const nameMatched = nameSegments?.some((segment) => segment.matched) ?? false;
   return (
     <div
+      ref={rowRef}
       // Columns are content-sized rather than fixed fractions: the rank grows
       // past two digits deep in the result set and, pinned to one eighth of the
       // panel, would otherwise overrun the name beside it.
@@ -185,7 +194,7 @@ export function SearchResult({
       )}
       onClick={() => router.push(`/companies/${permId}`)}
     >
-      <div className={cn("text-muted text-xs font-mono leading-none")}>
+      <div className={cn("type-meta leading-none")}>
         <div className={cn("flex flex-row gap-2 items-start")}>
           <CompanyBookmark company={company} />
           <p>{index.toString().padStart(Math.max(2, rankWidth), "0")}</p>
@@ -193,7 +202,7 @@ export function SearchResult({
       </div>
       <div className={cn("min-w-0")}>
         <div className={cn("flex flex-col gap-1")}>
-          <p className={cn("font-bold text-xs leading-none")}>
+          <p className={cn("type-display text-name leading-none break-words")}>
             {nameMatched && nameSegments ? (
               <Highlighted segments={nameSegments} />
             ) : (
@@ -213,7 +222,7 @@ export function SearchResult({
                 <SubsidiaryLine key={`${match.name}-${i}`} match={match} />
               ))}
               {hidden > 0 && (
-                <p className={cn("text-muted text-xs font-light leading-none")}>
+                <p className={cn("type-meta leading-none")}>
                   +{hidden} more subsidiary{" "}
                   {hidden === 1 ? "match" : "matches"}
                 </p>
@@ -224,19 +233,19 @@ export function SearchResult({
             // sector and country did not explain this hit, so the ID that did
             // stands alone rather than trailing two lines that are just noise
             // for a lookup by identifier.
-            <p className={cn("text-muted text-xs font-light leading-none")}>
+            <p className={cn("type-meta leading-none")}>
               PermID: <Highlighted segments={permIdSegments} />
             </p>
           ) : (
             <>
-              <p className={cn("text-muted text-xs font-light leading-none")}>
+              <p className={cn("type-meta leading-none")}>
                 {hasHighlight(sectorSegments) && sectorSegments ? (
                   <Highlighted segments={sectorSegments} />
                 ) : (
                   (sector ?? "--")
                 )}
               </p>
-              <p className={cn("text-muted text-xs font-light leading-none")}>
+              <p className={cn("type-meta leading-none")}>
                 {hasHighlight(countrySegments) && countrySegments ? (
                   <Highlighted segments={countrySegments} />
                 ) : (
@@ -246,7 +255,7 @@ export function SearchResult({
               {matchHint && (
                 <p
                   className={cn(
-                    "text-muted text-xs font-light italic leading-none",
+                    "type-meta italic leading-none",
                   )}
                 >
                   {matchHint}
@@ -255,7 +264,7 @@ export function SearchResult({
             </>
           )}
           {viewedAt !== undefined && (
-            <p className={cn("text-muted text-xs font-light leading-none")}>
+            <p className={cn("type-meta leading-none")}>
               {formatRelativeTime(viewedAt)}
             </p>
           )}
@@ -270,12 +279,10 @@ export function SearchResult({
                 <p
                   key={ticker}
                   className={cn(
-                    "inline-block font-mono text-xs px-1 rounded-sm",
+                    "inline-block type-chip",
                     // The selected row's ticker picks up the accent too, so the
                     // whole row reads as selected rather than just its left edge.
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/25",
+                    active && "bg-primary text-primary-foreground border-primary",
                   )}
                 >
                   {!active && hasHighlight(segments) && segments ? (

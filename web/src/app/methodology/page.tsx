@@ -48,9 +48,12 @@ export default function MethodologyPage() {
               it was derived from.
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Paragraph>
-              In practice, company facts are derived from LSEG PermID; corporate
-              trees come from SEC Exhibit&nbsp;21 and Exhibit&nbsp;8 subsidiary
-              lists attached to 10-K and 20-F filings; institutional
+              In practice, company information &mdash; identity, industry
+              classification, and listing &mdash; is derived from LSEG PermID;
+              company facts such as public float and revenue come from SEC
+              10-K and 20-F filings; corporate trees come from SEC
+              Exhibit&nbsp;21 and Exhibit&nbsp;8 subsidiary lists attached to
+              10-K and 20-F filings; institutional
               shareholders come from SEC Form&nbsp;13-F filings and
               pension-fund disclosures, attached to a company by resolving the
               security they report to its issuer; and commercial debt is

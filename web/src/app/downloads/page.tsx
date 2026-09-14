@@ -38,7 +38,7 @@ const DATASETS = [
     updated: "Jul 6, 2026",
   },
   {
-    name: "Company facts",
+    name: "Company information",
     description:
       "Legal name, ticker, jurisdiction, and industry classification for every entity in the graph, keyed to LSEG PermID.",
     size: "48 MB",

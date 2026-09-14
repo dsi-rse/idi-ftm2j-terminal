@@ -2,10 +2,9 @@
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
-import { ArrowRightIcon, Dot, Search } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight, Dot, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { type SiteSearchResult, useSiteSearch } from "@/hooks/use-site-search";
 import { matchFields } from "@/lib/match-fields";
@@ -57,8 +56,9 @@ type SearchBarProps = {
 
 export function SearchBar({ placeholder }: SearchBarProps) {
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
-  const { results, totalCount, handleSearch } =
+  const { results, handleSearch } =
     useSiteSearch<PagefindCompanyMeta>({
       limit: 3,
       identify: identifyCompany,
@@ -127,15 +127,36 @@ export function SearchBar({ placeholder }: SearchBarProps) {
       onValueChange={setQuery}
       itemToStringValue={(hit: CompanyHit) => hit.meta.companyName}
     >
-      <div className="relative w-full">
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted"
-        />
-        <Autocomplete.Input
-          placeholder={resolvedPlaceholder}
-          className="bg-muted-foreground text-sm w-full pl-8 pr-2 py-3 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
-        />
+      <div className="flex w-full items-stretch gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted"
+          />
+          <Autocomplete.Input
+            ref={inputRef}
+            placeholder={resolvedPlaceholder}
+            className="bg-muted-foreground type-value text-sm w-full pl-8 pr-2 py-3 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
+          />
+        </div>
+        {/* Opens the top hit for the current query. With nothing typed it
+            just hands focus to the input: the popup is the search, and the
+            button gives the bar a visible way to commit to it. */}
+        <button
+          type="button"
+          onClick={() => {
+            const top = results[0];
+            if (trimmed && top) router.push(`/companies/${top.meta.permId}`);
+            else inputRef.current?.focus();
+          }}
+          className={cn(
+            "shrink-0 inline-flex items-center gap-1.5 rounded-sm px-4",
+            "bg-primary text-primary-foreground type-label-sm tracking-label-tight text-primary-foreground",
+            "hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+          )}
+        >
+          Search <ArrowRight aria-hidden className="size-3.5" />
+        </button>
       </div>
 
       <Autocomplete.Portal>
@@ -166,15 +187,16 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                     className="px-3 py-2 flex items-start justify-between gap-3 text-sm cursor-pointer data-[highlighted]:bg-overlay"
                   >
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className="font-medium truncate">
+                      <span className="type-display text-name truncate">
                         <Marked segments={field.name} />
                       </span>
                       {match ? (
                         <span
                           className={cn(
-                            "text-xs flex items-baseline gap-1 mt-0.5 min-w-0 text-foreground",
+                            "type-meta text-foreground flex items-baseline gap-1 mt-0.5 min-w-0",
                           )}
                         >
+                          {/* Raw font-mono on purpose: a glyph, not a text role. */}
                           <span
                             aria-hidden
                             className={cn("shrink-0 font-mono text-primary")}
@@ -192,13 +214,13 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                           </span>
                         </span>
                       ) : field.permId.some((s) => s.matched) ? (
-                        <span className="opacity-60 text-xs mt-0.5">
+                        <span className="type-meta mt-0.5">
                           PermID: <Marked segments={field.permId} />
                         </span>
                       ) : (
                         <>
                           {(sector || country) && (
-                            <span className="opacity-60 text-xs flex items-center mt-0.5">
+                            <span className="type-meta flex items-center mt-0.5">
                               {sector && (
                                 <span className="truncate">
                                   <Marked segments={field.sector} />
@@ -215,7 +237,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                             </span>
                           )}
                           {field.hint && (
-                            <span className="opacity-60 text-xs italic mt-0.5">
+                            <span className="type-meta italic mt-0.5">
                               {field.hint}
                             </span>
                           )}
@@ -223,7 +245,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
                       )}
                     </div>
                     {tickers.length > 0 && (
-                      <span className="opacity-60 text-xs whitespace-nowrap shrink-0">
+                      <span className="type-chip text-muted whitespace-nowrap shrink-0">
                         {tickers.map((ticker, i) => (
                           <span key={ticker}>
                             {i > 0 && ", "}
@@ -245,26 +267,14 @@ export function SearchBar({ placeholder }: SearchBarProps) {
 
             <Autocomplete.Empty>
               {trimmed.length > 0 && (
-                <div className="px-3 py-2 text-sm">
-                  No matches.{" "}
-                  <Link href="/companies" className="text-primary hover:underline">
-                    Browse the full dataset
-                  </Link>
+                <div className="px-3 py-2 type-caption">
+                  No matches. Try a subsidiary name, PermID, or ticker.
                 </div>
               )}
             </Autocomplete.Empty>
-
-            {totalCount > 3 && (
-              <Link
-                href={`/companies?q=${encodeURIComponent(trimmed)}`}
-                className="block px-3 py-2 text-sm border-t border-muted/25 text-primary hover:underline"
-              >
-                <span className="inline-flex items-center gap-1 font-bold dark:font-normal">
-                  <span>View all {totalCount} results</span>
-                  <ArrowRightIcon className="size-3" />
-                </span>
-              </Link>
-            )}
+            {/* No "view all" footer: there is no browse page. The popup shows
+                the top hits, and the search rail on every company page is the
+                exhaustive, paginated surface. */}
           </Autocomplete.Popup>
         </Autocomplete.Positioner>
       </Autocomplete.Portal>

@@ -16,6 +16,7 @@ import pandas as pd
 # Local imports
 from constants import (
     IDENTIFIER_TYPE_CIK,
+    IDENTIFIER_TYPE_CUSIP,
     SECTOR_CODE,
     SECTOR_SYSTEM,
     SOURCE_NAME,
@@ -269,6 +270,22 @@ def cik_rows(identifier_types: pd.Series) -> pd.Series:
         A boolean mask aligned to `identifier_types`.
     """
     return identifier_types.str.strip().str.casefold() == IDENTIFIER_TYPE_CIK
+
+
+def cusip_rows(identifier_types: pd.Series) -> pd.Series:
+    """Boolean mask selecting the rows whose `identifier` holds a CUSIP.
+
+    The counterpart of `cik_rows`, matched the same way. These rows are also
+    what `build_issuer_cusip_map` joins shareholdings on, so the CUSIPs a
+    company lists and the CUSIPs its holdings resolve through are one set.
+
+    Args:
+        identifier_types: The `identifier_type` column of a group of rows.
+
+    Returns:
+        A boolean mask aligned to `identifier_types`.
+    """
+    return identifier_types.str.strip().str.casefold() == IDENTIFIER_TYPE_CUSIP
 
 
 def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:

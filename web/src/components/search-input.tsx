@@ -37,7 +37,7 @@ export function SearchInput({
         />
         <Autocomplete.Input
           placeholder={placeholder}
-          className="bg-muted-foreground text-xs w-full pl-8 pr-8 py-2 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
+          className="bg-muted-foreground type-value w-full pl-8 pr-8 py-2 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
         />
         {value !== "" && (
           <button

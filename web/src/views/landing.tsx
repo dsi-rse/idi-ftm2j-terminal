@@ -6,17 +6,37 @@ import Link from "next/link";
 import { Article, StatisticGrid } from "@/blocks";
 import { HeroGlobe } from "@/components/hero-globe";
 import { SearchBar } from "@/components/search";
+import type { CorpusStats } from "@/domains/companies/dataset";
+import { formatCountShort } from "@/lib/format-count";
 import { StandardPageLayout } from "@/layouts";
 
-function Header() {
-  const stats = [
-    { value: "5,000+", description: "publicly-traded corporations" },
-    { value: "26,000+", description: "subsidiaries" },
-    { value: "$1.5B", description: "In shareholdings" },
-    {
-      value: "Daily data",
-      description: "refreshes from the U.S. Securities and Exchange Commission",
-    },
+type LandingProps = {
+  /** Corpus-wide counts from the build's dataset index; `null` when none. */
+  stats: CorpusStats | null;
+};
+
+/**
+ * A statistic tile's value and hover text. The tile shows the compact reading
+ * (`1.7M`) and carries the exact count in its title, so the hero stays legible
+ * without the figure being lost; a missing dataset shows a dash rather than an
+ * invented number.
+ */
+function countTile(value: number | undefined, description: string) {
+  return value === undefined
+    ? { value: "—", description }
+    : {
+      value: formatCountShort(value),
+      title: `${value.toLocaleString("en-US")} ${description}`,
+      description,
+    };
+}
+
+function Header({ stats }: LandingProps) {
+  const tiles = [
+    countTile(stats?.companies, "companies tracked"),
+    countTile(stats?.subsidiaries, "ownership links"),
+    countTile(stats?.shareholdings, "investments tracked"),
+    countTile(stats?.debtInstruments, "debt instruments tracked"),
   ];
   return (
     <Article id="landing" className="md:max-w-xl md:justify-self-start">
@@ -35,7 +55,10 @@ function Header() {
           associated with harmful development projects.
         </Article.Header.Lead>
         <div className="flex justify-end text-white hover:text-primary hover:cursor-pointer">
-          <Link className="inline-flex items-center gap-1 text-xs" href="/about">
+          <Link
+            className="inline-flex items-center gap-1 text-xs"
+            href="/about"
+          >
             Learn More <ChevronRightIcon className="size-2" />
           </Link>
         </div>
@@ -50,15 +73,8 @@ function Header() {
           long: "Search for a company by name, subsidiary, PermID, or ticker",
         }}
       />
-      <StatisticGrid stats={stats} />
-      <div className="flex gap-4 justify-end font-inter-tight font-semibold mt-8">
-        <Link
-          className="inline-flex items-center gap-1 bg-primary text-white dark:text-black border border-muted/25 hover:bg-primary-hover hover:cursor-pointer text-sm rounded-sm p-2"
-          href="/#"
-        >
-          Browse companies{" "}
-          <ChevronRightIcon className="size-4 text-white dark:text-black" />
-        </Link>
+      <StatisticGrid stats={tiles} />
+      <div className="flex gap-4 justify-end type-display mt-8">
         <Link
           className="inline-flex items-center gap-1 hover:bg-overlay border border-muted/25 rounded-sm text-sm p-2 hover:cursor-pointer"
           href="/methodology"
@@ -71,11 +87,11 @@ function Header() {
   );
 }
 
-export function Landing() {
+export function Landing({ stats }: LandingProps) {
   return (
     <StandardPageLayout>
       <div className="grid w-full grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-12 [&>*]:min-w-0">
-        <Header />
+        <Header stats={stats} />
         <div
           className="relative w-full [contain:layout_size]"
           style={{ paddingBottom: "100%" }}

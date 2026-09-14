@@ -64,7 +64,11 @@ function detailShard(permId: string): string {
   return permId.length >= 2 ? permId.slice(0, 2) : "_";
 }
 
-const CONTENT_SECTIONS = ["debtCount", "treeCount", "shareholderCount"] as const;
+const CONTENT_SECTIONS = [
+  "debtCount",
+  "treeCount",
+  "shareholderCount",
+] as const;
 
 /**
  * Orders companies so the cap keeps the pages worth reviewing, richest first.
@@ -90,7 +94,9 @@ function rankForDeploy(entries: CompanyIndexEntry[]): CompanyIndexEntry[] {
   for (const section of CONTENT_SECTIONS) {
     const ranked = entries
       .filter((e) => e[section] > 0)
-      .sort((a, b) => b[section] - a[section] || a.permId.localeCompare(b.permId));
+      .sort(
+        (a, b) => b[section] - a[section] || a.permId.localeCompare(b.permId),
+      );
     ranked.forEach((entry, i) => {
       if (i < (bestRank.get(entry.permId) ?? Infinity)) {
         bestRank.set(entry.permId, i);
@@ -101,7 +107,8 @@ function rankForDeploy(entries: CompanyIndexEntry[]): CompanyIndexEntry[] {
     e.debtCount + e.treeCount + e.shareholderCount;
   return [...entries].sort(
     (a, b) =>
-      (bestRank.get(a.permId) ?? Infinity) - (bestRank.get(b.permId) ?? Infinity) ||
+      (bestRank.get(a.permId) ?? Infinity) -
+        (bestRank.get(b.permId) ?? Infinity) ||
       total(b) - total(a) ||
       a.permId.localeCompare(b.permId),
   );
@@ -190,6 +197,43 @@ function loadIndex(): CompanyIndexEntry[] {
 }
 
 /**
+ * Corpus-wide counts for the landing page, summed from the index the build
+ * already reads. "Companies" is every company in the dataset, not the capped
+ * page set: the cap is a billing constraint (see `MAX_COMPANY_PAGES`), not a
+ * statement about coverage. Subsidiaries are relationship rows (a subsidiary
+ * of two parents is two relationships) and shareholdings are holding rows, not
+ * distinct investors -- the same definitions the Overview cards count by.
+ */
+export type CorpusStats = {
+  companies: number;
+  subsidiaries: number;
+  shareholdings: number;
+  debtInstruments: number;
+};
+
+/**
+ * The corpus-wide counts, or `null` when no dataset is available (local
+ * development without `INPUT_DATA_DIR`), so a build without data renders a
+ * placeholder rather than a fabricated number.
+ */
+export function corpusStats(): CorpusStats | null {
+  const all = loadIndex();
+  if (all.length === 0) return null;
+  const stats: CorpusStats = {
+    companies: all.length,
+    subsidiaries: 0,
+    shareholdings: 0,
+    debtInstruments: 0,
+  };
+  for (const entry of all) {
+    stats.subsidiaries += entry.treeCount;
+    stats.shareholdings += entry.shareholderCount;
+    stats.debtInstruments += entry.debtCount;
+  }
+  return stats;
+}
+
+/**
  * The companies that get a prerendered page: the allowlist first, then the
  * best-ranked of the rest up to the cap.
  */
@@ -210,6 +254,24 @@ export function selectedIndex(): CompanyIndexEntry[] {
     return [...pinned, ...ranked.slice(0, MAX_COMPANY_PAGES - pinned.length)];
   })();
   return selectedCache;
+}
+
+/**
+ * A company's position in the search rail's browse order, or `null` if it has
+ * no page. The rail's ALL tab with an empty query lists every prerendered
+ * company sorted by Pagefind on the `companyName` sort key, and Pagefind sorts
+ * strings by code point -- "A-Smart" before "A2A", uppercase before lowercase.
+ * Plain `<` comparison on the same names reproduces that order, so the rail can
+ * open on the page holding the current company without loading every result.
+ */
+let rankCache: Map<string, number> | undefined;
+export function browseRank(permId: string): number | null {
+  rankCache ??= new Map(
+    [...selectedIndex()]
+      .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
+      .map((entry, i) => [entry.permId, i] as const),
+  );
+  return rankCache.get(permId) ?? null;
 }
 
 /** Reads one company's full record from its detail file. */

@@ -88,7 +88,7 @@ FooterColumn.displayName = "Footer.Column";
  */
 function FooterSectionTitle({ children }: PropsWithChildren) {
   return (
-    <h4 className="font-inter font-semibold text-foreground text-xs uppercase">
+    <h4 className="type-label-sm text-foreground">
       {children}
     </h4>
   );
@@ -101,7 +101,7 @@ FooterSectionTitle.displayName = "Footer.SectionTitle";
  */
 function FooterParagraph({ children }: PropsWithChildren) {
   return (
-    <p className="font-inter text-muted text-sm leading-relaxed">{children}</p>
+    <p className="type-body">{children}</p>
   );
 }
 FooterParagraph.displayName = "Footer.Paragraph";
@@ -113,7 +113,7 @@ FooterParagraph.displayName = "Footer.Paragraph";
  */
 function FooterTagline({ children }: PropsWithChildren) {
   return (
-    <p className="font-inter text-muted text-sm leading-relaxed max-w-xs">
+    <p className="type-body max-w-xs">
       {children}
     </p>
   );
@@ -136,7 +136,7 @@ function FooterCopyright({
   children,
 }: PropsWithChildren<FooterCopyrightProps>) {
   return (
-    <p className="font-inter text-muted text-xs leading-relaxed text-center md:text-left">
+    <p className="type-caption leading-relaxed text-center md:text-left">
       © {year} {entity}. All rights reserved. {children}
     </p>
   );
@@ -156,7 +156,7 @@ function FooterInternalLink({
   return (
     <Link
       href={href}
-      className="inline-flex items-center gap-1 font-inter text-muted text-sm hover:text-primary transition-colors"
+      className="inline-flex items-center gap-1 type-body leading-normal hover:text-primary transition-colors"
     >
       {children} <ChevronRightIcon className="size-3" aria-hidden />
     </Link>
@@ -178,7 +178,7 @@ function FooterExternalLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 font-inter text-muted text-sm hover:text-primary transition-colors"
+      className="inline-flex items-center gap-1 type-body leading-normal hover:text-primary transition-colors"
     >
       {children} <ArrowUpRightIcon className="size-3" aria-hidden />
     </a>
@@ -197,7 +197,7 @@ function FooterLegalLink({
   return (
     <Link
       href={href}
-      className="text-muted text-xs hover:text-primary transition-colors"
+      className="type-caption hover:text-primary transition-colors"
     >
       {children}
     </Link>
@@ -308,7 +308,7 @@ FooterYouTubeButtonLink.displayName = "Footer.YouTubeButtonLink";
  */
 function FooterWordmark() {
   return (
-    <span className="text-lg font-bold tracking-wide text-foreground">
+    <span className="type-display text-lg font-bold">
       FTM<span className="text-primary">2</span>J
     </span>
   );
@@ -364,7 +364,7 @@ type FooterLastUpdatedProps = { date: string };
  */
 function FooterLastUpdated({ date }: FooterLastUpdatedProps) {
   return (
-    <span className="inline-flex items-center gap-2 text-primary text-xs uppercase tracking-wide">
+    <span className="inline-flex items-center gap-2 type-label-sm text-primary">
       <span className="relative inline-flex size-1.5">
         <span className="absolute inset-0 rounded-full bg-primary opacity-75 animate-ping" />
         <span className="relative inline-flex size-1.5 rounded-full bg-primary" />

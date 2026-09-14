@@ -1,10 +1,11 @@
 "use client";
 
 import { SectionCard } from "@/blocks/section-card";
-import { SourceCitation } from "@/blocks/source-citation";
 import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
-import type { Company, CurrentCorporateRelationship, Source } from "@/types/domain";
+import type { ReactNode } from "react";
+
+import type { Company, CurrentCorporateRelationship } from "@/types/domain";
 
 type CompanyOverviewSectionProps = {
   company: Company;
@@ -106,8 +107,7 @@ function debtGateway(company: Company): Gateway {
   const base = {
     section: "debt",
     kicker: "Commercial Debt",
-    unit:
-      debt.length === 1 ? "Instrument disclosed" : "Instruments disclosed",
+    unit: debt.length === 1 ? "Instrument disclosed" : "Instruments disclosed",
     link: "View commercial debt",
   };
 
@@ -119,7 +119,9 @@ function debtGateway(company: Company): Gateway {
     };
   }
 
-  const withLender = debt.filter((instrument) => instrument.lenders.length).length;
+  const withLender = debt.filter(
+    (instrument) => instrument.lenders.length,
+  ).length;
   // ISO-8601 dates compare lexicographically. A company's debt is assembled from
   // every 8-K that disclosed an instrument, so unlike the tree there is no single
   // filing date for the section — the most recent is what dates the card.
@@ -176,18 +178,98 @@ function shareholdersGateway(company: Company): Gateway {
   };
 }
 
-/**
- * The section's citation. Company-info reports no filing date, so the citation
- * is dated by when the record was last accessed.
- */
-function OverviewSource({ sources }: { sources: Source[] }) {
-  const [source] = sources;
-  if (!source) return null;
+const NOT_REPORTED = "Not reported";
+
+const identifierLinkClassName =
+  "underline decoration-dotted underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+
+/** One labelled identifier: a micro-label over one or more mono values. */
+function Identifier({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
-    <SourceCitation
-      source={source}
-      detail={`last accessed ${source.lastAccessed}`}
-    />
+    <div className={cn("flex flex-col gap-1 min-w-0")}>
+      <span
+        className={cn(
+          "type-label whitespace-nowrap",
+        )}
+      >
+        {label}
+      </span>
+      <span
+        className={cn(
+          "flex flex-wrap gap-x-3 gap-y-1 type-value",
+        )}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The company's stable identifiers. A reader following the money needs the
+ * keys other registries use: the PermID this record is built on, every SEC
+ * registrant CIK (linked to its EDGAR filing index), and the CUSIPs its
+ * securities trade under. CIK absence is a data gap and is said so; CUSIP
+ * absence is the norm (most issuers' securities are unresolved) and the pair
+ * is simply omitted.
+ */
+function IdentifiersRow({ company }: { company: Company }) {
+  const permIdUrl =
+    company.sources[0]?.url ?? `https://permid.org/1-${company.permId}`;
+  const several = company.registrants.length > 1;
+  return (
+    <div
+      className={cn("flex flex-wrap gap-x-8 gap-y-3 pb-4 md:pb-6")}
+      aria-label="Identifiers"
+    >
+      <Identifier label="PermID">
+        <a
+          href={permIdUrl}
+          target="_blank"
+          rel="noreferrer"
+          className={cn(identifierLinkClassName)}
+        >
+          {company.permId}
+        </a>
+      </Identifier>
+      <Identifier label={several ? "CIKs" : "CIK"}>
+        {company.registrants.length === 0 ? (
+          <span className={cn("text-muted")}>{NOT_REPORTED}</span>
+        ) : (
+          company.registrants.map((registrant) => (
+            <span key={registrant.cik} className={cn("whitespace-nowrap")}>
+              <a
+                href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${registrant.cik}`}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(identifierLinkClassName)}
+              >
+                {registrant.cik}
+              </a>
+              {several && registrant.registrantName ? (
+                <span className={cn("text-muted")}>
+                  {" "}
+                  {registrant.registrantName}
+                </span>
+              ) : null}
+            </span>
+          ))
+        )}
+      </Identifier>
+      {company.cusips.length > 0 ? (
+        <Identifier label={company.cusips.length > 1 ? "CUSIPs" : "CUSIP"}>
+          {company.cusips.map((cusip) => (
+            <span key={cusip}>{cusip}</span>
+          ))}
+        </Identifier>
+      ) : null}
+    </div>
   );
 }
 
@@ -204,12 +286,12 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       }}
       className="group flex flex-col gap-1 p-4 md:p-6 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
-      <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+      <span className="type-label">
         {gateway.kicker}
       </span>
       <span
         className={cn(
-          "font-inter-tight tracking-tight",
+          "type-display tracking-tight",
           unavailable
             ? "text-lg md:text-xl font-medium text-muted"
             : "text-3xl md:text-4xl font-semibold text-foreground",
@@ -217,11 +299,11 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       >
         {unavailable ? "Not available" : gateway.value}
       </span>
-      <span className="text-sm text-foreground">{gateway.unit}</span>
-      <span className="font-mono text-[10px] text-muted leading-relaxed">
+      <span className="type-value">{gateway.unit}</span>
+      <span className="type-meta leading-relaxed">
         {gateway.meta}
       </span>
-      <span className="mt-2 font-mono text-[10px] uppercase tracking-wider text-primary">
+      <span className="mt-2 type-label-sm text-primary">
         {gateway.link} →
       </span>
     </a>
@@ -230,7 +312,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
 
 function Gateways({ gateways }: { gateways: Gateway[] }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-muted/15 -m-4 md:-m-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-muted/15 border-t border-muted/15 -mx-4 md:-mx-6 -mb-4 md:-mb-6">
       {gateways.map((gateway) => (
         <GatewayCard key={gateway.section} gateway={gateway} />
       ))}
@@ -248,9 +330,15 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
  * There is no section-level date: the three stats draw on datasets with
  * genuinely different vintages — corporate structure is 2016–2018, commercial
  * debt runs to the present, company info is current — so each card carries its
- * own instead of one date that would be wrong for at least one of them.
+ * own instead of one date that would be wrong for at least one of them. Nor a
+ * section-level source: none of the three counts draws on the LSEG record
+ * (they are Exhibit 21, 13-F, and 8-K data), so each card names its own SEC
+ * source in its meta line and the LSEG citation sits under the header, with
+ * the fields it actually covers.
  */
-export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps) {
+export function CompanyOverviewSection({
+  company,
+}: CompanyOverviewSectionProps) {
   const gateways = [
     treeGateway(company),
     shareholdersGateway(company),
@@ -261,15 +349,11 @@ export function CompanyOverviewSection({ company }: CompanyOverviewSectionProps)
     <SectionCard
       id="overview"
       title="Overview"
-      subtitle="Headline counts"
-      info="Headline counts for the sections below, each sourced from a processor. Commercial debt is counted in instruments rather than totalled in money — amounts are reported in several currencies with no conversion rate available, and a third of instruments report no amount at all. Shareholders are counted in holdings rather than totalled in value, since coverage is limited to holders whose issuer resolves and a total would overstate it."
-      source={<OverviewSource sources={company.sources} />}
-      expanded={
-        <div className="max-w-3xl mx-auto">
-          <Gateways gateways={gateways} />
-        </div>
-      }
+      // Three counts and an identifier row fit inline in full; a modal would
+      // show the same thing larger.
+      expandable={false}
     >
+      <IdentifiersRow company={company} />
       <Gateways gateways={gateways} />
     </SectionCard>
   );

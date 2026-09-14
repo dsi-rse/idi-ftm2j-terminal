@@ -46,7 +46,7 @@ function TabsTrigger({ className, ...props }: TabsTriggerProps) {
       {...props}
       className={cn(
         "flex-1 text-left cursor-pointer",
-        "px-3 py-2 text-xs text-muted",
+        "px-3 py-2 type-label-sm tracking-widest",
         "border-b-2 border-transparent -mb-px",
         "data-[active]:text-primary data-[active]:border-primary",
         "hover:text-foreground transition-colors",
@@ -62,12 +62,13 @@ type TabsBodyProps = HTMLAttributes<HTMLDivElement>;
 
 /**
  * A plain container for the tab panels; grows to fill remaining vertical
- * space and scrolls independently.
+ * space. It does not scroll on its own: the surrounding container (the
+ * `Drawer.Body` in the company search rail) owns scrolling, and a second
+ * scroller here nested one scrollbar inside another and let wide panels
+ * scroll sideways.
  */
 function TabsBody({ className, ...props }: TabsBodyProps) {
-  return (
-    <div {...props} className={cn("flex-1 overflow-y-auto py-3", className)} />
-  );
+  return <div {...props} className={cn("flex-1 py-3", className)} />;
 }
 TabsBody.displayName = "Tabs.Body";
 

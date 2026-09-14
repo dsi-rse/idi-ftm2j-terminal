@@ -104,6 +104,7 @@ for the Shareholder Tracker, and they are what `attach_shareholders` joins on
 | `cik` | the primary of `registrants`, via `select_primary_cik` |
 | `registrants[].cik` | every `identifier` where `identifier_type == "cik"` |
 | `registrants[].registrantName` | `entity_name`, from that CIK's most recent row |
+| `cusips` | every `identifier` where `identifier_type == "cusip"`, sorted; the same rows `attach_shareholders` joins on |
 | `lei` | `lei` |
 | `name` | `investor_name` |
 | `foundedOn` | `founded_date` |

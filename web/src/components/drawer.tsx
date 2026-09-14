@@ -6,6 +6,7 @@ import {
   useContext,
   useMemo,
   useState,
+  type CSSProperties,
   type HTMLAttributes,
   type PropsWithChildren,
 } from "react";
@@ -40,6 +41,17 @@ type DrawerRootProps = {
    * `md:w-0` under tailwind-merge and break the closed state.
    */
   openWidthClassName?: string;
+  /**
+   * Width in px applied at `md` and above while open. Takes precedence over
+   * `openWidthClassName`. Travels as a CSS variable rather than an inline
+   * `width` so the mobile overlay's `w-full` still wins below `md`.
+   */
+  openWidth?: number;
+  /**
+   * Set while the caller is dragging the width. Suppresses the width
+   * transition, which would otherwise trail the pointer by its duration.
+   */
+  resizing?: boolean;
 };
 
 /**
@@ -57,6 +69,8 @@ function DrawerRoot({
   onOpenChange,
   className,
   openWidthClassName = "md:w-1/4",
+  openWidth,
+  resizing = false,
   children,
 }: PropsWithChildren<DrawerRootProps>) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
@@ -82,11 +96,17 @@ function DrawerRoot({
     <DrawerContext.Provider value={value}>
       <aside
         data-open={open ? "" : undefined}
+        data-resizing={resizing ? "" : undefined}
+        style={
+          openWidth !== undefined
+            ? ({ "--drawer-width": `${openWidth}px` } as CSSProperties)
+            : undefined
+        }
         className={cn(
           // Distinct panel background (same tone as the site search input)
           // so the drawer reads as an elevated surface over the page.
           "flex flex-col bg-muted-foreground",
-          "transition-[width] duration-200 ease-out",
+          "transition-[width] duration-200 ease-out data-[resizing]:transition-none",
           // Border + shadow only when open; when collapsed, the drawer
           // renders as an empty zero-width column.
           open && "border-r border-muted/40 shadow-md",
@@ -94,7 +114,11 @@ function DrawerRoot({
           // `md:min-w-0` overrides flexbox's default `min-width: auto`,
           // which would otherwise keep the aside sized to its min-content
           // and prevent the closed state from truly collapsing to zero.
-          open ? openWidthClassName : "md:w-0 md:min-w-0",
+          open
+            ? openWidth !== undefined
+              ? "md:w-(--drawer-width)"
+              : openWidthClassName
+            : "md:w-0 md:min-w-0",
           // Desktop min-height fills the visible page area even when the
           // surrounding flex row is content-sized; drawer can grow taller
           // if content demands it.
@@ -135,6 +159,10 @@ DrawerHeader.displayName = "Drawer.Header";
 /**
  * The main scrollable body of the {@link Drawer}. Hidden when the drawer is
  * collapsed. Takes remaining vertical space via `flex-1`.
+ *
+ * Scrolls vertically only. Without an explicit `overflow-x`, `overflow-y-auto`
+ * makes the horizontal axis compute to `auto` too, and any child wider than
+ * the drawer grows a horizontal scrollbar instead of being clipped.
  */
 function DrawerBody({ className, children, ...props }: DrawerSlotProps) {
   const { open } = useDrawerContext("Drawer.Body");
@@ -142,7 +170,10 @@ function DrawerBody({ className, children, ...props }: DrawerSlotProps) {
   return (
     <div
       {...props}
-      className={cn("flex-1 overflow-y-auto px-4 py-2", className)}
+      className={cn(
+        "flex-1 overflow-y-auto overflow-x-hidden px-4 py-2",
+        className,
+      )}
     >
       {children}
     </div>

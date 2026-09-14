@@ -2,10 +2,6 @@ import { Footer as FooterBlock } from "@/blocks";
 
 const SITE_MAP_LINKS = [
   { label: "Home", href: "/" },
-  {
-    label: "Company Search",
-    href: "#",
-  },
   { label: "About", href: "/about" },
   { label: "Methodology", href: "/methodology" },
   { label: "Downloads", href: "/downloads" },
