@@ -66,7 +66,7 @@ ArticleHeaderEyebrow.displayName = "Article.Header.Eyebrow";
  */
 function ArticleHeaderTitle({ children }: PropsWithChildren) {
   return (
-    <h1 className="type-display text-3xl text-center md:text-5xl md:text-left m-0 leading-none">
+    <h1 className="type-display tracking-tight text-3xl text-center md:text-5xl md:text-left m-0 leading-none">
       {children}
     </h1>
   );
@@ -143,7 +143,7 @@ function ArticleBulkDownload({
         <p className="type-label-sm text-primary">
           {label}
         </p>
-        <h2 className="type-display text-xl md:text-2xl">
+        <h2 className="type-display tracking-tight text-xl md:text-2xl">
           {title}
         </h2>
         <p className="type-body md:text-base">
@@ -209,7 +209,7 @@ function ArticleSectionTitle({
   children,
 }: PropsWithChildren<{ number?: string }>) {
   return (
-    <h2 className="type-display text-xl">
+    <h2 className="type-display tracking-tight text-xl">
       {number && (
         <span className="type-label-sm text-primary mr-2 align-middle">
           {number}
@@ -261,7 +261,7 @@ type ArticleQAProps = {
 function ArticleQA({ question, children }: PropsWithChildren<ArticleQAProps>) {
   return (
     <div className="space-y-3">
-      <h3 className="type-display text-lg md:text-xl">
+      <h3 className="type-display tracking-tight text-lg md:text-xl">
         <span className="text-primary mr-2">Q.</span>
         {question}
       </h3>
@@ -368,7 +368,7 @@ function ArticleBlockQuote({ quote }: ArticleBlockQuoteProps) {
     <figure className="md:float-right md:w-2/5 md:ml-8 md:mt-2 md:mb-4 mb-6 flex flex-col gap-4 border border-muted/25 border-l-2 border-l-primary rounded-md p-6 bg-overlay">
       <div
         aria-hidden
-        className="type-display text-primary text-5xl leading-none"
+        className="type-display tracking-tight text-primary text-5xl leading-none"
       >
         &ldquo;
       </div>

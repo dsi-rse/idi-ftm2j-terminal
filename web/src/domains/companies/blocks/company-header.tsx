@@ -236,7 +236,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
 
   return (
     <header className="w-full flex flex-col gap-3 pb-6 border-b border-muted/25">
-      <h1 className="type-display text-3xl md:text-4xl leading-none">
+      <h1 className="type-display tracking-tight text-3xl md:text-4xl leading-none">
         {company.name}
       </h1>
       {/* Cells size to their content and wrap, rather than sitting in a

@@ -131,8 +131,11 @@
 	@apply font-mono text-value tabular-nums text-foreground;
 }
 @utility type-display {
-	/* Names and headline numbers. Size is set at the call site. */
-	@apply font-inter-tight tracking-tight font-semibold text-foreground;
+	/* Names and headline numbers. Size is set at the call site, and so is any
+	   negative tracking: Inter Tight is already a tight cut, and pulling its
+	   letters closer at 13px crowds a name. Only large headings add
+	   `tracking-tight`. */
+	@apply font-inter-tight tracking-normal font-semibold text-foreground;
 }
 @utility type-body {
 	/* Prose. */

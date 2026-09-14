@@ -73,7 +73,7 @@ type ModalHeadingProps = {
 function ModalHeading({ title, subtitle, className }: ModalHeadingProps) {
   return (
     <div className={cn("flex flex-col gap-1 min-w-0", className)}>
-      <h2 className={cn("type-display text-lg md:text-xl truncate")}>
+      <h2 className={cn("type-display tracking-tight text-lg md:text-xl truncate")}>
         {title}
       </h2>
       {subtitle ? <p className={cn("type-caption")}>{subtitle}</p> : null}

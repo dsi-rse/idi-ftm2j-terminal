@@ -291,7 +291,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       </span>
       <span
         className={cn(
-          "type-display",
+          "type-display tracking-tight",
           unavailable
             ? "text-lg md:text-xl font-medium text-muted"
             : "text-3xl md:text-4xl font-semibold text-foreground",
