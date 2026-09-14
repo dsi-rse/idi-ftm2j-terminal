@@ -2,9 +2,9 @@
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
-import { Dot, Search } from "lucide-react";
+import { ArrowRight, Dot, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { type SiteSearchResult, useSiteSearch } from "@/hooks/use-site-search";
 import { matchFields } from "@/lib/match-fields";
@@ -56,6 +56,7 @@ type SearchBarProps = {
 
 export function SearchBar({ placeholder }: SearchBarProps) {
   const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const { results, handleSearch } =
     useSiteSearch<PagefindCompanyMeta>({
@@ -126,15 +127,36 @@ export function SearchBar({ placeholder }: SearchBarProps) {
       onValueChange={setQuery}
       itemToStringValue={(hit: CompanyHit) => hit.meta.companyName}
     >
-      <div className="relative w-full">
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted"
-        />
-        <Autocomplete.Input
-          placeholder={resolvedPlaceholder}
-          className="bg-muted-foreground type-value text-sm w-full pl-8 pr-2 py-3 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
-        />
+      <div className="flex w-full items-stretch gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search
+            aria-hidden
+            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted"
+          />
+          <Autocomplete.Input
+            ref={inputRef}
+            placeholder={resolvedPlaceholder}
+            className="bg-muted-foreground type-value text-sm w-full pl-8 pr-2 py-3 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
+          />
+        </div>
+        {/* Opens the top hit for the current query. With nothing typed it
+            just hands focus to the input: the popup is the search, and the
+            button gives the bar a visible way to commit to it. */}
+        <button
+          type="button"
+          onClick={() => {
+            const top = results[0];
+            if (trimmed && top) router.push(`/companies/${top.meta.permId}`);
+            else inputRef.current?.focus();
+          }}
+          className={cn(
+            "shrink-0 inline-flex items-center gap-1.5 rounded-sm px-4",
+            "bg-primary text-primary-foreground type-label-sm tracking-label-tight text-primary-foreground",
+            "hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+          )}
+        >
+          Search <ArrowRight aria-hidden className="size-3.5" />
+        </button>
       </div>
 
       <Autocomplete.Portal>

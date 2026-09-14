@@ -1,9 +1,14 @@
 "use client";
 
-import { ChevronRightIcon } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronRightIcon,
+  Network,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 
-import { Article, StatisticGrid } from "@/blocks";
+import { Article, FeatureCard, StatisticGrid } from "@/blocks";
 import { HeroGlobe } from "@/components/hero-globe";
 import { SearchBar } from "@/components/search";
 import type { CorpusStats } from "@/domains/companies/dataset";
@@ -87,19 +92,46 @@ function Header({ stats }: LandingProps) {
   );
 }
 
+/**
+ * What a company page holds, one card per section, in the order the page
+ * presents them. The copy names the filings each section is built from rather
+ * than promising data the processors do not have.
+ */
+function Features() {
+  return (
+    <FeatureCard.Grid aria-label="What each company page holds">
+      <FeatureCard icon={Network} title="Corporate trees">
+        Walk each registrant’s disclosed subsidiaries, taken from the
+        Exhibit 21 and Exhibit 8 lists attached to its 10-K or 20-F.
+      </FeatureCard>
+      <FeatureCard icon={Users} title="Shareholder networks">
+        See the institutional and pension-fund holders of each company, from
+        SEC 13-F filings and pension disclosures.
+      </FeatureCard>
+      <FeatureCard icon={CalendarClock} title="Commercial debt">
+        Trace the lenders and financing arrangements disclosed in each
+        company’s 8-K filings.
+      </FeatureCard>
+    </FeatureCard.Grid>
+  );
+}
+
 export function Landing({ stats }: LandingProps) {
   return (
     <StandardPageLayout>
-      <div className="grid w-full grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-12 [&>*]:min-w-0">
-        <Header stats={stats} />
-        <div
-          className="relative w-full [contain:layout_size]"
-          style={{ paddingBottom: "100%" }}
-        >
-          <div className="absolute inset-0">
-            <HeroGlobe />
+      <div className="flex w-full flex-col gap-12">
+        <div className="grid w-full grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-12 [&>*]:min-w-0">
+          <Header stats={stats} />
+          <div
+            className="relative w-full [contain:layout_size]"
+            style={{ paddingBottom: "100%" }}
+          >
+            <div className="absolute inset-0">
+              <HeroGlobe />
+            </div>
           </div>
         </div>
+        <Features />
       </div>
     </StandardPageLayout>
   );
