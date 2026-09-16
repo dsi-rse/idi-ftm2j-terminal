@@ -128,6 +128,16 @@ function Highlighted({
   );
 }
 
+/**
+ * The row's one text voice. The reviewer's note on the rail: Modernist
+ * typography changes only what communication needs, and the rank, name,
+ * sector, and country had three sizes and two families between them. All
+ * four now share 12px Inter; the name alone is set semibold, and the muted
+ * colour does the rest. The ticker chip keeps its mono, as a badge not a
+ * line of text.
+ */
+const ROW_TEXT = "font-sans text-value";
+
 /** The matched subsidiary name, with the query's hits marked. */
 function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
   // Bring the first hit into view: a match deep in a long name would otherwise
@@ -136,7 +146,8 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
   return (
     <p
       className={cn(
-        "flex min-w-0 items-baseline gap-1 type-meta text-foreground leading-none",
+        "flex min-w-0 items-baseline gap-1 text-foreground",
+        ROW_TEXT,
       )}
     >
       {/* Fixed-width and non-shrinking, so a long name truncates on its own
@@ -193,11 +204,11 @@ export function SearchResult({
       // past two digits deep in the result set and, pinned to one eighth of the
       // panel, would otherwise overrun the name beside it.
       className={cn(
-        // Top-aligned, with the rank and ticker cells each centred on the
-        // name's first line beside them: the three are vertically centred on
-        // one line rather than sharing a baseline, which the mixed sizes (10px
-        // mono rank, 13px name, 20px chip) would otherwise stagger.
-        "grid grid-cols-[auto_1fr_auto] items-start gap-2 text-sm border-b border-muted/25 p-3 cursor-pointer border-l-2 hover:bg-muted/10",
+        // Top-aligned throughout: the rank and name share one size and line
+        // height, so their first lines coincide, and the ticker chip's top
+        // edge sits on the same line as the text, as far from the top of the
+        // row as it is from the right.
+        "grid grid-cols-[auto_1fr_auto] items-start gap-2 border-b border-muted/25 p-3 cursor-pointer border-l-2 hover:bg-muted/10",
         // The selected row carries a filled surface as well as the accent
         // border, so it reads as selected at a glance rather than on a 2px edge.
         active ? "border-l-primary bg-overlay" : "border-l-transparent",
@@ -210,16 +221,16 @@ export function SearchResult({
         router.push(`/companies/${permId}`);
       }}
     >
-      <div className={cn("type-meta leading-none")}>
-        {/* As tall as the name's line box, so the star and rank centre on it. */}
-        <div className={cn("flex h-(--text-name) flex-row items-center gap-2")}>
+      <div className={cn(ROW_TEXT, "text-muted tabular-nums")}>
+        {/* The star centres on the rank's line, which is the name's line too. */}
+        <div className={cn("flex flex-row items-center gap-2")}>
           <CompanyBookmark company={company} />
           <p>{index.toString().padStart(Math.max(2, rankWidth), "0")}</p>
         </div>
       </div>
       <div className={cn("min-w-0")}>
         <div className={cn("flex flex-col gap-1")}>
-          <p className={cn("type-display text-name leading-none break-words")}>
+          <p className={cn(ROW_TEXT, "font-semibold text-foreground break-words")}>
             {nameMatched && nameSegments ? (
               <Highlighted segments={nameSegments} />
             ) : (
@@ -239,7 +250,7 @@ export function SearchResult({
                 <SubsidiaryLine key={`${match.name}-${i}`} match={match} />
               ))}
               {hidden > 0 && (
-                <p className={cn("type-meta leading-none")}>
+                <p className={cn(ROW_TEXT, "text-muted")}>
                   +{hidden} more subsidiary{" "}
                   {hidden === 1 ? "match" : "matches"}
                 </p>
@@ -250,19 +261,19 @@ export function SearchResult({
             // sector and country did not explain this hit, so the ID that did
             // stands alone rather than trailing two lines that are just noise
             // for a lookup by identifier.
-            <p className={cn("type-meta leading-none")}>
+            <p className={cn(ROW_TEXT, "text-muted")}>
               PermID: <Highlighted segments={permIdSegments} />
             </p>
           ) : (
             <>
-              <p className={cn("type-meta leading-none")}>
+              <p className={cn(ROW_TEXT, "text-muted")}>
                 {hasHighlight(sectorSegments) && sectorSegments ? (
                   <Highlighted segments={sectorSegments} />
                 ) : (
                   (sector ?? "--")
                 )}
               </p>
-              <p className={cn("type-meta leading-none")}>
+              <p className={cn(ROW_TEXT, "text-muted")}>
                 {hasHighlight(countrySegments) && countrySegments ? (
                   <Highlighted segments={countrySegments} />
                 ) : (
@@ -270,28 +281,21 @@ export function SearchResult({
                 )}
               </p>
               {matchHint && (
-                <p
-                  className={cn(
-                    "type-meta italic leading-none",
-                  )}
-                >
+                <p className={cn(ROW_TEXT, "italic text-muted")}>
                   {matchHint}
                 </p>
               )}
             </>
           )}
           {viewedAt !== undefined && (
-            <p className={cn("type-meta leading-none")}>
+            <p className={cn(ROW_TEXT, "text-muted")}>
               {formatRelativeTime(viewedAt)}
             </p>
           )}
         </div>
       </div>
       {tickers && tickers.length > 0 && (
-        // Pulled up by half the chip's excess over the name's line box
-        // (20px chip against a 13px line), so the first chip centres on the
-        // name rather than hanging below it.
-        <div className={cn("justify-self-end leading-none -mt-[3.5px]")}>
+        <div className={cn("justify-self-end leading-none")}>
           <div className={cn("flex flex-col gap-1")}>
             {tickers.map((ticker, i) => {
               const segments = tickerSegments?.[i];
