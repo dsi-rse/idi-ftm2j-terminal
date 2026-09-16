@@ -187,7 +187,11 @@ export function SearchResult({
       // past two digits deep in the result set and, pinned to one eighth of the
       // panel, would otherwise overrun the name beside it.
       className={cn(
-        "grid grid-cols-[auto_1fr_auto] gap-2 text-sm border-b border-muted/25 p-3 cursor-pointer border-l-2 hover:bg-muted/10",
+        // Top-aligned, with the rank and ticker cells each centred on the
+        // name's first line beside them: the three are vertically centred on
+        // one line rather than sharing a baseline, which the mixed sizes (10px
+        // mono rank, 13px name, 20px chip) would otherwise stagger.
+        "grid grid-cols-[auto_1fr_auto] items-start gap-2 text-sm border-b border-muted/25 p-3 cursor-pointer border-l-2 hover:bg-muted/10",
         // The selected row carries a filled surface as well as the accent
         // border, so it reads as selected at a glance rather than on a 2px edge.
         active ? "border-l-primary bg-overlay" : "border-l-transparent",
@@ -195,7 +199,8 @@ export function SearchResult({
       onClick={() => router.push(`/companies/${permId}`)}
     >
       <div className={cn("type-meta leading-none")}>
-        <div className={cn("flex flex-row gap-2 items-start")}>
+        {/* As tall as the name's line box, so the star and rank centre on it. */}
+        <div className={cn("flex h-(--text-name) flex-row items-center gap-2")}>
           <CompanyBookmark company={company} />
           <p>{index.toString().padStart(Math.max(2, rankWidth), "0")}</p>
         </div>
@@ -271,7 +276,10 @@ export function SearchResult({
         </div>
       </div>
       {tickers && tickers.length > 0 && (
-        <div className={cn("justify-self-end leading-none")}>
+        // Pulled up by half the chip's excess over the name's line box
+        // (20px chip against a 13px line), so the first chip centres on the
+        // name rather than hanging below it.
+        <div className={cn("justify-self-end leading-none -mt-[3.5px]")}>
           <div className={cn("flex flex-col gap-1")}>
             {tickers.map((ticker, i) => {
               const segments = tickerSegments?.[i];
