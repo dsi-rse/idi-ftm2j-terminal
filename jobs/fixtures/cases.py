@@ -293,15 +293,18 @@ def identifiers_cusips_are_collected() -> None:
     result = run_build(
         company_rows(
             {"identifier": "0000000001", "entity_name": "FIXTURE CO A"},
-            {
-                "identifier_type": "cusip",
-                "identifier": "037833100",
-                "standard_identifier": "Cusip:037833100",
-            },
+            # The larger CUSIP comes first so that input order differs from
+            # the sorted output; otherwise a build that merely preserved
+            # order would pass the sortedness check.
             {
                 "identifier_type": "CUSIP",
                 "identifier": " 594918104 ",
                 "standard_identifier": "Cusip:594918104",
+            },
+            {
+                "identifier_type": "cusip",
+                "identifier": "037833100",
+                "standard_identifier": "Cusip:037833100",
             },
             {
                 "identifier_type": "cusip",
