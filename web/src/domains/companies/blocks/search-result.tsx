@@ -206,8 +206,7 @@ export function SearchResult({
       className={cn(
         // Top-aligned throughout: the rank and name share one size and line
         // height, so their first lines coincide, and the ticker chip's top
-        // edge sits on the same line as the text, as far from the top of the
-        // row as it is from the right.
+        // edge sits on the cap line of that text.
         "grid grid-cols-[auto_1fr_auto] items-start gap-2 border-b border-muted/25 p-3 cursor-pointer border-l-2 hover:bg-muted/10",
         // The selected row carries a filled surface as well as the accent
         // border, so it reads as selected at a glance rather than on a 2px edge.
@@ -295,7 +294,11 @@ export function SearchResult({
         </div>
       </div>
       {tickers && tickers.length > 0 && (
-        <div className={cn("justify-self-end leading-none")}>
+        // Nudged down to the cap line of the text beside it, not the top of
+        // its line box: the box carries 2.4px of half-leading above the glyphs
+        // at 12px/1.4, and Inter's ascender sits another 3.3px above its caps.
+        // Aligned to the box, the chip reads as floating above the name.
+        <div className={cn("justify-self-end leading-none mt-1.5")}>
           <div className={cn("flex flex-col gap-1")}>
             {tickers.map((ticker, i) => {
               const segments = tickerSegments?.[i];
