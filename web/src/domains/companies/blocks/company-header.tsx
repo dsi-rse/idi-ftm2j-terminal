@@ -119,9 +119,9 @@ function HeaderCell({
   hrefLabel,
 }: HeaderCellProps) {
   return (
-    <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
+    <div className="flex flex-col gap-1 md:border md:border-muted/25 md:px-3 md:py-2">
       <span className="flex h-4 items-center gap-1">
-        <span className="type-label whitespace-nowrap">{label}</span>
+        <span className="type-label md:whitespace-nowrap">{label}</span>
         {info ? (
           <Popover>
             <Popover.Trigger
@@ -133,7 +133,7 @@ function HeaderCell({
       </span>
       <span
         className={cn(
-          "type-value whitespace-nowrap",
+          "type-value md:whitespace-nowrap",
           muted ? "text-muted" : "text-foreground",
         )}
       >
@@ -239,10 +239,12 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
       <h1 className="type-display tracking-tight text-3xl md:text-4xl leading-none">
         {company.name}
       </h1>
-      {/* Cells size to their content and wrap, rather than sitting in a
-          fixed grid — mono labels vary enough in width that equal columns
-          either clip or force the longest label onto two lines. */}
-      <div className="flex flex-wrap gap-2">
+      {/* At md+ the cells size to their content and wrap, rather than sitting
+          in a fixed grid — mono labels vary enough in width that equal columns
+          either clip or force the longest label onto two lines. On a phone the
+          boxes stack four deep and push the tabs below the fold, so the strip
+          drops its borders and becomes a two-column list of label/value pairs. */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:flex md:flex-wrap md:gap-2">
         <HeaderCell
           label="Primary Industry"
           value={industry ?? NOT_REPORTED}

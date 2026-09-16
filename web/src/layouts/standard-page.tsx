@@ -17,7 +17,7 @@ export function StandardPageLayout({
   return (
     <div className="flex min-h-dvh flex-col gap-4 py-1 pb-4">
       <Navbar />
-      <div className="mx-12 mb-6 flex flex-1 flex-col items-center">
+      <div className="mx-4 md:mx-12 mb-6 flex flex-1 flex-col items-center">
         <div
           className={`${narrow ? "max-w-4xl" : ""} w-full flex flex-col items-center`}
         >

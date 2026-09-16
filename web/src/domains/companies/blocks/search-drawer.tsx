@@ -25,7 +25,7 @@ import {
   useCompaniesStore,
 } from "../stores/companies";
 import { SearchResult } from "./search-result";
-import { CircleQuestionMark, Search } from "lucide-react";
+import { CircleQuestionMark, Search, X } from "lucide-react";
 import type { ButtonHTMLAttributes } from "react";
 
 import { cn } from "@/lib/utils";
@@ -279,6 +279,12 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
   const setActiveTab = useCompaniesStore((s) => s.setActiveTab);
   const isInspectorOpen = useCompaniesStore((s) => s.isInspectorOpen);
   const setInspectorOpen = useCompaniesStore((s) => s.setInspectorOpen);
+  const isMobileInspectorOpen = useCompaniesStore(
+    (s) => s.isMobileInspectorOpen,
+  );
+  const setMobileInspectorOpen = useCompaniesStore(
+    (s) => s.setMobileInspectorOpen,
+  );
   const storedWidth = useCompaniesStore((s) => s.inspectorWidth);
   const setInspectorWidth = useCompaniesStore((s) => s.setInspectorWidth);
   const hydrated = useStoreHydrated();
@@ -302,6 +308,12 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeCompanyId, activeRank, setPage]);
 
+  // Choosing a company is the end of a phone search: the sheet covers the
+  // page, so it closes to show the profile it just opened.
+  useEffect(() => {
+    setMobileInspectorOpen(false);
+  }, [activeCompanyId, setMobileInspectorOpen]);
+
   const allData = useAllCompaniesSearch();
   const recentData = useRecentCompaniesSearch();
   const savedData = useSavedCompaniesSearch();
@@ -312,6 +324,7 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
       onOpenChange={setInspectorOpen}
       openWidth={hydrated ? width : INSPECTOR_WIDTH_DEFAULT}
       resizing={resizing || !hydrated}
+      mobileOpen={isMobileInspectorOpen}
       // `md:` scoped deliberately: an unprefixed `relative` is merged over the
       // Drawer's own `fixed` positioning by tailwind-merge, which silently breaks
       // the mobile overlay. The chevron that needs this context is desktop-only.
@@ -378,6 +391,22 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               </div>
             </Popover.Content>
           </Popover>
+          {/* Phone-only: the sheet covers the page, and the desktop collapse
+              tab on the rail's edge is hidden below `md`, so the sheet needs
+              its own way out. */}
+          <button
+            type="button"
+            aria-label="Close company search"
+            onClick={() => setMobileInspectorOpen(false)}
+            className={cn(
+              // Longhand negative margins: a shorthand `-m-2` would override
+              // `ml-auto` under tailwind-merge and pin the button to the title.
+              "ml-auto -my-2 -mr-2 inline-flex p-2 text-muted hover:text-foreground cursor-pointer md:hidden",
+              "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+            )}
+          >
+            <X className="size-4" aria-hidden />
+          </button>
         </div>
       </Drawer.Header>
       <Drawer.Body>
@@ -434,12 +463,39 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
 export function CompanyInspectorOpener() {
   const isInspectorOpen = useCompaniesStore((s) => s.isInspectorOpen);
   const setInspectorOpen = useCompaniesStore((s) => s.setInspectorOpen);
-  if (isInspectorOpen) return null;
+  const isMobileInspectorOpen = useCompaniesStore(
+    (s) => s.isMobileInspectorOpen,
+  );
+  const setMobileInspectorOpen = useCompaniesStore(
+    (s) => s.setMobileInspectorOpen,
+  );
   return (
-    <InspectorHandle
-      aria-label="Open company search"
-      onClick={() => setInspectorOpen(true)}
-      className={cn("fixed left-0 top-1/2 z-20 -translate-y-1/2")}
-    />
+    <>
+      {isInspectorOpen ? null : (
+        <InspectorHandle
+          aria-label="Open company search"
+          onClick={() => setInspectorOpen(true)}
+          className={cn("fixed left-0 top-1/2 z-20 -translate-y-1/2")}
+        />
+      )}
+      {/* Phone-only: a floating button in the thumb's reach, since the rail's
+          edge tab has no edge to sit on when the rail is a full-screen sheet. */}
+      {isMobileInspectorOpen ? null : (
+        <button
+          type="button"
+          aria-label="Open company search"
+          onClick={() => setMobileInspectorOpen(true)}
+          className={cn(
+            "fixed right-4 bottom-4 z-20 inline-flex items-center gap-2 px-4 h-11 rounded-md md:hidden",
+            "bg-primary text-primary-foreground type-label-sm tracking-label-wide shadow-lg cursor-pointer",
+            "hover:brightness-110 transition-all duration-200",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
+          )}
+        >
+          <Search className={cn("size-4")} aria-hidden />
+          Search
+        </button>
+      )}
+    </>
   );
 }

@@ -158,9 +158,12 @@ function LenderCell({
 function DebtTable({
   debt,
   pageSize,
+  pinToolbar = false,
 }: {
   debt: CurrentCommercialDebt[];
   pageSize: number;
+  /** Pin the search bar to the top of the enclosing modal body while it scrolls. */
+  pinToolbar?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -200,7 +203,13 @@ function DebtTable({
 
   return (
     <div>
-      <Table.Toolbar>
+      <Table.Toolbar
+        // See the tree section's pinned filter for why the margin and padding
+        // straddle the modal body's top padding.
+        className={cn(
+          pinToolbar && "sticky -top-6 z-10 -mt-6 pt-6 bg-background",
+        )}
+      >
         <SearchInput
           value={query}
           onValueChange={(next) => {
@@ -388,7 +397,7 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
           {retrieved ? `, retrieved ${retrieved}` : null}.
         </>
       }
-      expanded={<DebtTable debt={debt} pageSize={EXPANDED_PAGE_SIZE} />}
+      expanded={<DebtTable debt={debt} pageSize={EXPANDED_PAGE_SIZE} pinToolbar />}
     >
       <DebtTable debt={debt} pageSize={INLINE_PAGE_SIZE} />
     </SectionCard>

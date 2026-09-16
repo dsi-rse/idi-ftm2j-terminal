@@ -17,6 +17,8 @@ type DrawerContextValue = {
   open: boolean;
   setOpen: (open: boolean) => void;
   toggle: () => void;
+  /** True when the drawer shows in either mode, so slots know to render. */
+  visible: boolean;
 };
 
 const DrawerContext = createContext<DrawerContextValue | null>(null);
@@ -52,6 +54,14 @@ type DrawerRootProps = {
    * transition, which would otherwise trail the pointer by its duration.
    */
   resizing?: boolean;
+  /**
+   * Whether the full-screen sheet shows below `md`. Separate from `open`,
+   * which governs the inline rail at `md` and above: a rail that is part of
+   * the desktop layout is, on a phone, an overlay that hides the whole page,
+   * so the two states have different sensible defaults and are toggled by
+   * different controls.
+   */
+  mobileOpen?: boolean;
 };
 
 /**
@@ -71,6 +81,7 @@ function DrawerRoot({
   openWidthClassName = "md:w-1/4",
   openWidth,
   resizing = false,
+  mobileOpen = false,
   children,
 }: PropsWithChildren<DrawerRootProps>) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(defaultOpen);
@@ -88,8 +99,8 @@ function DrawerRoot({
   const toggle = useCallback(() => setOpen(!open), [open, setOpen]);
 
   const value = useMemo<DrawerContextValue>(
-    () => ({ open, setOpen, toggle }),
-    [open, setOpen, toggle],
+    () => ({ open, setOpen, toggle, visible: open || mobileOpen }),
+    [open, setOpen, toggle, mobileOpen],
   );
 
   return (
@@ -108,8 +119,10 @@ function DrawerRoot({
           "flex flex-col bg-muted-foreground",
           "transition-[width] duration-200 ease-out data-[resizing]:transition-none",
           // Border + shadow only when open; when collapsed, the drawer
-          // renders as an empty zero-width column.
-          open && "border-r border-muted/40 shadow-md",
+          // renders as an empty zero-width column. `overflow-hidden` keeps
+          // the slots, which may be mounted for the mobile sheet, from
+          // spilling out of that column.
+          open ? "border-r border-muted/40 shadow-md" : "md:overflow-hidden",
           // Desktop: 1/4 page width when open, 0 when closed.
           // `md:min-w-0` overrides flexbox's default `min-width: auto`,
           // which would otherwise keep the aside sized to its min-content
@@ -124,7 +137,7 @@ function DrawerRoot({
           // if content demands it.
           "md:min-h-[calc(100dvh-10rem)]",
           // Mobile: full screen (fixed overlay) when open; hidden when closed.
-          open
+          mobileOpen
             ? "fixed inset-0 z-40 w-full md:relative md:inset-auto md:z-auto"
             : "hidden md:relative md:flex",
           className,
@@ -143,8 +156,8 @@ type DrawerSlotProps = HTMLAttributes<HTMLDivElement>;
  * The header row of the {@link Drawer}. Hidden when the drawer is collapsed.
  */
 function DrawerHeader({ className, children, ...props }: DrawerSlotProps) {
-  const { open } = useDrawerContext("Drawer.Header");
-  if (!open) return null;
+  const { visible } = useDrawerContext("Drawer.Header");
+  if (!visible) return null;
   return (
     <div
       {...props}
@@ -165,8 +178,8 @@ DrawerHeader.displayName = "Drawer.Header";
  * the drawer grows a horizontal scrollbar instead of being clipped.
  */
 function DrawerBody({ className, children, ...props }: DrawerSlotProps) {
-  const { open } = useDrawerContext("Drawer.Body");
-  if (!open) return null;
+  const { visible } = useDrawerContext("Drawer.Body");
+  if (!visible) return null;
   return (
     <div
       {...props}

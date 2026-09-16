@@ -81,12 +81,19 @@ type CompaniesState = {
   recentPage: number;
   savedPage: number;
   isInspectorOpen: boolean;
+  /**
+   * Whether the rail shows as a full-screen sheet below `md`. Closed by
+   * default and never persisted: on a phone the sheet hides the whole page,
+   * so it opens only on request and closes again once a company is chosen.
+   */
+  isMobileInspectorOpen: boolean;
   /** Width of the rail at `md`+ while open, in px. Persisted. */
   inspectorWidth: number;
   setSearchQuery: (q: string) => void;
   setActiveTab: (t: CompanyTab) => void;
   setPage: (tab: CompanyTab, page: number) => void;
   setInspectorOpen: (open: boolean) => void;
+  setMobileInspectorOpen: (open: boolean) => void;
   setInspectorWidth: (width: number) => void;
 };
 
@@ -135,9 +142,10 @@ export const useCompaniesStore = create<CompaniesState>()(
       recentPage: 1,
       savedPage: 1,
       // Open by default: the search rail is part of the terminal layout, not
-      // an occasional overlay. Below `md` this renders as a full-screen sheet
-      // — see the mobile-scope issue noted on the design-parity epic.
+      // an occasional overlay. Below `md` the rail is a full-screen sheet with
+      // its own state, `isMobileInspectorOpen`, which starts closed.
       isInspectorOpen: true,
+      isMobileInspectorOpen: false,
       inspectorWidth: INSPECTOR_WIDTH_DEFAULT,
       setSearchQuery: (q) => set({ searchQuery: q, allPage: 1 }),
       setActiveTab: (t) => set({ activeTab: t }),
@@ -150,6 +158,7 @@ export const useCompaniesStore = create<CompaniesState>()(
               : { savedPage: page },
         ),
       setInspectorOpen: (open) => set({ isInspectorOpen: open }),
+      setMobileInspectorOpen: (open) => set({ isMobileInspectorOpen: open }),
       setInspectorWidth: (width) =>
         set({ inspectorWidth: clampInspectorWidth(Math.round(width)) }),
     }),

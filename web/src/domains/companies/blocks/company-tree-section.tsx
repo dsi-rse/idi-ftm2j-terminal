@@ -291,7 +291,19 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
       source={<TreeSources company={company} relationships={relationships} />}
       expanded={
         <div className="max-w-3xl mx-auto">
-          {filter}
+          {/* Pinned: the expanded tree runs to hundreds of rows, and the filter
+              is the way back up. Sticky offsets measure from the scroll body's
+              content edge, inside its 24px top padding, so `-top-6` pins the
+              bar flush with the visible top; the matching negative margin and
+              padding extend its background over that gap, so rows scrolling
+              under it do not show through. */}
+          {filter ? (
+            <div className="sticky -top-6 z-10 -mt-6 flex flex-col pt-6 bg-background">
+              {/* A flex column, so the filter's bottom margin stays inside
+                  this box and the background covers it too. */}
+              {filter}
+            </div>
+          ) : null}
           <TreeLines rows={[registrant, ...filtered]} />
           {noMatches}
           <p className="mt-8 type-caption leading-relaxed">
@@ -307,7 +319,9 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
       <TreeLines rows={visible} />
       {noMatches}
       {totalPages > 1 || filtering ? (
-        <div className="mt-4 flex items-center justify-between gap-4">
+        // Wraps so the pager drops to its own line on a phone: the count and a
+        // six-page list side by side are wider than the card there.
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
           <p className="type-label-sm m-0">
             {filtering
               ? `${filtered.length} of ${subsidiaryCount} subsidiaries`

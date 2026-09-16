@@ -181,9 +181,12 @@ function ShareholderRow({
 function ShareholdersTable({
   holdings,
   pageSize,
+  pinToolbar = false,
 }: {
   holdings: CurrentShareholder[];
   pageSize: number;
+  /** Pin the search bar to the top of the enclosing modal body while it scrolls. */
+  pinToolbar?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -213,7 +216,13 @@ function ShareholdersTable({
 
   return (
     <div>
-      <Table.Toolbar>
+      <Table.Toolbar
+        // See the tree section's pinned filter for why the margin and padding
+        // straddle the modal body's top padding.
+        className={cn(
+          pinToolbar && "sticky -top-6 z-10 -mt-6 pt-6 bg-background",
+        )}
+      >
         <SearchInput
           value={query}
           onValueChange={(next) => {
@@ -400,7 +409,7 @@ export function CompanyShareholdersSection({
         </>
       }
       expanded={
-        <ShareholdersTable holdings={holdings} pageSize={EXPANDED_PAGE_SIZE} />
+        <ShareholdersTable holdings={holdings} pageSize={EXPANDED_PAGE_SIZE} pinToolbar />
       }
     >
       <ShareholdersTable holdings={holdings} pageSize={INLINE_PAGE_SIZE} />

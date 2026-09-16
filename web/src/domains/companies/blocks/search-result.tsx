@@ -1,7 +1,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-import type { CompanySearchMeta } from "@/domains/companies/stores/companies";
+import {
+  type CompanySearchMeta,
+  useCompaniesStore,
+} from "@/domains/companies/stores/companies";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import {
   type MatchSegment,
@@ -170,6 +173,9 @@ export function SearchResult({
   matchHint,
 }: SearchResultProps) {
   const router = useRouter();
+  const setMobileInspectorOpen = useCompaniesStore(
+    (s) => s.setMobileInspectorOpen,
+  );
   const rowRef = useRef<HTMLDivElement>(null);
   // The rail follows the selected company to its page; this brings the row
   // itself into view when that page is longer than the rail.
@@ -196,7 +202,13 @@ export function SearchResult({
         // border, so it reads as selected at a glance rather than on a 2px edge.
         active ? "border-l-primary bg-overlay" : "border-l-transparent",
       )}
-      onClick={() => router.push(`/companies/${permId}`)}
+      // The sheet closes here, not only when the route changes: picking the
+      // company already on screen changes no route, and the sheet would stay
+      // up with no visible way past it.
+      onClick={() => {
+        setMobileInspectorOpen(false);
+        router.push(`/companies/${permId}`);
+      }}
     >
       <div className={cn("type-meta leading-none")}>
         {/* As tall as the name's line box, so the star and rank centre on it. */}

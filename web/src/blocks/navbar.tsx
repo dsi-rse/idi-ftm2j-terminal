@@ -77,7 +77,7 @@ function NavbarRoot({ children }: PropsWithChildren) {
           shadow adds depth in light mode, where the content reads as sliding
           under the bar on the terminal shell's scrolling pane. */}
       <NavigationMenu.Root className="relative z-20 border-b border-muted/40 bg-background/95 shadow-sm backdrop-blur">
-        <div className="mx-12 py-3 flex items-center gap-4">{children}</div>
+        <div className="mx-4 md:mx-12 py-3 flex items-center gap-4">{children}</div>
       </NavigationMenu.Root>
     </NavbarProvider>
   );
@@ -154,7 +154,7 @@ function NavbarList({ children }: PropsWithChildren) {
           className="fixed inset-0 z-50 flex flex-col bg-background pt-1 transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden"
         >
           <Dialog.Title className="sr-only">Site navigation</Dialog.Title>
-          <div className="mx-12 py-3 flex items-center justify-between gap-4">
+          <div className="mx-4 md:mx-12 py-3 flex items-center justify-between gap-4">
             <Link href="/" aria-label="Home page" onClick={close}>
               {brand}
             </Link>
@@ -170,16 +170,16 @@ function NavbarList({ children }: PropsWithChildren) {
               <X className="size-4" aria-hidden />
             </Dialog.Close>
           </div>
-          <NavigationMenu.List className="mx-12 py-6 flex flex-col gap-4 text-lg list-none p-0 m-0">
+          <NavigationMenu.List className="mx-4 md:mx-12 py-6 flex flex-col gap-4 text-lg list-none p-0 m-0">
             {children}
           </NavigationMenu.List>
           {extras ? (
             <>
               <hr
                 aria-hidden
-                className="mx-12 border-0 border-t border-foreground/10"
+                className="mx-4 md:mx-12 border-0 border-t border-foreground/10"
               />
-              <div className="mx-12 py-6 flex items-center justify-between gap-4">
+              <div className="mx-4 md:mx-12 py-6 flex items-center justify-between gap-4">
                 {extras}
               </div>
             </>
