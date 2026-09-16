@@ -193,20 +193,10 @@ function Identifier({
 }) {
   return (
     <div className={cn("flex flex-col gap-1 min-w-0")}>
-      <span
-        className={cn(
-          "type-label whitespace-nowrap",
-        )}
-      >
-        {label}
-      </span>
-      <span
-        className={cn(
-          "flex flex-wrap gap-x-3 gap-y-1 type-value",
-        )}
-      >
+      <dt className={cn("type-label whitespace-nowrap")}>{label}</dt>
+      <dd className={cn("m-0 flex flex-wrap gap-x-3 gap-y-1 type-value")}>
         {children}
-      </span>
+      </dd>
     </div>
   );
 }
@@ -224,8 +214,10 @@ function IdentifiersRow({ company }: { company: Company }) {
     company.sources[0]?.url ?? `https://permid.org/1-${company.permId}`;
   const several = company.registrants.length > 1;
   return (
-    <div
-      className={cn("flex flex-wrap gap-x-8 gap-y-3 pb-4 md:pb-6")}
+    // A description list, so a screen reader announces each label with its
+    // value and the group's name. An aria-label on a plain div is inert.
+    <dl
+      className={cn("m-0 flex flex-wrap gap-x-8 gap-y-3 pb-4 md:pb-6")}
       aria-label="Identifiers"
     >
       <Identifier label="PermID">
@@ -269,7 +261,7 @@ function IdentifiersRow({ company }: { company: Company }) {
           ))}
         </Identifier>
       ) : null}
-    </div>
+    </dl>
   );
 }
 
