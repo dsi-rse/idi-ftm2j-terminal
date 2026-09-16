@@ -331,7 +331,11 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
           <InspectorHandle
             aria-label="Collapse company search"
             onClick={() => setInspectorOpen(false)}
-            className={cn("absolute -right-6 top-1/2 z-10 -translate-y-1/2")}
+            // One pixel past its own width, so the tab clears the rail's 1px
+            // border rather than sitting on it.
+            className={cn(
+              "absolute -right-[calc(--spacing(6)+1px)] top-1/2 z-10 -translate-y-1/2",
+            )}
           />
         </>
       ) : null}
