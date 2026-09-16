@@ -295,10 +295,12 @@ export function SearchResult({
       </div>
       {tickers && tickers.length > 0 && (
         // Nudged down to the cap line of the text beside it, not the top of
-        // its line box: the box carries 2.4px of half-leading above the glyphs
-        // at 12px/1.4, and Inter's ascender sits another 3.3px above its caps.
-        // Aligned to the box, the chip reads as floating above the name.
-        <div className={cn("justify-self-end leading-none mt-1.5")}>
+        // its line box. At 12px/1.4 with Inter's metrics (ascender 0.969em,
+        // descender 0.242em, cap height 0.727em) the content area is 14.5px
+        // inside a 16.8px line, so 1.1px of half-leading sits above it and the
+        // caps start a further 2.9px down: 4px in all. Aligned to the box
+        // instead, the chip reads as floating above the name.
+        <div className={cn("justify-self-end leading-none mt-1")}>
           <div className={cn("flex flex-col gap-1")}>
             {tickers.map((ticker, i) => {
               const segments = tickerSegments?.[i];
