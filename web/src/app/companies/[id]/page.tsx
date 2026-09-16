@@ -182,8 +182,9 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
       <div className="relative flex flex-1 w-full">
         <CompanyInspectorOpener />
         {/* pb-4 matches the gap between sections, so the last card sits as far
-            from the footer rule as it does from the card above it. */}
-        <main className="flex-1 min-w-0 flex flex-col gap-4 px-4 pb-4 md:pl-8 md:pr-4">
+            from the footer rule as it does from the card above it. pt-6 clears
+            the title's cap height from the nav bar's bottom rule. */}
+        <main className="flex-1 min-w-0 flex flex-col gap-4 px-4 pt-6 pb-4 md:pl-8 md:pr-4">
           <CompanyHeader company={company} />
           <CompanyTabs companyName={company.name} />
           <div className="flex flex-col gap-4">

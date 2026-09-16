@@ -71,8 +71,13 @@ type NavbarLinkProps = {
 function NavbarRoot({ children }: PropsWithChildren) {
   return (
     <NavbarProvider>
-      <NavigationMenu.Root className="relative bg-background/95 backdrop-blur">
-        <div className="mx-12 py-4 flex items-center gap-4">{children}</div>
+      {/* Border and shadow together mark the bar's lower edge against page
+          content that otherwise shares its background. The hairline does the
+          work in dark mode, where a black shadow has nothing to darken; the
+          shadow adds depth in light mode, where the content reads as sliding
+          under the bar on the terminal shell's scrolling pane. */}
+      <NavigationMenu.Root className="relative z-20 border-b border-muted/40 bg-background/95 shadow-sm backdrop-blur">
+        <div className="mx-12 py-3 flex items-center gap-4">{children}</div>
       </NavigationMenu.Root>
     </NavbarProvider>
   );
@@ -149,7 +154,7 @@ function NavbarList({ children }: PropsWithChildren) {
           className="fixed inset-0 z-50 flex flex-col bg-background pt-1 transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden"
         >
           <Dialog.Title className="sr-only">Site navigation</Dialog.Title>
-          <div className="mx-12 py-4 flex items-center justify-between gap-4">
+          <div className="mx-12 py-3 flex items-center justify-between gap-4">
             <Link href="/" aria-label="Home page" onClick={close}>
               {brand}
             </Link>
