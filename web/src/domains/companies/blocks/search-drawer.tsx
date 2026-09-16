@@ -222,6 +222,14 @@ function ResizeHandle({
       }}
       onPointerMove={(event) => {
         if (!drag.current) return;
+        // The primary button can lift outside the window without a pointerup
+        // reaching us; a move with no button held then ends the drag rather
+        // than keeping the rail glued to the pointer.
+        if ((event.buttons & 1) === 0) {
+          drag.current = null;
+          onResizeEnd(last.current);
+          return;
+        }
         apply(
           clampInspectorWidth(
             drag.current.startWidth + event.clientX - drag.current.startX,
@@ -255,7 +263,9 @@ function ResizeHandle({
         onResizeEnd(clampInspectorWidth(width + delta));
       }}
       className={cn(
-        "absolute inset-y-0 right-0 z-10 hidden w-1.5 -mr-0.5 cursor-col-resize md:block",
+        // `touch-none`: without it a finger drag reads as a pan, and the
+        // browser cancels the pointer a few pixels in.
+        "absolute inset-y-0 right-0 z-10 hidden w-1.5 -mr-0.5 cursor-col-resize touch-none md:block",
         "hover:bg-primary/40 focus-visible:bg-primary/60 focus-visible:outline-none transition-colors",
       )}
     />
