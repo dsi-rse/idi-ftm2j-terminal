@@ -56,7 +56,7 @@ function PopoverContent({
             className,
           )}
         >
-          <div className="font-mono text-[10px] uppercase tracking-wider text-muted font-medium mb-2">
+          <div className="type-label mb-2">
             {title}
           </div>
           {children}

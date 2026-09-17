@@ -108,8 +108,19 @@ function LenderCell({
   onToggle: () => void;
 }) {
   const [first, ...rest] = instrument.lenders;
-  if (!first) return <Table.Cell primary="Lender not disclosed" />;
-  if (rest.length === 0) return <Table.Cell primary={first} />;
+  // Every branch sets the lender in the display face, as holder names are;
+  // the placeholder too, muted, so one column does not switch faces by row.
+  const name = "type-display text-name";
+  if (!first)
+    return (
+      <Table.Cell
+        primary={
+          <span className={cn(name, "text-muted")}>Lender not disclosed</span>
+        }
+      />
+    );
+  if (rest.length === 0)
+    return <Table.Cell primary={<span className={cn(name)}>{first}</span>} />;
 
   return (
     <Table.Cell
@@ -117,13 +128,13 @@ function LenderCell({
         expanded ? (
           // Labels are de-duplicated per instrument in the pipeline, so a label
           // is its own key.
-          <span className="flex flex-col gap-0.5">
+          <span className={cn(name, "flex flex-col gap-0.5")}>
             {instrument.lenders.map((lender) => (
               <span key={lender}>{lender}</span>
             ))}
           </span>
         ) : (
-          first
+          <span className={cn(name)}>{first}</span>
         )
       }
       secondary={
@@ -132,7 +143,7 @@ function LenderCell({
           onClick={onToggle}
           aria-expanded={expanded}
           className={cn(
-            "font-mono text-[10px] uppercase tracking-wider cursor-pointer",
+            "type-label-sm cursor-pointer",
             "hover:text-foreground rounded-sm",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
@@ -147,9 +158,12 @@ function LenderCell({
 function DebtTable({
   debt,
   pageSize,
+  pinToolbar = false,
 }: {
   debt: CurrentCommercialDebt[];
   pageSize: number;
+  /** Pin the search bar to the top of the enclosing modal body while it scrolls. */
+  pinToolbar?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -189,7 +203,13 @@ function DebtTable({
 
   return (
     <div>
-      <Table.Toolbar>
+      <Table.Toolbar
+        // See the tree section's pinned filter for why the margin and padding
+        // straddle the modal body's top padding.
+        className={cn(
+          pinToolbar && "sticky -top-6 z-10 -mt-6 pt-6 bg-background",
+        )}
+      >
         <SearchInput
           value={query}
           onValueChange={(next) => {
@@ -272,9 +292,9 @@ function DebtTable({
                       instrument.amount === null
                         ? "Not reported"
                         : formatAmountShort(
-                            instrument.amount,
-                            instrument.currency,
-                          )
+                          instrument.amount,
+                          instrument.currency,
+                        )
                     }
                     secondary={instrument.currency ?? undefined}
                   />
@@ -299,7 +319,7 @@ function DebtTable({
 }
 
 const INFO_COPY =
-  "Commercial debt instruments disclosed in this company's 8-K filings, one row per instrument, each linking to the filing it was extracted from. Amounts are reproduced as reported and are not converted — instruments occur in several currencies and no exchange rate is available, so figures in different currencies are not comparable and are never totalled. Most instruments disclose no end date; those are shown as undated rather than assumed current or expired. A lender appears as the filing describes it, which is sometimes a role such as \"the lenders party thereto\" rather than a name. Interest rates are not extracted. Matured and superseded instruments are excluded, and private debt never disclosed in an 8-K does not appear at all.";
+  "Commercial debt instruments disclosed in this company's 8-K filings, one row per instrument, each linking to the filing it was extracted from. Matured and superseded instruments are excluded, and private debt never disclosed in an 8-K does not appear at all.";
 
 /**
  * The count line under the section title: how many instruments, how they split
@@ -348,7 +368,7 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
         subtitle="No disclosed commercial debt"
         info={INFO_COPY}
       >
-        <p className="text-sm text-muted leading-relaxed m-0">
+        <p className="type-body m-0">
           No commercial debt instrument is in scope for this company. Instruments
           are extracted from 8-K filings, and only those that have neither
           matured nor been superseded are shown — a company with no 8-K debt
@@ -374,11 +394,10 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
       source={
         <>
           {documents} SEC 8-K filing{documents === 1 ? "" : "s"}
-          {retrieved ? `, retrieved ${retrieved}` : null}. Each row links to the
-          filing it was extracted from.
+          {retrieved ? `, retrieved ${retrieved}` : null}.
         </>
       }
-      expanded={<DebtTable debt={debt} pageSize={EXPANDED_PAGE_SIZE} />}
+      expanded={<DebtTable debt={debt} pageSize={EXPANDED_PAGE_SIZE} pinToolbar />}
     >
       <DebtTable debt={debt} pageSize={INLINE_PAGE_SIZE} />
     </SectionCard>

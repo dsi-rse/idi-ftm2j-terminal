@@ -7,6 +7,7 @@ import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { RowIndex, Table } from "@/components/table";
 import { formatAmountShort } from "@/lib/format-currency";
+import { cn } from "@/lib/utils";
 import type { Company, CurrentShareholder } from "@/types/domain";
 
 type CompanyShareholdersSectionProps = {
@@ -118,16 +119,21 @@ function ShareholderRow({
         <RowIndex index={rowNumber} />
       </Table.Cell>
       <Table.Cell
-        primary={holding.investor.name ?? "Unnamed holder"}
+        primary={
+          // Names are the display voice; the rest of the table is data.
+          <span className={cn("type-display text-name")}>
+            {holding.investor.name ?? "Unnamed holder"}
+          </span>
+        }
         secondary={holding.investorType}
       />
       <Table.Cell>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+        <span className="type-label-sm">
           {holding.investorCountry ?? "—"}
         </span>
       </Table.Cell>
       <Table.Cell>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-muted">
+        <span className="type-label-sm">
           {holding.securityType || "—"}
         </span>
       </Table.Cell>
@@ -175,9 +181,12 @@ function ShareholderRow({
 function ShareholdersTable({
   holdings,
   pageSize,
+  pinToolbar = false,
 }: {
   holdings: CurrentShareholder[];
   pageSize: number;
+  /** Pin the search bar to the top of the enclosing modal body while it scrolls. */
+  pinToolbar?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -207,7 +216,13 @@ function ShareholdersTable({
 
   return (
     <div>
-      <Table.Toolbar>
+      <Table.Toolbar
+        // See the tree section's pinned filter for why the margin and padding
+        // straddle the modal body's top padding.
+        className={cn(
+          pinToolbar && "sticky -top-6 z-10 -mt-6 pt-6 bg-background",
+        )}
+      >
         <SearchInput
           value={query}
           onValueChange={(next) => {
@@ -296,7 +311,7 @@ function ShareholdersTable({
 }
 
 const INFO_COPY =
-  "Institutional and pension-fund holdings in this company, one row per disclosed holding, each linking to the filing it was extracted from. Institutional holdings come from SEC Form 13-F; pension-fund holdings come from the fund's own reports. Values are reproduced in USD as the processor reported them. Percent-of-outstanding stake is still not shown: the shares-outstanding denominator is now available from the company's latest 10-K or 20-F, but it counts common shares as of that filing's cover date, which mismatches each holding's own report date and share class — so a derived percentage stays deferred pending review rather than presenting a mismatched ratio as a sourced fact. Coverage is limited to holdings whose issuer resolves to a known company, so this is a floor on who holds the company, not a complete register.";
+  "Institutional holdings in this company, one row per disclosed holding, each linking to the filing it was extracted from. Institutional holdings come from SEC Form 13-F. Coverage is limited to holdings whose issuer resolves to a known company, and only managers that exercise investment discretion over $100 million or more have to file Form 13-F.";
 
 /**
  * The count line under the section title: how many disclosed holdings, and the
@@ -310,9 +325,8 @@ function subtitle(holdings: CurrentShareholder[]): string {
     (newest, holding) => (holding.asOf > newest ? holding.asOf : newest),
     "",
   );
-  const count = `${holdings.length} disclosed holding${
-    holdings.length === 1 ? "" : "s"
-  }`;
+  const count = `${holdings.length} disclosed holding${holdings.length === 1 ? "" : "s"
+    }`;
   return latest ? `${count} · reported ${latest}` : count;
 }
 
@@ -367,7 +381,7 @@ export function CompanyShareholdersSection({
         subtitle="No disclosed shareholders"
         info={INFO_COPY}
       >
-        <p className="text-sm text-muted leading-relaxed m-0">
+        <p className="type-body m-0">
           No shareholding is attached to this company. Holdings are attached by
           resolving the security a holder reported to a known issuer, and a
           company whose securities have not been resolved appears here even when
@@ -391,12 +405,11 @@ export function CompanyShareholdersSection({
       source={
         <>
           {documents} disclosure{documents === 1 ? "" : "s"}
-          {retrievedLabel(holdings)}. Each row links to the filing it was
-          extracted from.
+          {retrievedLabel(holdings)}.
         </>
       }
       expanded={
-        <ShareholdersTable holdings={holdings} pageSize={EXPANDED_PAGE_SIZE} />
+        <ShareholdersTable holdings={holdings} pageSize={EXPANDED_PAGE_SIZE} pinToolbar />
       }
     >
       <ShareholdersTable holdings={holdings} pageSize={INLINE_PAGE_SIZE} />

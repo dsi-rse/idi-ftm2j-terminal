@@ -1,6 +1,10 @@
 import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 
-import type { CompanySearchMeta } from "@/domains/companies/stores/companies";
+import {
+  type CompanySearchMeta,
+  useCompaniesStore,
+} from "@/domains/companies/stores/companies";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import {
   type MatchSegment,
@@ -124,6 +128,16 @@ function Highlighted({
   );
 }
 
+/**
+ * The row's one text voice. The reviewer's note on the rail: Modernist
+ * typography changes only what communication needs, and the rank, name,
+ * sector, and country had three sizes and two families between them. All
+ * four now share 12px Inter; the name alone is set semibold, and the muted
+ * colour does the rest. The ticker chip keeps its mono, as a badge not a
+ * line of text.
+ */
+const ROW_TEXT = "font-sans text-value";
+
 /** The matched subsidiary name, with the query's hits marked. */
 function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
   // Bring the first hit into view: a match deep in a long name would otherwise
@@ -132,12 +146,14 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
   return (
     <p
       className={cn(
-        "flex min-w-0 items-baseline gap-1 text-xs font-light leading-none text-foreground",
+        "flex min-w-0 items-baseline gap-1 text-foreground",
+        ROW_TEXT,
       )}
     >
       {/* Fixed-width and non-shrinking, so a long name truncates on its own
           side rather than squeezing the guide out of the row. Teal stays on the
-          guide alone; the name text is foreground so it clears AA at 12px. */}
+          guide alone; the name text is foreground so it clears AA at 12px.
+          Raw font-mono on purpose: a glyph, not a text role. */}
       <span aria-hidden className={cn("shrink-0 font-mono text-primary")}>
         ↳
       </span>
@@ -168,32 +184,52 @@ export function SearchResult({
   matchHint,
 }: SearchResultProps) {
   const router = useRouter();
+  const setMobileInspectorOpen = useCompaniesStore(
+    (s) => s.setMobileInspectorOpen,
+  );
+  const rowRef = useRef<HTMLDivElement>(null);
+  // The rail follows the selected company to its page; this brings the row
+  // itself into view when that page is longer than the rail.
+  useEffect(() => {
+    if (active) rowRef.current?.scrollIntoView({ block: "nearest" });
+  }, [active]);
   const { permId, companyName, sector, country, tickers } = company;
   const shown = matches?.slice(0, MAX_SUBSIDIARY_LINES) ?? [];
   const hidden = (matches?.length ?? 0) - shown.length;
   const nameMatched = nameSegments?.some((segment) => segment.matched) ?? false;
   return (
     <div
+      ref={rowRef}
       // Columns are content-sized rather than fixed fractions: the rank grows
       // past two digits deep in the result set and, pinned to one eighth of the
       // panel, would otherwise overrun the name beside it.
       className={cn(
-        "grid grid-cols-[auto_1fr_auto] gap-2 text-sm border-b border-muted/25 p-3 cursor-pointer border-l-2 hover:bg-muted/10",
+        // Top-aligned throughout: the rank and name share one size and line
+        // height, so their first lines coincide, and the ticker chip's top
+        // edge sits on the cap line of that text.
+        "grid grid-cols-[auto_1fr_auto] items-start gap-2 border-b border-muted/25 p-3 cursor-pointer border-l-2 hover:bg-muted/10",
         // The selected row carries a filled surface as well as the accent
         // border, so it reads as selected at a glance rather than on a 2px edge.
         active ? "border-l-primary bg-overlay" : "border-l-transparent",
       )}
-      onClick={() => router.push(`/companies/${permId}`)}
+      // The sheet closes here, not only when the route changes: picking the
+      // company already on screen changes no route, and the sheet would stay
+      // up with no visible way past it.
+      onClick={() => {
+        setMobileInspectorOpen(false);
+        router.push(`/companies/${permId}`);
+      }}
     >
-      <div className={cn("text-muted text-xs font-mono leading-none")}>
-        <div className={cn("flex flex-row gap-2 items-start")}>
+      <div className={cn(ROW_TEXT, "text-muted tabular-nums")}>
+        {/* The star centres on the rank's line, which is the name's line too. */}
+        <div className={cn("flex flex-row items-center gap-2")}>
           <CompanyBookmark company={company} />
           <p>{index.toString().padStart(Math.max(2, rankWidth), "0")}</p>
         </div>
       </div>
       <div className={cn("min-w-0")}>
         <div className={cn("flex flex-col gap-1")}>
-          <p className={cn("font-bold text-xs leading-none")}>
+          <p className={cn(ROW_TEXT, "font-semibold text-foreground break-words")}>
             {nameMatched && nameSegments ? (
               <Highlighted segments={nameSegments} />
             ) : (
@@ -213,7 +249,7 @@ export function SearchResult({
                 <SubsidiaryLine key={`${match.name}-${i}`} match={match} />
               ))}
               {hidden > 0 && (
-                <p className={cn("text-muted text-xs font-light leading-none")}>
+                <p className={cn(ROW_TEXT, "text-muted")}>
                   +{hidden} more subsidiary{" "}
                   {hidden === 1 ? "match" : "matches"}
                 </p>
@@ -224,19 +260,19 @@ export function SearchResult({
             // sector and country did not explain this hit, so the ID that did
             // stands alone rather than trailing two lines that are just noise
             // for a lookup by identifier.
-            <p className={cn("text-muted text-xs font-light leading-none")}>
+            <p className={cn(ROW_TEXT, "text-muted")}>
               PermID: <Highlighted segments={permIdSegments} />
             </p>
           ) : (
             <>
-              <p className={cn("text-muted text-xs font-light leading-none")}>
+              <p className={cn(ROW_TEXT, "text-muted")}>
                 {hasHighlight(sectorSegments) && sectorSegments ? (
                   <Highlighted segments={sectorSegments} />
                 ) : (
                   (sector ?? "--")
                 )}
               </p>
-              <p className={cn("text-muted text-xs font-light leading-none")}>
+              <p className={cn(ROW_TEXT, "text-muted")}>
                 {hasHighlight(countrySegments) && countrySegments ? (
                   <Highlighted segments={countrySegments} />
                 ) : (
@@ -244,25 +280,27 @@ export function SearchResult({
                 )}
               </p>
               {matchHint && (
-                <p
-                  className={cn(
-                    "text-muted text-xs font-light italic leading-none",
-                  )}
-                >
+                <p className={cn(ROW_TEXT, "italic text-muted")}>
                   {matchHint}
                 </p>
               )}
             </>
           )}
           {viewedAt !== undefined && (
-            <p className={cn("text-muted text-xs font-light leading-none")}>
+            <p className={cn(ROW_TEXT, "text-muted")}>
               {formatRelativeTime(viewedAt)}
             </p>
           )}
         </div>
       </div>
       {tickers && tickers.length > 0 && (
-        <div className={cn("justify-self-end leading-none")}>
+        // Nudged down to the cap line of the text beside it, not the top of
+        // its line box. At 12px/1.4 with Inter's metrics (ascender 0.969em,
+        // descender 0.242em, cap height 0.727em) the content area is 14.5px
+        // inside a 16.8px line, so 1.1px of half-leading sits above it and the
+        // caps start a further 2.9px down: 4px in all. Aligned to the box
+        // instead, the chip reads as floating above the name.
+        <div className={cn("justify-self-end leading-none mt-1")}>
           <div className={cn("flex flex-col gap-1")}>
             {tickers.map((ticker, i) => {
               const segments = tickerSegments?.[i];
@@ -270,12 +308,10 @@ export function SearchResult({
                 <p
                   key={ticker}
                   className={cn(
-                    "inline-block font-mono text-xs px-1 rounded-sm",
+                    "inline-block type-chip",
                     // The selected row's ticker picks up the accent too, so the
                     // whole row reads as selected rather than just its left edge.
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted/25",
+                    active && "bg-primary text-primary-foreground border-primary",
                   )}
                 >
                   {!active && hasHighlight(segments) && segments ? (

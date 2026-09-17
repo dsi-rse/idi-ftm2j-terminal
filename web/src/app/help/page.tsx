@@ -46,11 +46,12 @@ export default function HelpPage() {
               Getting started
             </Article.Body.Section.Title>
             <Article.Body.Section.Paragraph>
-              Open <strong>Companies</strong> from the menu to browse the full
-              list. Use the search bar to filter by company name, ticker,
-              country, or the name of a disclosed subsidiary and
-              switch between the All, Recent, and Saved tabs to manage your
-              working set. Select any company to load its profile.
+              Search from the landing page by company name, ticker, PermID, or
+              the name of a disclosed subsidiary, and select a result to load
+              its profile. Every company page carries the{" "}
+              <strong>Company Search</strong> rail, which lists the full
+              dataset with the same filters and lets you switch between the
+              All, Recent, and Saved tabs to manage your working set.
             </Article.Body.Section.Paragraph>
           </Article.Body.Section>
 

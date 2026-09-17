@@ -46,6 +46,15 @@ function toSearchMeta(company: CompanySearchMeta): CompanySearchMeta {
 
 export type CompanyTab = "all" | "recent" | "saved";
 
+/** Default and bounds, in px, of the company search rail at `md` and above. */
+export const INSPECTOR_WIDTH_DEFAULT = 312;
+export const INSPECTOR_WIDTH_MIN = 240;
+export const INSPECTOR_WIDTH_MAX = 560;
+
+export function clampInspectorWidth(width: number): number {
+  return Math.min(INSPECTOR_WIDTH_MAX, Math.max(INSPECTOR_WIDTH_MIN, width));
+}
+
 const idbStorage: StateStorage = {
   getItem: async (name) => (await get(name)) ?? null,
   setItem: async (name, value) => {
@@ -72,10 +81,20 @@ type CompaniesState = {
   recentPage: number;
   savedPage: number;
   isInspectorOpen: boolean;
+  /**
+   * Whether the rail shows as a full-screen sheet below `md`. Closed by
+   * default and never persisted: on a phone the sheet hides the whole page,
+   * so it opens only on request and closes again once a company is chosen.
+   */
+  isMobileInspectorOpen: boolean;
+  /** Width of the rail at `md`+ while open, in px. Persisted. */
+  inspectorWidth: number;
   setSearchQuery: (q: string) => void;
   setActiveTab: (t: CompanyTab) => void;
   setPage: (tab: CompanyTab, page: number) => void;
   setInspectorOpen: (open: boolean) => void;
+  setMobileInspectorOpen: (open: boolean) => void;
+  setInspectorWidth: (width: number) => void;
 };
 
 export const useCompaniesStore = create<CompaniesState>()(
@@ -123,9 +142,11 @@ export const useCompaniesStore = create<CompaniesState>()(
       recentPage: 1,
       savedPage: 1,
       // Open by default: the search rail is part of the terminal layout, not
-      // an occasional overlay. Below `md` this renders as a full-screen sheet
-      // — see the mobile-scope issue noted on the design-parity epic.
+      // an occasional overlay. Below `md` the rail is a full-screen sheet with
+      // its own state, `isMobileInspectorOpen`, which starts closed.
       isInspectorOpen: true,
+      isMobileInspectorOpen: false,
+      inspectorWidth: INSPECTOR_WIDTH_DEFAULT,
       setSearchQuery: (q) => set({ searchQuery: q, allPage: 1 }),
       setActiveTab: (t) => set({ activeTab: t }),
       setPage: (tab, page) =>
@@ -137,20 +158,30 @@ export const useCompaniesStore = create<CompaniesState>()(
               : { savedPage: page },
         ),
       setInspectorOpen: (open) => set({ isInspectorOpen: open }),
+      setMobileInspectorOpen: (open) => set({ isMobileInspectorOpen: open }),
+      setInspectorWidth: (width) =>
+        set({ inspectorWidth: clampInspectorWidth(Math.round(width)) }),
     }),
     {
       name: "companies-store",
       version: 3,
       storage: createJSONStorage(() => idbStorage),
+      // A key absent from an older persisted record falls back to its
+      // default on merge, so adding one here needs no version bump.
       partialize: (s) => ({
         bookmarked: s.bookmarked,
         recentlyViewed: s.recentlyViewed,
+        inspectorWidth: s.inspectorWidth,
       }),
       migrate: (persisted, version) => {
         if (version < 3) {
           return { bookmarked: [], recentlyViewed: [] };
         }
-        return persisted as { bookmarked: []; recentlyViewed: [] };
+        return persisted as {
+          bookmarked: [];
+          recentlyViewed: [];
+          inspectorWidth?: number;
+        };
       },
     },
   ),

@@ -287,6 +287,44 @@ def registrants_three_ciks_one_source() -> None:
     assert all(r["sources"] for r in registrants), "registrant missing a citation"
 
 
+def identifiers_cusips_are_collected() -> None:
+    """Every `identifier_type == "cusip"` row lands in `cusips`, sorted and
+    de-duplicated; a company with none gets an empty list, not a null."""
+    result = run_build(
+        company_rows(
+            {"identifier": "0000000001", "entity_name": "FIXTURE CO A"},
+            # The larger CUSIP comes first so that input order differs from
+            # the sorted output; otherwise a build that merely preserved
+            # order would pass the sortedness check.
+            {
+                "identifier_type": "CUSIP",
+                "identifier": " 594918104 ",
+                "standard_identifier": "Cusip:594918104",
+            },
+            {
+                "identifier_type": "cusip",
+                "identifier": "037833100",
+                "standard_identifier": "Cusip:037833100",
+            },
+            {
+                "identifier_type": "cusip",
+                "identifier": "037833100",
+                "standard_identifier": "Cusip:037833100",
+            },
+            COMPANION,
+        ),
+        structure_rows({}, COMPANION_STRUCTURE),
+    )
+
+    record = result.by_permid("5000000001")
+    assert record["cusips"] == ["037833100", "594918104"], record["cusips"]
+    # CUSIP rows carry no CIK and must not become registrants.
+    assert [r["cik"] for r in record["registrants"]] == ["0000000001"], record[
+        "registrants"
+    ]
+    assert result.by_permid("5000000002")["cusips"] == [], "expected no cusips"
+
+
 def registrants_survive_across_sources() -> None:
     """Case 3: CIK A from one source, CIK B from another. Both survive.
 
@@ -1619,6 +1657,7 @@ CASES = [
     divergence_within_one_snapshot_warns,
     divergence_across_snapshots_is_silent,
     registrants_three_ciks_one_source,
+    identifiers_cusips_are_collected,
     registrants_survive_across_sources,
     registrants_primary_is_lowest_cik_for_aep,
     registrants_primary_is_lowest_cik_for_entergy,

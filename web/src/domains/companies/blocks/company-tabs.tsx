@@ -163,7 +163,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
           <span
             aria-hidden={!isStuck}
             className={cn(
-              "font-inter-tight truncate pb-1.5 text-base font-semibold text-foreground transition-opacity",
+              "type-display truncate pb-1.5 text-base transition-opacity",
               isStuck ? "opacity-100" : "sr-only opacity-0",
             )}
           >
@@ -178,7 +178,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
                     href={`#${tab.id}`}
                     onClick={handleClick(tab.id)}
                     className={cn(
-                      "inline-flex items-center px-3 py-2 text-xs cursor-pointer",
+                      "inline-flex items-center px-3 py-2 font-sans text-name font-medium cursor-pointer",
                       "border-b-2 -mb-px transition-colors",
                       "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                       isActive
@@ -205,7 +205,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
               type="button"
               disabled
               title="Not available yet"
-              className="rounded-sm border border-muted/40 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-muted disabled:cursor-not-allowed"
+              className="border border-muted/40 px-3 py-1 type-label-sm normal-case tracking-label-tight disabled:cursor-not-allowed"
             >
               {action}
             </button>

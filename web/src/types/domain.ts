@@ -87,11 +87,7 @@ export type CompanyReference = {
 // ---------------------------------------------------------------------------
 
 export type NameChangeReason =
-  | "Rebrand"
-  | "Merger"
-  | "Acquisition"
-  | "Spinoff"
-  | "LegalSettlement";
+  "Rebrand" | "Merger" | "Acquisition" | "Spinoff" | "LegalSettlement";
 
 export type Name = CitedEntity & {
   value: string;
@@ -534,6 +530,13 @@ export type Company = CitedEntity & {
    * has no CIK.
    */
   registrants: Registrant[];
+  /**
+   * Every CUSIP company-info resolved to this PermID, sorted. Several when the
+   * issuer has more than one share class or listed debt security; empty for
+   * the majority of companies, whose securities company-info has not resolved.
+   * These are also the keys shareholdings are attached on.
+   */
+  cusips: string[];
   ein: string | null;
   lei: string | null;
 

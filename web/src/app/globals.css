@@ -82,6 +82,73 @@
 	--font-inter: var(--font-inter);
 	--font-inter-tight: var(--font-inter-tight);
 	--font-mono: var(--font-jetbrains-mono);
+	/* Tailwind's own `font-sans` would otherwise resolve to the system stack,
+	   silently dropping Inter. */
+	--font-sans: var(--font-inter);
+
+	/* TYPE SCALE — the design's small sizes, named so no component spells a
+	   pixel value. Body sizes keep Tailwind's `text-sm` / `text-base` / … */
+	--text-label: 0.59375rem; /* 9.5px — micro-label */
+	--text-label--line-height: 1.2;
+	--text-micro: 0.625rem; /* 10px — dense label, caption, meta */
+	--text-micro--line-height: 1.4;
+	--text-caption: 0.6875rem; /* 11px — subtitle, source text */
+	--text-caption--line-height: 1.4;
+	--text-value: 0.75rem; /* 12px — data value */
+	--text-value--line-height: 1.4;
+	--text-name: 0.8125rem; /* 13px — entity name in a row */
+	--text-name--line-height: 1.3;
+	--tracking-label: 0.14em;
+	--tracking-label-wide: 0.18em;
+	--tracking-label-tight: 0.06em;
+}
+
+/* TYPOGRAPHY ROLES
+   The design's rule: JetBrains Mono is the data and label voice, Inter Tight
+   the display voice, Inter the body voice. Each role below is one @utility so
+   a component names the role rather than the stack, and a call site can still
+   override a single property (`type-label text-primary`): Tailwind orders
+   multi-property utilities before single-property ones. */
+@utility type-label {
+	/* Micro-label: cell and stat labels, table headers, section kickers. */
+	@apply font-mono text-label font-medium uppercase tracking-label text-muted;
+}
+@utility type-label-sm {
+	/* Dense label one step up: rail titles and tabs, row counts, secondary
+	   cell text, uppercase links. */
+	@apply font-mono text-micro uppercase tracking-wider text-muted;
+}
+@utility type-caption {
+	/* Subtitles, citations, empty states. */
+	@apply font-mono text-caption text-muted;
+}
+@utility type-meta {
+	/* The muted line under a value or a name: dates, sources, result subtitles. */
+	@apply font-mono text-micro text-muted;
+}
+@utility type-value {
+	/* A datum: header cell values, table cells, identifiers, inputs. */
+	@apply font-mono text-value tabular-nums text-foreground;
+}
+@utility type-display {
+	/* Names and headline numbers. Size is set at the call site, and so is any
+	   negative tracking: Inter Tight is already a tight cut, and pulling its
+	   letters closer at 13px crowds a name, and at 20px still reads cramped.
+	   Only elements of roughly 30px and up add `tracking-tight`: the company
+	   title, the article page titles, and the KPI numbers. */
+	@apply font-inter-tight tracking-normal font-semibold text-foreground;
+}
+@utility type-body {
+	/* Prose. */
+	@apply font-sans text-sm leading-relaxed text-muted;
+}
+@utility type-chip {
+	/* Ticker badge: bordered, unrounded, mono. */
+	@apply font-mono text-micro tracking-label-tight px-1.5 py-0.5 border border-muted/25 bg-muted/25 text-foreground;
+}
+@utility type-source-kicker {
+	/* The "SOURCE." lead-in before a citation. */
+	@apply font-mono text-micro font-semibold uppercase tracking-label-tight text-foreground mr-2;
 }
 
 html {

@@ -203,6 +203,30 @@ Same rule for types and helpers.
 **Composition.** All class strings go through
 [cn()](../web/src/lib/utils.ts). Never concatenate class strings by hand.
 
+**Typography.** The design's rule is that JetBrains Mono is the data and label
+voice, Inter Tight the display voice, and Inter the body voice. Those roles are
+named `@utility` classes in `globals.css`, and a component names the role
+rather than spelling out a stack or a pixel size:
+
+| Utility | Role |
+| --- | --- |
+| `type-label` | micro-label: cell and stat labels, table headers, kickers |
+| `type-label-sm` | dense label one step up: rail title and tabs, counts, uppercase links |
+| `type-caption` | subtitles, citations, empty states |
+| `type-meta` | the muted line under a value or name |
+| `type-value` | a datum: cell values, table cells, identifiers, inputs |
+| `type-display` | names and headline numbers; size set at the call site |
+| `type-body` | prose |
+| `type-chip` | ticker badge |
+| `type-source-kicker` | the `SOURCE.` lead-in |
+
+A call site may override one property (`type-label text-primary`); Tailwind
+orders multi-property utilities before single-property ones, so the override
+wins. Sizes below `text-sm` are tokens (`text-label`, `text-micro`,
+`text-caption`, `text-value`, `text-name`), never arbitrary values. `font-mono`
+appears raw only on glyphs (tree guides, the `↳` match marker), with a comment
+saying so.
+
 **Base UI.** Every interactive primitive in `components/` wraps a
 `@base-ui/react` headless component. Base UI is the bottom of the stack — its
 presence is why `components/` files stay small and never need `forwardRef`
@@ -276,6 +300,14 @@ grep -n "from \"\\./" web/src/components/*.tsx
 
 # No block-to-block imports
 grep -n "from \"\\./" web/src/blocks/*.tsx
+```
+
+```bash
+# Typography goes through the role utilities, not pixel values or raw stacks.
+# The first should return nothing; the second only glyph one-offs that carry a
+# "Raw font-mono on purpose" comment.
+grep -rnE "text-\[[0-9.]+px\]|tracking-\[[0-9.]+em\]" web/src --include='*.tsx'
+grep -rnE "font-mono|font-inter" web/src --include='*.tsx' | grep -v app/layout.tsx
 ```
 
 Each of the first two commands should return nothing. The last two should only

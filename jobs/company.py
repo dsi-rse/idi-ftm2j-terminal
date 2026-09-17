@@ -18,6 +18,7 @@ from helpers import (
     build_sector,
     build_sources,
     cik_rows,
+    cusip_rows,
     parse_address_country,
     parse_iso_date,
     parse_last_processed,
@@ -424,6 +425,13 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
     primary_cik = select_primary_cik(ciks)
     registrants = build_registrants(group, ciks, primary_cik, as_of)
 
+    # CUSIPs likewise: every security identifier that resolved to this PermID,
+    # across all rows. An issuer with several share classes or listed debt
+    # carries several, and each is a join key a shareholding may arrive on.
+    cusips = sorted(
+        _collect(group.loc[cusip_rows(group["identifier_type"]), "identifier"])
+    )
+
     incorporated_country = _clean(first["incorporated_in"])
     hq_country = parse_address_country(first["hq_address"], logger)
 
@@ -450,6 +458,7 @@ def transform_company(group: pd.DataFrame, logger: logging.Logger) -> dict:
         "permId": perm_id,
         "cik": primary_cik,
         "registrants": registrants,
+        "cusips": cusips,
         "ein": None,
         "lei": _clean(first["lei"]),
         # Core identity

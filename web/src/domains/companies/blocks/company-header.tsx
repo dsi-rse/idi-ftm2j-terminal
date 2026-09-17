@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { InfoButton } from "@/blocks/info-button";
+import { SourceCitation } from "@/blocks/source-citation";
 import { Popover } from "@/components/popover";
 import { formatAmountShort } from "@/lib/format-currency";
 import { cn } from "@/lib/utils";
@@ -86,40 +87,15 @@ function formatExchange(listing: CurrentListing | null): string {
   return NOT_REPORTED;
 }
 
-type LabeledCellProps = {
+type HeaderCellProps = {
   label: string;
   value: string;
-  /** Dims the value to mark it as absent rather than reported. */
-  muted?: boolean;
-};
-
-function LabeledCell({ label, value, muted }: LabeledCellProps) {
-  return (
-    <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
-      <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium whitespace-nowrap">
-        {label}
-      </span>
-      <span
-        className={cn(
-          "font-mono text-xs whitespace-nowrap",
-          muted ? "text-muted" : "text-foreground",
-        )}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-type StatCellProps = {
-  label: string;
-  value: string;
-  /** Small line under the value, e.g. the as-of date and currency. */
-  sub?: string;
   /** Dims the value to mark it as absent rather than reported. */
   muted?: boolean;
   /** Popover body explaining the figure; adds a click-to-open info trigger by the label. */
   info?: ReactNode;
+  /** Small line under the value, e.g. the as-of date and currency. */
+  sub?: string;
   /** URL of the filing the figure was extracted from, linked as attribution. */
   href?: string | null;
   /** Short label for the {@link href} link, e.g. the form type "10-K". */
@@ -127,28 +103,25 @@ type StatCellProps = {
 };
 
 /**
- * A financial figure in the header cell group. Heavier than {@link LabeledCell}
- * — the value is Inter Tight rather than mono, and it carries an as-of/currency
- * subline — so a market figure reads as a headline number rather than as
- * another categorical tag. Cells share the metadata cells' border and box so
- * the group reads as one strip; the type weight is the only thing setting the
- * financials apart.
+ * One cell of the header strip: a micro-label over a mono value. The
+ * categorical cells pass only those; a financial figure adds an info popover
+ * and an as-of/currency subline linking the filing it came from. One component
+ * rather than two so the cells cannot drift apart — the label row is a fixed
+ * height so the 16px info icon never pushes one label below its neighbours.
  */
-function StatCell({
+function HeaderCell({
   label,
   value,
-  sub,
   muted,
   info,
+  sub,
   href,
   hrefLabel,
-}: StatCellProps) {
+}: HeaderCellProps) {
   return (
-    <div className="flex flex-col gap-1 border border-muted/25 px-3 py-2">
-      <span className="flex items-center gap-1">
-        <span className="font-mono text-[9.5px] uppercase tracking-[0.14em] text-muted font-medium whitespace-nowrap">
-          {label}
-        </span>
+    <div className="flex flex-col gap-1 md:border md:border-muted/25 md:px-3 md:py-2">
+      <span className="flex h-4 items-center gap-1">
+        <span className="type-label md:whitespace-nowrap">{label}</span>
         {info ? (
           <Popover>
             <Popover.Trigger
@@ -160,14 +133,14 @@ function StatCell({
       </span>
       <span
         className={cn(
-          "font-inter-tight text-base leading-none",
+          "type-value md:whitespace-nowrap",
           muted ? "text-muted" : "text-foreground",
         )}
       >
         {value}
       </span>
       {sub || href ? (
-        <span className="font-mono text-[10px] text-muted whitespace-nowrap">
+        <span className="type-meta whitespace-nowrap">
           {sub}
           {sub && href ? " · " : null}
           {href ? (
@@ -196,10 +169,11 @@ const PUBLIC_FLOAT_INFO =
   "measured as of the date shown, not today.";
 
 /**
- * Formats a company-facts figure with its currency symbol, or the not-reported
- * marker when no filing carried a value. Returns the value and a subline naming
- * the as-of date and ISO currency, so a non-USD figure is never mistaken for
- * dollars, plus the figure's own citation.
+ * Formats a company-facts figure with its currency symbol and ISO code -- `$53.60B
+ * USD` -- or the not-reported marker when no filing carried a value. The code
+ * rides with the value rather than the subline so a non-USD figure is never
+ * mistaken for dollars at a glance; the subline names only the as-of date and
+ * the figure's own citation.
  *
  * The citation is per figure rather than per record: a record based on a 10-K/A
  * can take its revenue from the 10-K that amendment amends, and linking both
@@ -216,13 +190,10 @@ function formatStat(figure: CitedFigure | null): {
   if (figure === null) {
     return { value: NOT_REPORTED, muted: true, href: null, hrefLabel: "filing" };
   }
-  const subParts = [
-    figure.asOf ? `as of ${figure.asOf}` : null,
-    figure.currency,
-  ].filter(Boolean);
+  const amount = formatAmountShort(figure.value, figure.currency);
   return {
-    value: formatAmountShort(figure.value, figure.currency),
-    sub: subParts.length ? subParts.join(" · ") : undefined,
+    value: figure.currency ? `${amount} ${figure.currency}` : amount,
+    sub: figure.asOf ? `as of ${figure.asOf}` : undefined,
     muted: false,
     href: figure.sources[0]?.url ?? null,
     hrefLabel: figure.formType || "filing",
@@ -258,36 +229,43 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
   const publicFloat = formatStat(facts?.publicFloat ?? null);
   const revenue = formatStat(facts?.revenue ?? null);
 
+  // The categorical cells are all read off one LSEG PermID record, so they
+  // share one citation beneath the group rather than repeating it four times.
+  // The financial cells cite their own SEC filing inline and are excluded.
+  const [companyInfoSource] = company.sources;
+
   return (
     <header className="w-full flex flex-col gap-3 pb-6 border-b border-muted/25">
-      <h1 className="font-inter-tight tracking-tight text-3xl md:text-4xl font-semibold text-foreground leading-none">
+      <h1 className="type-display tracking-tight text-3xl md:text-4xl leading-none">
         {company.name}
       </h1>
-      {/* Cells size to their content and wrap, rather than sitting in a
-          fixed grid — mono labels vary enough in width that equal columns
-          either clip or force the longest label onto two lines. */}
-      <div className="flex flex-wrap gap-2">
-        <LabeledCell
+      {/* At md+ the cells size to their content and wrap, rather than sitting
+          in a fixed grid — mono labels vary enough in width that equal columns
+          either clip or force the longest label onto two lines. On a phone the
+          boxes stack four deep and push the tabs below the fold, so the strip
+          drops its borders and becomes a two-column list of label/value pairs. */}
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:flex md:flex-wrap md:gap-2">
+        <HeaderCell
           label="Primary Industry"
           value={industry ?? NOT_REPORTED}
           muted={!industry}
         />
-        <LabeledCell
+        <HeaderCell
           label="Country Headquartered"
           value={company.hqCountry ?? NOT_REPORTED}
           muted={!company.hqCountry}
         />
-        <LabeledCell
+        <HeaderCell
           label="Primary Listing"
           value={exchange}
           muted={exchange === NOT_REPORTED}
         />
-        <LabeledCell
+        <HeaderCell
           label="Ticker"
           value={ticker ?? NOT_REPORTED}
           muted={!ticker}
         />
-        <StatCell
+        <HeaderCell
           label="Public Float"
           value={publicFloat.value}
           sub={publicFloat.sub}
@@ -296,7 +274,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           href={publicFloat.href}
           hrefLabel={publicFloat.hrefLabel}
         />
-        <StatCell
+        <HeaderCell
           label="Revenue"
           value={revenue.value}
           sub={revenue.sub}
@@ -305,6 +283,21 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           hrefLabel={revenue.hrefLabel}
         />
       </div>
+      {companyInfoSource ? (
+        <p className={cn("type-caption leading-relaxed")}>
+          <span
+            className={cn(
+              "type-source-kicker",
+            )}
+          >
+            Source.
+          </span>
+          <SourceCitation
+            source={companyInfoSource}
+            detail={`last accessed ${companyInfoSource.lastAccessed}`}
+          />{" "}
+        </p>
+      ) : null}
     </header>
   );
 }
