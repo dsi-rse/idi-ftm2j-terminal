@@ -35,9 +35,13 @@ export function SearchInput({
           aria-hidden
           className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted"
         />
+        {/* `max-md:text-base`: iOS Safari zooms the page in when a focused
+            input's text is under 16px, and does not zoom back out on blur.
+            16px below `md` avoids the zoom; the desktop size is unchanged.
+            The site search and the pager's page field carry the same. */}
         <Autocomplete.Input
           placeholder={placeholder}
-          className="bg-muted-foreground type-value w-full pl-8 pr-8 py-2 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
+          className="bg-muted-foreground type-value max-md:text-base w-full pl-8 pr-8 py-2 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
         />
         {value !== "" && (
           <button

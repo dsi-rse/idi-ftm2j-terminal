@@ -121,7 +121,7 @@ function PageJump({ currentPage, totalPages, onPageChange }: PageJumpProps) {
           }}
           style={{ width: `${digits + 1}ch` }}
           className={cn(
-            "h-6 rounded-sm border border-primary bg-transparent px-1 text-center text-foreground font-semibold",
+            "h-6 rounded-sm border border-primary bg-transparent px-1 text-center text-foreground font-semibold max-md:text-base",
             "outline-none",
           )}
         />
