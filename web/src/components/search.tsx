@@ -4,7 +4,14 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
 import { ArrowRight, Dot, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { type SiteSearchResult, useSiteSearch } from "@/hooks/use-site-search";
 import { matchFields } from "@/lib/match-fields";
@@ -50,13 +57,21 @@ type ResponsivePlaceholder = string | { short: string; long: string };
  */
 const identifyCompany = (company: PagefindCompanyMeta) => company.permId;
 
-type SearchBarProps = {
-  placeholder: ResponsivePlaceholder;
+/** What a {@link SearchBar} exposes through its `ref`. */
+export type SearchBarHandle = {
+  /** Moves focus into the search input. */
+  focus: () => void;
 };
 
-export function SearchBar({ placeholder }: SearchBarProps) {
+type SearchBarProps = {
+  placeholder: ResponsivePlaceholder;
+  ref?: Ref<SearchBarHandle>;
+};
+
+export function SearchBar({ placeholder, ref }: SearchBarProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }), []);
   const [query, setQuery] = useState("");
   const { results, handleSearch } =
     useSiteSearch<PagefindCompanyMeta>({
