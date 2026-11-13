@@ -17,3 +17,6 @@ plans/
 # jobs/README.md instead. Committing them means committing execution counts and
 # cell outputs, which diff badly and can carry data out of the gitignored data/.
 *.ipynb
+
+# bd 1.3 writes a workspace lock file beside .beads (.beads.gate.lock).
+*.gate.lock*
