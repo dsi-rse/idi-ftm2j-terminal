@@ -12,7 +12,6 @@ export function Navbar() {
     { href: "/about", label: "About" },
     { href: "/methodology", label: "Methodology" },
     { href: "/downloads", label: "Downloads" },
-    { href: "/help", label: "Help" },
   ];
   return (
     <NavbarBlock>

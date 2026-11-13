@@ -6,7 +6,6 @@ const SITE_MAP_LINKS = [
   { label: "About", href: "/about" },
   { label: "Methodology", href: "/methodology" },
   { label: "Downloads", href: "/downloads" },
-  { label: "Help", href: "/help" },
 ];
 
 const TOOL_SUITE_LINKS = [
