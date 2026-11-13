@@ -1,5 +1,7 @@
 import { PropsWithChildren } from "react";
 
+import { cn } from "@/lib/utils";
+
 import { Footer } from "@/views/footer";
 import { Navbar } from "@/views/navbar";
 
@@ -15,11 +17,14 @@ export function StandardPageLayout({
   children,
 }: PropsWithChildren<StandardPageLayoutProps>) {
   return (
-    <div className="flex min-h-dvh flex-col gap-4 py-1 pb-4">
+    // No top padding: the navbar sits flush with the viewport top, as it does in
+    // `TerminalShell`, so the bar's lower edge lands at the same height on every
+    // page.
+    <div className="flex min-h-dvh flex-col gap-4 pb-4">
       <Navbar />
       <div className="mx-4 md:mx-12 mb-6 flex flex-1 flex-col items-center">
         <div
-          className={`${narrow ? "max-w-4xl" : ""} w-full flex flex-col items-center`}
+          className={cn("w-full flex flex-col items-center", narrow && "max-w-4xl")}
         >
           {children}
         </div>

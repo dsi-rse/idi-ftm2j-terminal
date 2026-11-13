@@ -151,7 +151,7 @@ function NavbarList({ children }: PropsWithChildren) {
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden" />
         <Dialog.Popup
           id="mobile-nav-menu"
-          className="fixed inset-0 z-50 flex flex-col bg-background pt-1 transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden"
+          className="fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden"
         >
           <Dialog.Title className="sr-only">Site navigation</Dialog.Title>
           <div className="mx-4 md:mx-12 py-3 flex items-center justify-between gap-4">
