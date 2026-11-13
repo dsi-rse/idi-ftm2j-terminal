@@ -110,6 +110,105 @@ export default function AboutPage() {
               in the database does not imply any finding of wrongdoing.
             </Article.Body.Section.Callout>
           </Article.Body.Section>
+
+          {/** HOW THE DATA IS BUILT (formerly the Methodology page) */}
+          <Article.Body.Section>
+            <Article.Body.Section.Title>
+              How the data is built
+            </Article.Body.Section.Title>
+            <Article.Body.Section.Paragraph>
+              Records are drawn from regulatory filings, corporate registries,
+              securities disclosures (including Exhibit&nbsp;21 subsidiary
+              lists and 13-F holdings), and established commercial ownership
+              datasets. Each data point retains a citation back to the document
+              it was derived from.
+            </Article.Body.Section.Paragraph>
+            <Article.Body.Section.Paragraph>
+              In practice, company information &mdash; identity, industry
+              classification, and listing &mdash; is derived from LSEG PermID;
+              company facts such as public float and revenue come from SEC
+              10-K and 20-F filings; corporate trees come from SEC
+              Exhibit&nbsp;21 and Exhibit&nbsp;8 subsidiary lists attached to
+              10-K and 20-F filings; institutional
+              shareholders come from SEC Form&nbsp;13-F filings and
+              pension-fund disclosures, attached to a company by resolving the
+              security they report to its issuer; and commercial debt is
+              extracted from SEC 8-K material-event filings using a custom NLP
+              model.
+            </Article.Body.Section.Paragraph>
+            <Article.Body.Section.Paragraph>
+              Financial figures shown in the company header &mdash; public float
+              and revenue &mdash; are read from the cover page of the company&rsquo;s
+              most recent 10-K or 20-F. Public float is the market value of shares
+              held by non-affiliates as of the filing date; it is not market
+              capitalization. Figures are reported in the filing&rsquo;s own
+              currency and never converted.
+            </Article.Body.Section.Paragraph>
+          </Article.Body.Section>
+
+          {/** BUILDING THE CORPORATE TREE */}
+          <Article.Body.Section>
+            <Article.Body.Section.Title>
+              Building the corporate tree
+            </Article.Body.Section.Title>
+            <Article.Body.Section.Paragraph>
+              Parent&ndash;subsidiary relationships are extracted from the
+              subsidiary list a registrant attaches to its own annual report,
+              and are presented as that filing discloses them. Where a company
+              has filed more than once, only its most recent filing is shown,
+              with the filing date alongside. Subsidiary names are reproduced as
+              filed and are not resolved to company records, so a subsidiary
+              that is itself a registrant elsewhere in the database is not yet
+              linked to it.
+            </Article.Body.Section.Paragraph>
+          </Article.Body.Section>
+
+          {/** REFRESH CADENCE */}
+          <Article.Body.Section>
+            <Article.Body.Section.Title>
+              Refresh cadence
+            </Article.Body.Section.Title>
+            <Article.Body.Section.Paragraph>
+              The graph is reconciled on a weekly cycle. Individual company
+              pages display the date each section was last refreshed so that
+              users can judge currency at a glance.
+            </Article.Body.Section.Paragraph>
+            <Article.Body.Section.Paragraph>
+              Scrapers run on a rolling basis between cycles, and the most
+              recent reconciliation timestamp is shown in the status bar of
+              each company profile.
+            </Article.Body.Section.Paragraph>
+          </Article.Body.Section>
+
+          {/** LIMITATIONS */}
+          <Article.Body.Section>
+            <Article.Body.Section.Title>
+              Limitations
+            </Article.Body.Section.Title>
+            <Article.Body.Section.Paragraph>
+              Ownership disclosure varies widely by jurisdiction. Where
+              beneficial ownership is not publicly reported, the chain may
+              terminate at the last disclosed entity. FTM2J represents the
+              public record and should be treated as a research starting point
+              rather than a definitive legal determination.
+            </Article.Body.Section.Paragraph>
+            <Article.Body.Section.Paragraph>
+              Private debt, off-balance-sheet vehicles, and beneficial owners
+              below SEC reporting thresholds may not appear. Debt amounts are
+              reproduced as the filing reported them and are not converted
+              between currencies, so figures denominated differently are not
+              comparable and are never totalled; interest rates are not
+              extracted; and a lender appears as the filing describes it, which
+              is sometimes a role rather than a name. Most disclosed instruments
+              state no end date, and those are shown as undated rather than
+              assumed current.
+            </Article.Body.Section.Paragraph>
+            <Article.Body.Section.Callout>
+              Found an error or a missing link? Corrections from researchers
+              and companies are reviewed and, where verified, incorporated into
+              the next refresh.
+            </Article.Body.Section.Callout>
+          </Article.Body.Section>
         </Article.Body>
       </Article>
     </StandardPageLayout>
