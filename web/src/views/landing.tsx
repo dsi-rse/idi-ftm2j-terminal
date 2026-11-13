@@ -2,12 +2,15 @@
 
 import { ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef } from "react";
 
 import { Article, StatisticGrid } from "@/blocks";
 import { HeroGlobe } from "@/components/hero-globe";
-import { SearchBar } from "@/components/search";
+import { SearchBar, type SearchBarHandle } from "@/components/search";
 import type { CorpusStats } from "@/domains/companies/dataset";
 import { formatCountShort } from "@/lib/format-count";
+import { SEARCH_FOCUS_PARAM, SEARCH_FOCUS_VALUE } from "@/lib/search-focus";
 import { StandardPageLayout } from "@/layouts";
 
 type LandingProps = {
@@ -31,7 +34,30 @@ function countTile(value: number | undefined, description: string) {
     };
 }
 
+/**
+ * Focuses the search bar when the URL asks for it (the navbar's search link
+ * sends `/?focus=search`), then drops the parameter so a reload or a Back
+ * press does not refocus. Reacts to the parameter rather than to mount, so the
+ * link still works when it is followed from the landing page itself.
+ *
+ * Its own component so the `useSearchParams` read sits inside a Suspense
+ * boundary and the rest of the statically rendered landing stays static.
+ */
+function FocusSearchOnRequest({ onRequest }: { onRequest: () => void }) {
+  const router = useRouter();
+  const requested =
+    useSearchParams().get(SEARCH_FOCUS_PARAM) === SEARCH_FOCUS_VALUE;
+  useEffect(() => {
+    if (!requested) return;
+    onRequest();
+    router.replace("/", { scroll: false });
+  }, [requested, onRequest, router]);
+  return null;
+}
+
 function Header({ stats }: LandingProps) {
+  const searchBar = useRef<SearchBarHandle>(null);
+  const focusSearch = useCallback(() => searchBar.current?.focus(), []);
   const tiles = [
     countTile(stats?.companies, "companies tracked"),
     countTile(stats?.subsidiaries, "ownership links"),
@@ -63,7 +89,11 @@ function Header({ stats }: LandingProps) {
           </Link>
         </div>
       </Article.Header>
+      <Suspense fallback={null}>
+        <FocusSearchOnRequest onRequest={focusSearch} />
+      </Suspense>
       <SearchBar
+        ref={searchBar}
         placeholder={{
           // The magnifying-glass icon carries "search", so the short variant
           // spends its width on the fields instead: "Search by name,

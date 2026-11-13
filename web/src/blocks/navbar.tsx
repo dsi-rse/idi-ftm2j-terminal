@@ -13,13 +13,18 @@ import React, {
   type ReactNode,
   type SetStateAction,
   useEffect,
+  useRef,
   useState,
 } from "react";
+
+import { cn } from "@/lib/utils";
 
 type NavbarContext = {
   isOpen: boolean;
   setIsOpen: Dispatch<SetStateAction<boolean>>;
   close: () => void;
+  /** Whether the menu is closing because a link inside it was followed. */
+  closedByLink: () => boolean;
   brand: ReactNode;
   setBrand: Dispatch<SetStateAction<ReactNode>>;
   extras: ReactNode;
@@ -38,10 +43,33 @@ const NavbarProvider = ({ children }: PropsWithChildren) => {
   const [isOpen, setIsOpen] = useState(false);
   const [brand, setBrand] = useState<ReactNode>(null);
   const [extras, setExtras] = useState<ReactNode>(null);
-  const close = () => setIsOpen(false);
+  // Set when a link closes the menu, cleared when it opens again. Read when the
+  // dialog decides where focus goes on close.
+  const followedLink = useRef(false);
+  const close = () => {
+    followedLink.current = true;
+    setIsOpen(false);
+  };
+  const closedByLink = () => followedLink.current;
+  const openChange: Dispatch<SetStateAction<boolean>> = (next) => {
+    setIsOpen((prev) => {
+      const open = typeof next === "function" ? next(prev) : next;
+      if (open) followedLink.current = false;
+      return open;
+    });
+  };
   return (
     <NavbarContext.Provider
-      value={{ isOpen, setIsOpen, close, brand, setBrand, extras, setExtras }}
+      value={{
+        isOpen,
+        setIsOpen: openChange,
+        close,
+        closedByLink,
+        brand,
+        setBrand,
+        extras,
+        setExtras,
+      }}
     >
       {children}
     </NavbarContext.Provider>
@@ -61,6 +89,13 @@ function useNavbar() {
 
 type NavbarLinkProps = {
   href: string;
+  /** A glyph shown before the label. */
+  icon?: ReactNode;
+  /**
+   * Show only the icon in the desktop bar, keeping the label for screen
+   * readers. The mobile menu always shows the label beside the icon.
+   */
+  iconOnly?: boolean;
 };
 
 /**
@@ -125,7 +160,8 @@ NavbarExtras.displayName = "Navbar.Extras";
  * fullscreen modal via Base UI's Dialog.
  */
 function NavbarList({ children }: PropsWithChildren) {
-  const { isOpen, setIsOpen, close, brand, extras } = useNavbar();
+  const { isOpen, setIsOpen, close, closedByLink, brand, extras } =
+    useNavbar();
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
       <NavigationMenu.List className="hidden lg:flex ml-auto items-center gap-6 text-name font-medium list-none p-0 m-0">
@@ -151,6 +187,10 @@ function NavbarList({ children }: PropsWithChildren) {
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden" />
         <Dialog.Popup
           id="mobile-nav-menu"
+          // Following a link hands focus to the page it opens -- the search
+          // link focuses the landing's search bar, say -- so the menu does not
+          // pull it back to its own trigger as it closes.
+          finalFocus={() => !closedByLink()}
           className="fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden"
         >
           <Dialog.Title className="sr-only">Site navigation</Dialog.Title>
@@ -203,11 +243,18 @@ NavbarListItem.displayName = "Navbar.List.Item";
 /**
  * A responsive navigation bar link.
  */
-function NavbarLink({ href, children }: PropsWithChildren<NavbarLinkProps>) {
+function NavbarLink({
+  href,
+  icon,
+  iconOnly = false,
+  children,
+}: PropsWithChildren<NavbarLinkProps>) {
   const { close } = useNavbar();
   const pathname = usePathname();
   // Match the section, not just the exact page, so /companies/<id> still marks
   // Companies as current. "/" would prefix-match everything, so it is exact.
+  // An href with a query (the search link's "/?focus=search") never matches a
+  // pathname, so it is never marked current.
   const isCurrent =
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
   const state = isCurrent
@@ -218,16 +265,21 @@ function NavbarLink({ href, children }: PropsWithChildren<NavbarLinkProps>) {
       <NavigationMenu.Link
         render={<Link href={href} />}
         aria-current={isCurrent ? "page" : undefined}
-        className={`hidden lg:block py-1 border-b-2 ${state}`}
+        className={cn(
+          "hidden lg:flex items-center gap-2 py-1 border-b-2",
+          state,
+        )}
       >
-        {children}
+        {icon}
+        <span className={cn(iconOnly && icon && "sr-only")}>{children}</span>
       </NavigationMenu.Link>
       <NavigationMenu.Link
         render={<Link href={href} />}
         onClick={close}
         aria-current={isCurrent ? "page" : undefined}
-        className={`block py-1 border-b-2 ${state} lg:hidden`}
+        className={cn("flex items-center gap-2 py-1 border-b-2 lg:hidden", state)}
       >
+        {icon}
         {children}
       </NavigationMenu.Link>
     </>
