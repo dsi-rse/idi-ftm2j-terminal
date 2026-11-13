@@ -65,7 +65,14 @@ function Header({ stats }: LandingProps) {
     countTile(stats?.debtInstruments, "debt instruments tracked"),
   ];
   return (
-    <Article id="landing" className="md:max-w-xl md:justify-self-start">
+    // `md:pb-25.5` (102px) holds the space the "Read the methodology" button
+    // took -- its 32px top margin, the article's 32px gap and its 38px height.
+    // The grid centers this column against the globe, so without it the text
+    // sits lower than it did when the button was there.
+    <Article
+      id="landing"
+      className="md:max-w-xl md:justify-self-start md:pb-25.5"
+    >
       <Article.Header className="flex flex-col gap-4">
         <Article.Header.Eyebrow>
           Follow the Money to Justice
