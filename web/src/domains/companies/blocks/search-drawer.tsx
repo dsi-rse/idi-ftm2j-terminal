@@ -410,27 +410,40 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
           </button>
         </div>
       </Drawer.Header>
-      <Drawer.Body>
+      {/* No top padding: the sticky search block below pins to the body's
+          content edge, so padding here would leave a strip above it that
+          results scroll through. */}
+      <Drawer.Body className="pt-0">
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as "all" | "recent" | "saved")}
         >
-          <Tabs.Header className="-mx-4">
-            {/* Bare labels, as the design has them: the RESULTS count below
-                already says how many, and icons only crowd a 312px rail. */}
-            <Tabs.Trigger value="all">All</Tabs.Trigger>
-            <Tabs.Trigger value="recent">Recent</Tabs.Trigger>
-            <Tabs.Trigger value="saved">Saved</Tabs.Trigger>
-          </Tabs.Header>
+          {/* The search box and the tabs stay pinned while results scroll.
+              The box sits above the tabs but searches only the All list --
+              Recent and Saved are short and unfiltered -- so typing from
+              either of them switches to All rather than appearing to do
+              nothing. */}
+          <div className={cn("sticky top-0 z-10 -mx-4 bg-background")}>
+            <div className={cn("p-3")}>
+              <SearchInput
+                value={searchQuery}
+                onValueChange={(query) => {
+                  setSearchQuery(query);
+                  if (activeTab !== "all") setActiveTab("all");
+                }}
+                placeholder="Search by name, subsidiary, PermID, or ticker…"
+              />
+            </div>
+            <Tabs.Header>
+              {/* Bare labels, as the design has them: the RESULTS count below
+                  already says how many, and icons only crowd a 312px rail. */}
+              <Tabs.Trigger value="all">All</Tabs.Trigger>
+              <Tabs.Trigger value="recent">Recent</Tabs.Trigger>
+              <Tabs.Trigger value="saved">Saved</Tabs.Trigger>
+            </Tabs.Header>
+          </div>
           <Tabs.Body className="-mx-4 py-0">
             <Tabs.Panel value="all">
-              <div className="p-3 border-b border-muted/25">
-                <SearchInput
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                  placeholder="Search by name, subsidiary, PermID, or ticker…"
-                />
-              </div>
               <PanelBody
                 data={allData}
                 activeCompanyId={activeCompanyId}
