@@ -1,4 +1,5 @@
 import { Footer as FooterBlock } from "@/blocks";
+import { formatBuildDate } from "@/lib/format-build-date";
 
 const SITE_MAP_LINKS = [
   { label: "Home", href: "/" },
@@ -24,6 +25,9 @@ const TOOL_SUITE_LINKS = [
   },
 ];
 
+/** The day this site was built; set in `next.config.ts`. */
+const BUILD_DATE = formatBuildDate(process.env.NEXT_PUBLIC_BUILD_TIME);
+
 /**
  * The footer of the FTM2J Terminal site.
  */
@@ -42,7 +46,7 @@ export function Footer() {
             srcDark="/idi-logo-white.webp"
             alt="Inclusive Development International"
           />
-          <FooterBlock.LastUpdated date="Mar 6, 2026" />
+          {BUILD_DATE ? <FooterBlock.LastUpdated date={BUILD_DATE} /> : null}
         </FooterBlock.Column>
 
         <FooterBlock.Column justify="left">
