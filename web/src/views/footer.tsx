@@ -4,7 +4,6 @@ import { formatBuildDate } from "@/lib/format-build-date";
 const SITE_MAP_LINKS = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
-  { label: "Methodology", href: "/methodology" },
   { label: "Downloads", href: "/downloads" },
 ];
 

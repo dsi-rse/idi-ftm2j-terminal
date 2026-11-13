@@ -10,7 +10,6 @@ import { SiteLogo } from "@/components/logo";
 export function Navbar() {
   const links = [
     { href: "/about", label: "About" },
-    { href: "/methodology", label: "Methodology" },
     { href: "/downloads", label: "Downloads" },
   ];
   return (
