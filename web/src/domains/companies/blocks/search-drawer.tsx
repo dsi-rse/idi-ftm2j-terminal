@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -387,18 +386,10 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               }
             />
             <Popover.Content title="Using company search">
-              <div className={cn("flex flex-col gap-2 text-xs")}>
-                <p>
-                  Search by company name, subsidiary name, PermID, or ticker.
-                  Select a result to open its profile.
-                </p>
-                <Link
-                  href="/help"
-                  className={cn("text-primary hover:underline self-start")}
-                >
-                  Read the help page →
-                </Link>
-              </div>
+              <p className={cn("text-xs")}>
+                Search by company name, subsidiary name, PermID, or ticker.
+                Select a result to open its profile.
+              </p>
             </Popover.Content>
           </Popover>
           {/* Phone-only: the sheet covers the page, and the desktop collapse
