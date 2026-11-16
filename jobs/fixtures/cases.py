@@ -1213,6 +1213,7 @@ def run_debt_build(
     mentions=None,
     items=None,
     expect_failure: bool = False,
+    **publish,
 ):
     """Runs a build with a complete, self-consistent CDT dataset.
 
@@ -1221,6 +1222,10 @@ def run_debt_build(
     default, and want to replace one frame while the other two stay consistent
     with it -- an instrument whose mention is missing tests the citation guard,
     not whatever the case was about.
+
+    Extra keyword arguments (`cdt_pointer`, `cdt_snapshot_file`, `stale_cdt`)
+    pass through to `run_build`, for cases about how the CDT generation is
+    published rather than what it holds.
     """
     return run_build(
         company_rows({}),
@@ -1229,6 +1234,7 @@ def run_debt_build(
         mentions=cdt_mention_rows({}) if mentions is None else mentions,
         items=cdt_item_rows({}) if items is None else items,
         expect_failure=expect_failure,
+        **publish,
     )
 
 
@@ -1295,6 +1301,119 @@ def debt_unresolvable_document_fails_the_build() -> None:
         expect_failure=True,
     )
     assert result.records == [], "build should not have produced records"
+
+
+def _expect_cdt_refusal(result, *needles: str) -> None:
+    """Asserts the build failed, with an error naming every one of `needles`."""
+    assert result.records == [], "build should not have produced records"
+    assert result.error is not None, "build should have raised"
+    for needle in needles:
+        assert needle in result.error, f"{needle!r} not in error: {result.error}"
+
+
+def debt_reads_only_the_generation_the_pointer_names() -> None:
+    """An older CDT generation on disk is ignored; the pointer's is read.
+
+    CDT keeps the previous snapshot so a reader of the old pointer can finish,
+    and refreshes the per-table `latest.parquet` copies only after the pointer,
+    so both can disagree with the current generation. Reading either would mix
+    generations -- the bug the pointer exists to prevent.
+    """
+    stale = {
+        "debt-instruments": cdt_rows({"name": "stale facility"}),
+        "debt-instrument-mentions": cdt_mention_rows({"name": "stale facility"}),
+        "items": cdt_item_rows({}),
+    }
+    result = run_debt_build(stale_cdt=stale)
+
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    names = [d["instrumentName"] for d in debt]
+    assert names == ["revolving credit facility"], names
+
+
+def debt_reader_follows_pointer_paths() -> None:
+    """The build follows the pointer's paths, whatever the file naming.
+
+    The layout inside a snapshot is CDT's to choose -- `<table>.parquet` today,
+    possibly the idi-style `<table>/latest.parquet` later -- so the build must
+    not construct file names itself.
+    """
+    result = run_debt_build(cdt_snapshot_file=lambda name: f"{name}/latest.parquet")
+
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+
+
+def debt_missing_pointer_fails_the_build() -> None:
+    """No `latest.json` means no way to know which tables belong together."""
+    result = run_debt_build(cdt_pointer=lambda pointer: None, expect_failure=True)
+    _expect_cdt_refusal(result, "generation pointer was not found")
+
+
+def debt_pointer_missing_a_table_fails_the_build() -> None:
+    """A pointer that names no `items` table cannot cite any instrument."""
+
+    def drop_items(pointer: dict) -> dict:
+        del pointer["tables"]["items"]
+        return pointer
+
+    result = run_debt_build(cdt_pointer=drop_items, expect_failure=True)
+    _expect_cdt_refusal(result, 'names no "items" table')
+
+
+def debt_pointer_to_a_missing_file_fails_the_build() -> None:
+    """A pointer whose snapshot file is gone fails rather than reading another.
+
+    This is what a CI sync that raced a CDT publish looks like: the new pointer
+    arrived, its snapshot did not. A rerun fixes it; a silent fallback would not.
+    """
+
+    def point_elsewhere(pointer: dict) -> dict:
+        pointer["tables"]["debt-instruments"]["path"] = (
+            "snapshots/snapshot=20991231T000000000000Z/debt-instruments.parquet"
+        )
+        return pointer
+
+    result = run_debt_build(cdt_pointer=point_elsewhere, expect_failure=True)
+    _expect_cdt_refusal(result, "parquet file was not found")
+
+
+def debt_pointer_outside_the_root_fails_the_build() -> None:
+    """A pointer path may not climb out of CDT's own database root."""
+
+    def escape(pointer: dict) -> dict:
+        pointer["tables"]["items"]["path"] = "../shareholders.parquet"
+        return pointer
+
+    result = run_debt_build(cdt_pointer=escape, expect_failure=True)
+    _expect_cdt_refusal(result, "outside the database root")
+
+
+def debt_pointer_row_count_mismatch_fails_the_build() -> None:
+    """A file holding other than the rows CDT recorded is not that generation."""
+
+    def miscount(pointer: dict) -> dict:
+        pointer["tables"]["debt-instrument-mentions"]["rows"] += 1
+        return pointer
+
+    result = run_debt_build(cdt_pointer=miscount, expect_failure=True)
+    _expect_cdt_refusal(result, "holds 1 rows but its publisher recorded 2")
+
+
+def debt_unknown_contract_version_fails_the_build() -> None:
+    """A CDT contract bump must be read deliberately, not rendered as empty.
+
+    Renamed columns and reshaped payloads have already shipped as silently
+    empty debt sections twice; a version this build was not written for stops
+    the deploy instead.
+    """
+
+    def bump(pointer: dict) -> dict:
+        pointer["contract_version"] = 2
+        return pointer
+
+    result = run_debt_build(cdt_pointer=bump, expect_failure=True)
+    _expect_cdt_refusal(result, "contract version 2")
 
 
 def debt_matured_instrument_is_excluded() -> None:
@@ -1695,6 +1814,14 @@ CASES = [
     debt_future_instrument_is_active,
     debt_unparseable_end_date_is_undated,
     debt_superseded_instrument_is_excluded,
+    debt_reads_only_the_generation_the_pointer_names,
+    debt_reader_follows_pointer_paths,
+    debt_missing_pointer_fails_the_build,
+    debt_pointer_missing_a_table_fails_the_build,
+    debt_pointer_to_a_missing_file_fails_the_build,
+    debt_pointer_outside_the_root_fails_the_build,
+    debt_pointer_row_count_mismatch_fails_the_build,
+    debt_unknown_contract_version_fails_the_build,
     debt_generic_lender_labels_survive,
     debt_currency_comes_from_the_mentions_file,
     debt_duplicate_items_do_not_multiply_instruments,

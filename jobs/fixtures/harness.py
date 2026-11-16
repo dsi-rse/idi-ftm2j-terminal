@@ -22,7 +22,7 @@ import json
 import logging
 import os
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -31,6 +31,14 @@ from typing import Any
 import pandas as pd
 
 JOBS_DIR = Path(__file__).resolve().parent.parent
+
+# The CDT generation `run_build` publishes, and the contract it stamps. Mirrors
+# what `cdt.publish.write_final_output_tables` writes; kept literal rather than
+# imported from `constants`, so a fixture notices if the build's expectation
+# drifts from what CDT actually publishes.
+FIXTURE_CDT_RUN_ID = "20261101T000000000000Z"
+FIXTURE_CDT_STALE_RUN_ID = "20261001T000000000000Z"
+FIXTURE_CDT_CONTRACT_VERSION = 1
 
 # Every column `build_dataset` reads off a company-info row, plus the ones that
 # define the grain. Values mirror the shape of production data -- `hq_address`
@@ -319,6 +327,7 @@ class FixtureResult:
 
     records: list[dict]
     log: list[logging.LogRecord] = field(default_factory=list)
+    error: str | None = None
 
     def by_permid(self, perm_id: str) -> dict:
         """Returns the single record for a PermID.
@@ -357,6 +366,62 @@ class _Capture(logging.Handler):
         self.records.append(record)
 
 
+def _publish_cdt(
+    root: Path,
+    frames: dict[str, pd.DataFrame],
+    *,
+    pointer_hook: Callable[[dict], dict | None] | None,
+    snapshot_file: Callable[[str], str] | None,
+    stale: dict[str, pd.DataFrame] | None,
+) -> None:
+    """Lays CDT's tables out under `root` the way a CDT publish does.
+
+    Each generation goes under `snapshots/snapshot=<run_id>/`, behind a
+    `latest.json` naming every table's path and row count.
+
+    Args:
+        root: The CDT database root to create.
+        frames: The current generation's frames, keyed by table name.
+        pointer_hook: Rewrites the pointer before it is written; `None` from it
+            means publish no pointer.
+        snapshot_file: Maps a table name to its file inside a snapshot.
+        stale: An older generation's frames, keyed by table name, or `None`.
+    """
+    file_in_snapshot = snapshot_file or (lambda name: f"{name}.parquet")
+
+    def write_generation(run_id: str, generation: dict[str, pd.DataFrame]) -> dict:
+        tables = {}
+        for name, frame in generation.items():
+            relative = f"snapshots/snapshot={run_id}/{file_in_snapshot(name)}"
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            frame.to_parquet(path, index=False)
+            tables[name] = {"path": relative, "rows": len(frame)}
+        return tables
+
+    if stale is not None:
+        write_generation(FIXTURE_CDT_STALE_RUN_ID, stale)
+        # The per-table copies a reader must not use: a publish refreshes them
+        # one at a time after the pointer, so they can lag it.
+        for name, frame in stale.items():
+            copy = root / name / "latest.parquet"
+            copy.parent.mkdir(parents=True, exist_ok=True)
+            frame.to_parquet(copy, index=False)
+
+    pointer = {
+        "run_id": FIXTURE_CDT_RUN_ID,
+        "written_at": "2026-11-01T00:00:00+00:00",
+        "schema_version": 1,
+        "contract_version": FIXTURE_CDT_CONTRACT_VERSION,
+        "publish_format_version": 1,
+        "tables": write_generation(FIXTURE_CDT_RUN_ID, frames),
+    }
+    if pointer_hook is not None:
+        pointer = pointer_hook(pointer)
+    if pointer is not None:
+        (root / "latest.json").write_text(json.dumps(pointer), encoding="utf-8")
+
+
 def run_build(
     companies: pd.DataFrame,
     structure: pd.DataFrame,
@@ -366,6 +431,9 @@ def run_build(
     items: pd.DataFrame | None = None,
     shareholders: pd.DataFrame | None = None,
     facts: pd.DataFrame | None = None,
+    cdt_pointer: Callable[[dict], dict | None] | None = None,
+    cdt_snapshot_file: Callable[[str], str] | None = None,
+    stale_cdt: dict[str, pd.DataFrame] | None = None,
     expect_failure: bool = False,
 ) -> FixtureResult:
     """Runs the whole `build_dataset` pipeline against in-memory frames.
@@ -387,6 +455,14 @@ def run_build(
         facts: A company-facts frame, from `company_facts_rows`. Defaults to
             empty, so a case about another section leaves every registrant's
             `facts` None.
+        cdt_pointer: Rewrites CDT's `latest.json` before it is written; return
+            `None` to publish no pointer at all. For cases about a bad pointer.
+        cdt_snapshot_file: Maps a CDT table name to its file inside the
+            snapshot. Defaults to CDT's `<table>.parquet`.
+        stale_cdt: CDT frames, keyed by table name, published as an older
+            generation beside the current one -- both as a prior snapshot and
+            as the per-table `<table>/latest.parquet` copies -- so a case can
+            prove the build reads only what the pointer names.
         expect_failure: When true, a `RuntimeError` from the build is caught and
             recorded rather than raised -- for cases asserting the build refuses
             bad input.
@@ -413,17 +489,23 @@ def run_build(
         tmpdir = Path(tmp)
         company_path = tmpdir / "company_info.parquet"
         structure_path = tmpdir / "corporate_structure.parquet"
-        debt_path = tmpdir / "cdt_debt_instruments.parquet"
-        mentions_path = tmpdir / "cdt_mentions.parquet"
-        items_path = tmpdir / "cdt_items.parquet"
+        cdt_root = tmpdir / "cdt"
         shareholders_path = tmpdir / "shareholders.parquet"
         facts_path = tmpdir / "company_facts.parquet"
         output_dir = tmpdir / "output"
         companies.to_parquet(company_path, index=False)
         structure.to_parquet(structure_path, index=False)
-        debt.to_parquet(debt_path, index=False)
-        mentions.to_parquet(mentions_path, index=False)
-        items.to_parquet(items_path, index=False)
+        _publish_cdt(
+            cdt_root,
+            {
+                "debt-instruments": debt,
+                "debt-instrument-mentions": mentions,
+                "items": items,
+            },
+            pointer_hook=cdt_pointer,
+            snapshot_file=cdt_snapshot_file,
+            stale=stale_cdt,
+        )
         shareholders.to_parquet(shareholders_path, index=False)
         facts.to_parquet(facts_path, index=False)
 
@@ -432,9 +514,7 @@ def run_build(
             for key in (
                 "COMPANY_INFO_FILE_PATH",
                 "CORPORATE_STRUCTURE_FILE_PATH",
-                "CDT_DEBT_INSTRUMENTS_FILE_PATH",
-                "CDT_MENTIONS_FILE_PATH",
-                "CDT_ITEMS_FILE_PATH",
+                "CDT_DATABASE_DIR",
                 "COMPANY_FACTS_FILE_PATH",
                 "SHAREHOLDERS_FILE_PATH",
                 "OUTPUT_DIR",
@@ -442,9 +522,7 @@ def run_build(
         }
         os.environ["COMPANY_INFO_FILE_PATH"] = str(company_path)
         os.environ["CORPORATE_STRUCTURE_FILE_PATH"] = str(structure_path)
-        os.environ["CDT_DEBT_INSTRUMENTS_FILE_PATH"] = str(debt_path)
-        os.environ["CDT_MENTIONS_FILE_PATH"] = str(mentions_path)
-        os.environ["CDT_ITEMS_FILE_PATH"] = str(items_path)
+        os.environ["CDT_DATABASE_DIR"] = str(cdt_root)
         os.environ["COMPANY_FACTS_FILE_PATH"] = str(facts_path)
         os.environ["SHAREHOLDERS_FILE_PATH"] = str(shareholders_path)
         os.environ["OUTPUT_DIR"] = str(output_dir)
@@ -453,10 +531,10 @@ def run_build(
             # swallow it so the runner's own output stays readable.
             with contextlib.redirect_stdout(io.StringIO()):
                 build_dataset.main(logger)
-        except RuntimeError:
+        except RuntimeError as e:
             if not expect_failure:
                 raise
-            return FixtureResult(records=[], log=capture.records)
+            return FixtureResult(records=[], log=capture.records, error=str(e))
         finally:
             for key, value in previous.items():
                 if value is None:

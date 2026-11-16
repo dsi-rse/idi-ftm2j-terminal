@@ -3,7 +3,7 @@
 Build-time data pipeline for the static web application.
 
 `build_dataset.py` reads the company info, corporate structure, and commercial
-debt processors' outputs — five parquet files, because CDT takes three — and
+debt processors' outputs — five tables, because CDT takes three — and
 writes JSON records matching the serialized `Company` type in
 [`web/src/types/domain.ts`](../web/src/types/domain.ts). That TypeScript type is
 the contract; if you change the shape here, change it there in the same commit.
@@ -13,9 +13,7 @@ the contract; if you change the shape here, change it there in the same commit.
 ```bash
 COMPANY_INFO_FILE_PATH=../data/input/latest_company_info.parquet \
 CORPORATE_STRUCTURE_FILE_PATH=../data/input/latest_corporate_structure.parquet \
-CDT_DEBT_INSTRUMENTS_FILE_PATH=../data/input/latest_cdt.parquet \
-CDT_MENTIONS_FILE_PATH=../data/input/latest_cdt_mentions.parquet \
-CDT_ITEMS_FILE_PATH=../data/input/latest_cdt_items.parquet \
+CDT_DATABASE_DIR=../data/input/cdt \
 COMPANY_FACTS_FILE_PATH=../data/input/latest_company_facts.parquet \
 SHAREHOLDERS_FILE_PATH=../data/input/latest_shareholders_raw.parquet \
 OUTPUT_DIR=../data/output \
@@ -26,19 +24,45 @@ uv run python build_dataset.py
 | --- | --- |
 | `COMPANY_INFO_FILE_PATH` | `company-info/latest.parquet` from the processed layer |
 | `CORPORATE_STRUCTURE_FILE_PATH` | `corporate-structure/latest.parquet` from the processed layer |
-| `CDT_DEBT_INSTRUMENTS_FILE_PATH` | `cdt/debt-instruments/latest.parquet` |
-| `CDT_MENTIONS_FILE_PATH` | `cdt/debt-instrument-mentions/latest.parquet` |
-| `CDT_ITEMS_FILE_PATH` | `cdt/items/latest.parquet` |
+| `CDT_DATABASE_DIR` | The `cdt/` database root, holding `latest.json` and `snapshots/` (see *CDT generations*) |
 | `COMPANY_FACTS_FILE_PATH` | `company-facts/latest.parquet` from the processed layer |
 | `SHAREHOLDERS_FILE_PATH` | `shareholders/latest.parquet` from the processed layer |
 | `OUTPUT_DIR` | Directory to write the dataset into (see *Output layout*) |
 
-In CI all eight are set by [`deploy.yaml`](../.github/workflows/deploy.yaml),
+In CI all six are set by [`deploy.yaml`](../.github/workflows/deploy.yaml),
 which first syncs the processed layer out of S3. The web build then reads the
 output via `INPUT_DATA_DIR`.
 
 `data/` is gitignored, so the parquets and the output are local artifacts — not
 fixtures committed to the repo.
+
+### CDT generations
+
+CDT's three tables reference one another — mentions name instruments, and
+instruments cite items — so they must come from the same run. CDT's per-table
+`<table>/latest.parquet` files cannot guarantee that: a publish replaces them
+one at a time, and a build that reads mid-publish gets mentions pointing at
+instruments that do not exist yet. So CDT publishes atomically:
+
+```text
+cdt/
+  latest.json                                  # the generation pointer, replaced last
+  snapshots/snapshot=<run_id>/<table>.parquet  # the current and previous generation
+  <table>/latest.parquet                       # copies; not read by this build
+```
+
+The build reads `latest.json` and loads each table from the `path` it names.
+It does not construct file names. It checks each file against the pointer's
+`rows`, and it refuses a `contract_version` other than `CDT_CONTRACT_VERSION`
+in [`constants.py`](constants.py). Any problem with the pointer fails the
+build. Nothing falls back to the per-table copies.
+
+CDT keeps the previous snapshot, so a CI sync that races a publish still finds
+the generation its pointer names. In the rare case where the new pointer
+arrives without its files, the build fails loudly and a rerun fixes it.
+
+To get CDT's data locally, sync the whole root, pointer included:
+`aws s3 sync s3://<bucket>/database/cdt ../data/input/cdt`.
 
 ### Output layout
 

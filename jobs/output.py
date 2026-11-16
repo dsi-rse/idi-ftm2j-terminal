@@ -1,6 +1,8 @@
 """Dataset IO and validation.
 
-The read side (`load_parquet`) and write side (`write_dataset`: the NDJSON
+The read side (`load_parquet`, and `read_snapshot_pointer` /
+`resolve_snapshot_tables` for processors that publish atomic generations) and
+write side (`write_dataset`: the NDJSON
 index + per-company detail files) of the pipeline, plus the pre-write
 consistency checks, the unresolved-row report, and the `normalize_cik` key
 helper the parquet joins rely on.
@@ -9,10 +11,12 @@ helper the parquet joins rely on.
 # Standard library imports
 import json
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 # Third-party imports
 import pandas as pd
+import pyarrow.parquet as pq
 
 # Local imports
 from constants import CIK_WIDTH
@@ -160,10 +164,125 @@ def validate_companies(companies: list[dict]) -> None:
             )
 
 
+@dataclass(frozen=True)
+class SnapshotTable:
+    """One table of a published generation, as its pointer names it.
+
+    Attributes:
+        path: Absolute path to the table's parquet file.
+        rows: The row count the publisher recorded, or `None` if it recorded
+            none. `load_parquet` checks the file against it.
+    """
+
+    path: Path
+    rows: int | None
+
+
+def read_snapshot_pointer(root: str | Path, file_name: str, label: str) -> dict:
+    """Reads the generation pointer a processor publishes beside its tables.
+
+    A processor whose tables reference one another cannot replace them one file
+    at a time -- a reader mid-way through would join two generations. So it
+    writes the whole generation under an immutable snapshot prefix, then
+    replaces one small pointer naming it. Reading the pointer first is what makes
+    the set of tables consistent.
+
+    Args:
+        root: The processor's database root, holding the pointer.
+        file_name: The pointer's file name, e.g. `latest.json`.
+        label: Human-readable processor name, used in error messages.
+
+    Returns:
+        The pointer as a dict.
+
+    Raises:
+        `RuntimeError` if the pointer is missing, is not valid JSON, or is not a
+            JSON object.
+    """
+    path = Path(root) / file_name
+    if not path.is_file():
+        raise RuntimeError(
+            f"The {label} generation pointer was not found at: {path}. Without "
+            "it the build cannot tell which snapshot's tables belong together."
+        )
+    try:
+        pointer = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise RuntimeError(
+            f"The {label} generation pointer at {path} is not valid JSON."
+        ) from e
+    if not isinstance(pointer, dict):
+        raise RuntimeError(
+            f"The {label} generation pointer at {path} is not a JSON object."
+        )
+    return pointer
+
+
+def resolve_snapshot_tables(
+    root: str | Path, pointer: dict, tables: tuple[str, ...], label: str
+) -> dict[str, SnapshotTable]:
+    """Resolves each named table to the file the generation pointer names.
+
+    Follows the pointer's `tables.<name>.path` rather than building a file name,
+    so the layout inside a snapshot is the publisher's to choose.
+
+    Args:
+        root: The processor's database root; every path is relative to it.
+        pointer: The pointer, from `read_snapshot_pointer`.
+        tables: The table names the build reads.
+        label: Human-readable processor name, used in error messages.
+
+    Returns:
+        Each requested table name mapped to its `SnapshotTable`.
+
+    Raises:
+        `RuntimeError` if the pointer names no such table, gives it no usable
+            path or row count, or points outside `root`.
+    """
+    root_path = Path(root).resolve()
+    entries = pointer.get("tables")
+    if not isinstance(entries, dict):
+        raise RuntimeError(f"The {label} generation pointer has no `tables` map.")
+
+    resolved: dict[str, SnapshotTable] = {}
+    for name in tables:
+        entry = entries.get(name)
+        if not isinstance(entry, dict):
+            raise RuntimeError(
+                f'The {label} generation pointer names no "{name}" table.'
+            )
+        relative = entry.get("path")
+        if not isinstance(relative, str) or not relative.strip():
+            raise RuntimeError(
+                f'The {label} generation pointer gives the "{name}" table no path.'
+            )
+        # A pointer is data from another system: never let it read outside the
+        # processor's own root, whether by an absolute path or by `..`.
+        path = (root_path / relative).resolve()
+        if Path(relative).is_absolute() or not path.is_relative_to(root_path):
+            raise RuntimeError(
+                f'The {label} generation pointer\'s "{name}" path {relative!r} '
+                f"is outside the database root {root_path}."
+            )
+        rows = entry.get("rows")
+        if rows is not None and (
+            isinstance(rows, bool) or not isinstance(rows, int) or rows < 0
+        ):
+            raise RuntimeError(
+                f'The {label} generation pointer gives the "{name}" table an '
+                f"invalid row count: {rows!r}."
+            )
+        resolved[name] = SnapshotTable(path=path, rows=rows)
+    return resolved
+
+
 def load_parquet(
-    fpath: str | Path, label: str, columns: tuple[str, ...] | None = None
+    fpath: str | Path,
+    label: str,
+    columns: tuple[str, ...] | None = None,
+    expected_rows: int | None = None,
 ) -> pd.DataFrame:
-    """Loads one processor's `latest.parquet` into a DataFrame.
+    """Loads one processor table's parquet file into a DataFrame.
 
     Args:
         fpath: Path to the parquet file.
@@ -171,13 +290,16 @@ def load_parquet(
         columns: Read only these columns. Worth passing for a file that is large
             mostly because of columns nothing here reads -- CDT `items` is 26.5 MB
             of which the unread 8-K body text is the bulk.
+        expected_rows: The row count the publisher recorded for this file, if
+            any. Checked against the parquet footer before the read, so a
+            truncated or substituted file fails rather than loading short.
 
     Returns:
         The dataset as a Pandas DataFrame.
 
     Raises:
-        `RuntimeError` if the path is not a single parquet file, or cannot be
-            read as one.
+        `RuntimeError` if the path is not a single parquet file, cannot be read
+            as one, or holds a different number of rows than `expected_rows`.
     """
     path = Path(fpath)
     # Insist on a file. Pointed at a directory, pyarrow reads it as a dataset
@@ -195,6 +317,13 @@ def load_parquet(
         raise RuntimeError(f"The {label} parquet file was not found at: {path}")
 
     try:
+        if expected_rows is not None:
+            actual_rows = pq.ParquetFile(path).metadata.num_rows
+            if actual_rows != expected_rows:
+                raise RuntimeError(
+                    f"The {label} parquet file at {path} holds {actual_rows} rows "
+                    f"but its publisher recorded {expected_rows}."
+                )
         return pd.read_parquet(path, columns=list(columns) if columns else None)
     except FileNotFoundError as e:
         raise RuntimeError(

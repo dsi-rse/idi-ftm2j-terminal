@@ -93,6 +93,29 @@ DEBT_STATUS_UNDATED = "Undated"
 # number is the identifier EDGAR itself uses.
 CDT_ITEM_COLUMNS: tuple[str, ...] = ("item_id", "url", "date", "item")
 
+# CDT publishes each generation of its tables atomically: every table goes under
+# an immutable `snapshots/snapshot=<run_id>/` prefix first, then one
+# `latest.json` pointer naming them is replaced as the last step. Reading the
+# per-table `<table>/latest.parquet` copies instead can mix two generations, so
+# the build resolves these tables from the pointer -- see
+# `resolve_snapshot_tables`.
+CDT_POINTER_FILE_NAME = "latest.json"
+CDT_DEBT_INSTRUMENTS_TABLE = "debt-instruments"
+CDT_MENTIONS_TABLE = "debt-instrument-mentions"
+CDT_ITEMS_TABLE = "items"
+CDT_TABLES: tuple[str, ...] = (
+    CDT_DEBT_INSTRUMENTS_TABLE,
+    CDT_MENTIONS_TABLE,
+    CDT_ITEMS_TABLE,
+)
+
+# The version of CDT's `publish_contract.json` this build was written against.
+# CDT bumps it, and stamps it into `latest.json`, when a change is one a reader
+# must know about -- a renamed column or a reshaped payload, which has already
+# shipped silently empty sections twice. So a mismatch fails the build: update
+# the readers in `debt.py`, then this number.
+CDT_CONTRACT_VERSION = 1
+
 # Company-level columns, all read off one winning row. Rows sharing an
 # (input_source, last_processed) partition were built from a single
 # `permid_data.json`, so these must agree inside a partition -- see
