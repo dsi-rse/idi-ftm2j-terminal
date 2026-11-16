@@ -41,7 +41,7 @@ export function SearchInput({
             The site search and the pager's page field carry the same. */}
         <Autocomplete.Input
           placeholder={placeholder}
-          className="bg-muted-foreground type-value max-md:text-base w-full pl-8 pr-8 py-2 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
+          className="bg-muted-foreground type-value max-md:text-base w-full pl-8 pr-8 py-2 border border-muted/25 rounded-control outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
         />
         {value !== "" && (
           <button

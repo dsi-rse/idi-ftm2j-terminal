@@ -228,7 +228,7 @@ function SocialButtonLink({ href, label, Icon }: SocialButtonLinkProps) {
     <a
       href={href}
       aria-label={label}
-      className="inline-flex items-center justify-center size-8 rounded-sm border border-muted/25 text-muted hover:text-primary hover:border-primary transition-colors"
+      className="inline-flex items-center justify-center size-8 rounded-control border border-muted/25 text-muted hover:text-primary hover:border-primary transition-colors"
     >
       <Icon className="size-3.5" />
     </a>

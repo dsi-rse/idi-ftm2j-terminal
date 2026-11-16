@@ -120,7 +120,7 @@ function TableHeaderCell({
           onClick={onSort}
           className={cn(
             "inline-flex items-center gap-1",
-            "cursor-pointer hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm",
+            "cursor-pointer hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-control",
             align === "right" && "ml-auto",
           )}
         >

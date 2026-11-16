@@ -111,7 +111,7 @@ function Highlighted({
           <mark
             key={i}
             className={cn(
-              "rounded-sm text-inherit underline decoration-2 underline-offset-2",
+              "rounded-chip text-inherit underline decoration-2 underline-offset-2",
               // `<mark>` defaults to a solid yellow background in the UA
               // stylesheet; the untinted case must clear it explicitly, not just
               // omit the tint, or that yellow shows through on the chip.

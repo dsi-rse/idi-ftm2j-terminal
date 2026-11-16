@@ -52,7 +52,7 @@ function PopoverContent({
         <BasePopover.Popup
           {...popupProps}
           className={cn(
-            "bg-background border border-muted/25 rounded-sm shadow-md p-3 text-sm text-foreground max-w-xs",
+            "bg-background border border-muted/25 rounded-card shadow-md p-3 text-sm text-foreground max-w-xs",
             className,
           )}
         >

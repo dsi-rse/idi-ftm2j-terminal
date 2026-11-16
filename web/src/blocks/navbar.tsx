@@ -173,7 +173,7 @@ function NavbarList({ children }: PropsWithChildren) {
             type="button"
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-controls="mobile-nav-menu"
-            className="ml-auto p-2 rounded-sm bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground lg:hidden"
+            className="ml-auto p-2 rounded-control bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground lg:hidden"
           />
         }
       >
@@ -203,7 +203,7 @@ function NavbarList({ children }: PropsWithChildren) {
                 <Button
                   type="button"
                   aria-label="Close menu"
-                  className="p-2 rounded-sm bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground"
+                  className="p-2 rounded-control bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground"
                 />
               }
             >

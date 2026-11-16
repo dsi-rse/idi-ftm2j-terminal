@@ -119,7 +119,7 @@ function HeaderCell({
   hrefLabel,
 }: HeaderCellProps) {
   return (
-    <div className="flex flex-col gap-1 md:border md:border-muted/25 md:px-3 md:py-2">
+    <div className="flex flex-col gap-1 md:rounded-card md:border md:border-muted/25 md:px-3 md:py-2">
       <span className="flex h-4 items-center gap-1">
         <span className="type-label md:whitespace-nowrap">{label}</span>
         {info ? (

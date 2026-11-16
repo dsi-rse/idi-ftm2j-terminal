@@ -276,7 +276,14 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
         event.preventDefault();
         scrollToSection(gateway.section);
       }}
-      className="group flex flex-col gap-1 p-4 md:p-6 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      // The tiles run to the card's bottom edge, so the ones in its corners
+      // take the card radius there; otherwise the hover fill pokes square
+      // corners past the card's rounded ones. Stacked on a phone, the last
+      // tile holds both corners; in the three-column row, the outer two do.
+      className={cn(
+        "group flex flex-col gap-1 p-4 md:p-6 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+        "last:rounded-b-card md:last:rounded-bl-none md:first:rounded-bl-card",
+      )}
     >
       <span className="type-label">
         {gateway.kicker}

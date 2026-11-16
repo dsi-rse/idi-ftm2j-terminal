@@ -50,7 +50,7 @@ function InspectorHandle({ className, ...props }: InspectorHandleProps) {
       type="button"
       {...props}
       className={cn(
-        "hidden md:flex items-center justify-center w-6 h-20 rounded-r-md",
+        "hidden md:flex items-center justify-center w-6 h-20 rounded-r-card",
         "bg-primary text-primary-foreground shadow-md cursor-pointer",
         "hover:brightness-110 hover:shadow-lg transition-all duration-200",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
@@ -500,7 +500,7 @@ export function CompanyInspectorOpener() {
           aria-label="Open company search"
           onClick={() => setMobileInspectorOpen(true)}
           className={cn(
-            "fixed right-4 bottom-4 z-20 inline-flex items-center gap-2 px-4 h-11 rounded-md md:hidden",
+            "fixed right-4 bottom-4 z-20 inline-flex items-center gap-2 px-4 h-11 rounded-control md:hidden",
             "bg-primary text-primary-foreground type-label-sm tracking-label-wide shadow-lg cursor-pointer",
             "hover:brightness-110 transition-all duration-200",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
