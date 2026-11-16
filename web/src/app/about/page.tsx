@@ -138,10 +138,12 @@ export default function AboutPage() {
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Paragraph>
               Financial figures shown in the company header &mdash; public float
-              and revenue &mdash; are read from the cover page of the company&rsquo;s
-              most recent 10-K or 20-F. Public float is the market value of shares
-              held by non-affiliates as of the filing date; it is not market
-              capitalization. Figures are reported in the filing&rsquo;s own
+              and revenue &mdash; come from the company&rsquo;s most recent 10-K
+              or 20-F. Public float is read from the filing&rsquo;s cover page:
+              the market value of shares held by non-affiliates, as of the date
+              the filing gives; it is not market capitalization. Revenue is the
+              total revenue reported in the filing&rsquo;s financial statements
+              for the fiscal year. Figures are reported in the filing&rsquo;s own
               currency and never converted.
             </Article.Body.Section.Paragraph>
           </Article.Body.Section>

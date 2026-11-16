@@ -214,7 +214,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
         id="tree"
         title="Corporate Tree"
         subtitle="No disclosed subsidiaries"
-        info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F. Only companies that have filed one of those since the corporate-structure processor's coverage window have a tree."
+        info="Subsidiaries come from Exhibit 21 of a 10-K or Exhibit 8 of a 20-F. Only companies that filed one in 2016 or later have a tree."
       >
         <p className="type-body m-0">
           No subsidiary disclosure is available for this company. A corporate
@@ -287,7 +287,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
             ? `${rows.length} entities · filings from ${earliest} to ${latest}`
             : `${rows.length} entities · filed on ${earliest}`
       }
-      info="Subsidiaries disclosed in Exhibit 21 of a 10-K, or Exhibit 8 of a 20-F, taken from this company's most recent such filing. The jurisdiction of incorporation is shown as disclosed, and is not normalized."
+      info="Subsidiaries listed in this company's most recent Exhibit 21 (10-K) or Exhibit 8 (20-F) in our data, as of the filing date shown. Subsidiary names and jurisdictions are reproduced as filed."
       source={<TreeSources company={company} relationships={relationships} />}
       expanded={
         <div className="max-w-3xl mx-auto">

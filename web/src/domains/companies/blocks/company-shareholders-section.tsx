@@ -311,7 +311,7 @@ function ShareholdersTable({
 }
 
 const INFO_COPY =
-  "Institutional holdings in this company, one row per disclosed holding, each linking to the filing it was extracted from. Institutional holdings come from SEC Form 13-F. Coverage is limited to holdings whose issuer resolves to a known company, and only managers that exercise investment discretion over $100 million or more have to file Form 13-F.";
+  "Holdings in this company, one row per disclosed holding. Institutional holdings come from SEC Form 13-F. Only investment managers with at least $100 million in U.S.-listed securities must file a 13-F, so smaller holders don't appear.";
 
 /**
  * The count line under the section title: how many disclosed holdings, and the
