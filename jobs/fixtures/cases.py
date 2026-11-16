@@ -10,7 +10,9 @@ those paths.
 
 # Standard library imports
 import datetime
+import json
 import logging
+from decimal import Decimal
 
 # Local imports
 from .harness import (
@@ -1256,6 +1258,8 @@ def debt_smoke_one_instrument() -> None:
     assert instrument["amount"] == 10000000, instrument["amount"]
     assert isinstance(instrument["amount"], int), type(instrument["amount"])
     assert instrument["currency"] == "USD", instrument["currency"]
+    # The default parties include the borrower; only the lender is a lender.
+    assert instrument["lenders"] == ["Fixture National Bank"], instrument["lenders"]
 
     assert len(instrument["sources"]) == 1, instrument["sources"]
     source = instrument["sources"][0]
@@ -1419,7 +1423,7 @@ def debt_unknown_contract_version_fails_the_build() -> None:
 def debt_matured_instrument_is_excluded() -> None:
     """An instrument whose end date has passed does not reach the frontend."""
     result = run_debt_build(
-        debt=cdt_rows({"end_date": "2017-06-30"}),
+        debt=cdt_rows({"maturity_date": "2017-06-30"}),
     )
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert debt == [], f"matured instrument should have been excluded, got {debt}"
@@ -1434,7 +1438,7 @@ def debt_future_instrument_is_active() -> None:
     """
     future = (datetime.date.today() + datetime.timedelta(days=365)).isoformat()
     result = run_debt_build(
-        debt=cdt_rows({"end_date": future}),
+        debt=cdt_rows({"maturity_date": future}),
     )
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
@@ -1442,14 +1446,14 @@ def debt_future_instrument_is_active() -> None:
     assert debt[0]["endDate"] == future, debt[0]["endDate"]
 
 
-def debt_unparseable_end_date_is_undated() -> None:
+def debt_unparseable_maturity_date_is_undated() -> None:
     """An end date that will not parse is Undated, not silently matured.
 
     Coercion turns both a blank and a garbage date into NaT, and treating NaT as
     "expired" would drop the instrument on the strength of a parse failure.
     """
     result = run_debt_build(
-        debt=cdt_rows({"end_date": "as soon as practicable"}),
+        debt=cdt_rows({"maturity_date": "as soon as practicable"}),
     )
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
@@ -1460,15 +1464,18 @@ def debt_unparseable_end_date_is_undated() -> None:
 def debt_superseded_instrument_is_excluded() -> None:
     """An amended instrument drops out and its replacement stays.
 
-    Lineage points from the newer instrument back at the older one, so the row
-    naming a predecessor is the survivor -- the reverse of what the column name
-    reads like.
+    Lineage points from the newer instrument back at the older one, and CDT
+    marks the older one as no longer the lineage head -- which is what the build
+    reads.
     """
     original = "dim::fixture000000000000000001"
     replacement = "dim::fixture000000000000000002"
     result = run_debt_build(
         debt=cdt_rows(
-            {},
+            {
+                "is_lineage_head": False,
+                "superseded_by_debt_instrument_id": replacement,
+            },
             {
                 "debt_instrument_id": replacement,
                 "seed_debt_instrument_mention_id": replacement,
@@ -1488,46 +1495,111 @@ def debt_superseded_instrument_is_excluded() -> None:
     )
 
 
-def debt_generic_lender_labels_survive() -> None:
-    """Role words reach the frontend as lender labels, on purpose.
+def debt_retired_instrument_is_excluded() -> None:
+    """An instrument another one retired is not a live obligation.
 
-    A filing that names no counterparty says "the lenders party thereto", and the
-    extraction records that phrase. Filtering it here is the first step of the
-    lender-normalization work, which is deliberately not done yet -- so this case
-    fails if someone adds a stopword set without also revisiting that decision.
+    CDT records retirement on the retired instrument's own row, as a JSON array
+    of the instruments that retired it.
     """
+    retirer = "dim::fixture000000000000000002"
     result = run_debt_build(
         debt=cdt_rows(
+            {"retired_by_debt_instrument_ids": f'["{retirer}"]'},
             {
-                "lenders_json": (
-                    '[{"mentions": [{"char_end": 21, "char_start": 0,'
-                    ' "tag_id": "tag-1", "text": "lenders party thereto",'
-                    ' "type": "organization"}], "tag_ids": ["tag-1"]}]'
-                )
-            }
+                "debt_instrument_id": retirer,
+                "seed_debt_instrument_mention_id": retirer,
+                "name": "new term loan",
+            },
         ),
+        mentions=cdt_mention_rows({}, {"debt_instrument_mention_id": retirer}),
     )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    names = [i["instrumentName"] for i in debt]
+    assert names == ["new term loan"], f"expected only the retirer, got {names}"
+
+
+def debt_split_instrument_is_excluded() -> None:
+    """An instrument split into pieces gives way to the pieces."""
+    piece = "dim::fixture000000000000000002"
+    result = run_debt_build(
+        debt=cdt_rows(
+            {},
+            {
+                "debt_instrument_id": piece,
+                "seed_debt_instrument_mention_id": piece,
+                "split_of_debt_instrument_id": "dim::fixture000000000000000001",
+                "name": "tranche A term loan",
+            },
+        ),
+        mentions=cdt_mention_rows({}, {"debt_instrument_mention_id": piece}),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    names = [i["instrumentName"] for i in debt]
+    assert names == ["tranche A term loan"], f"expected only the piece, got {names}"
+
+
+def debt_generic_lender_labels_survive() -> None:
+    """A lender the filing never names reaches the frontend as its role phrase.
+
+    A filing that names no counterparty says "the lenders party thereto", and
+    CDT records it as a `collective` lender. Dropping collective parties would
+    make a hidden syndicate look like an instrument with no lender at all, so
+    this case fails if someone filters on `kind` without revisiting that.
+    """
+    parties = json.dumps(
+        [
+            {
+                "role": "lender",
+                "canonical_name": "lenders party thereto",
+                "kind": "collective",
+                "spans": [],
+            },
+            {
+                "role": "underwriter",
+                "canonical_name": "Fixture Securities LLC",
+                "kind": "named",
+                "spans": [],
+            },
+        ]
+    )
+    result = run_debt_build(debt=cdt_rows({"parties_json": parties}))
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
     assert debt[0]["lenders"] == ["lenders party thereto"], debt[0]["lenders"]
 
 
-def debt_currency_comes_from_the_mentions_file() -> None:
+def debt_currency_travels_with_its_amount() -> None:
     """A non-USD amount keeps its own code and is not converted.
 
-    `debt-instruments.amount` is a bare number; the currency lives only in
-    `mentions.amount_json`, which is why the mentions join carries more than
-    provenance. No CDT output supplies an FX rate, so nothing is converted.
+    CDT takes the amount and its currency from one mention together, so both
+    are read off the instrument row. No CDT output supplies an FX rate, so
+    nothing is converted.
     """
     result = run_debt_build(
-        debt=cdt_rows({"amount": "500000000"}),
-        mentions=cdt_mention_rows(
-            {"amount_json": '{"currency": "EUR", "mentions": []}'}
+        debt=cdt_rows(
+            {
+                "principal_amount": Decimal("500000000.00"),
+                "principal_currency": "EUR",
+            }
         ),
     )
     instrument = result.by_permid("5000000001")["currentCommercialDebt"][0]
     assert instrument["currency"] == "EUR", instrument["currency"]
     assert instrument["amount"] == 500000000, instrument["amount"]
+    assert isinstance(instrument["amount"], int), type(instrument["amount"])
+
+
+def debt_six_k_cites_the_form_alone() -> None:
+    """A 6-K citation names the form, not CDT's internal window id.
+
+    A 6-K has no items; CDT's `items.item` for one is a window id such as
+    `000110465916089282:0:1`, which means nothing to a reader.
+    """
+    result = run_debt_build(
+        items=cdt_item_rows({"form_type": "6-K", "item": "000000000116000001:0:1"}),
+    )
+    source = result.by_permid("5000000001")["currentCommercialDebt"][0]["sources"][0]
+    assert source["name"] == "SEC 6-K", source["name"]
 
 
 def debt_duplicate_items_do_not_multiply_instruments() -> None:
@@ -1812,8 +1884,10 @@ CASES = [
     debt_unresolvable_document_fails_the_build,
     debt_matured_instrument_is_excluded,
     debt_future_instrument_is_active,
-    debt_unparseable_end_date_is_undated,
+    debt_unparseable_maturity_date_is_undated,
     debt_superseded_instrument_is_excluded,
+    debt_retired_instrument_is_excluded,
+    debt_split_instrument_is_excluded,
     debt_reads_only_the_generation_the_pointer_names,
     debt_reader_follows_pointer_paths,
     debt_missing_pointer_fails_the_build,
@@ -1823,7 +1897,8 @@ CASES = [
     debt_pointer_row_count_mismatch_fails_the_build,
     debt_unknown_contract_version_fails_the_build,
     debt_generic_lender_labels_survive,
-    debt_currency_comes_from_the_mentions_file,
+    debt_currency_travels_with_its_amount,
+    debt_six_k_cites_the_form_alone,
     debt_duplicate_items_do_not_multiply_instruments,
     debt_undated_document_fails_the_build,
     debt_unparseable_document_date_fails_the_build,

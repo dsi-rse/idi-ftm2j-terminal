@@ -57,7 +57,8 @@ export default function MethodologyPage() {
               shareholders come from SEC Form&nbsp;13-F filings and
               pension-fund disclosures, attached to a company by resolving the
               security they report to its issuer; and commercial debt is
-              extracted from SEC 8-K material-event filings using a custom NLP
+              extracted from SEC 8-K material-event filings, and the 6-Ks
+              foreign private issuers file instead, using a custom NLP
               model.
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Paragraph>

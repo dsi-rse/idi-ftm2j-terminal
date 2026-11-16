@@ -321,7 +321,7 @@ export type HistoricCommercialDebt = CitedEntity &
   };
 
 /**
- * A commercial debt instrument as disclosed in a single 8-K. The filing states
+ * A commercial debt instrument as disclosed in a single 8-K or 6-K. The filing states
  * when the instrument was *disclosed*, not a range over which the record stays
  * authoritative, so this is a {@link SnapshotEntity}. See
  * {@link HistoricCommercialDebt} for the date-ranged form, which needs a source
@@ -571,7 +571,7 @@ export type Company = CitedEntity & {
    */
   currentCorporateRelationships: CurrentCorporateRelationship[];
   /**
-   * Commercial debt instruments disclosed in this company's 8-K filings,
+   * Commercial debt instruments disclosed in this company's 8-K and 6-K filings,
    * excluding those that have matured or been superseded. A snapshot rather
    * than a date range — see {@link CurrentCommercialDebt}.
    */

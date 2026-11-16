@@ -24,6 +24,7 @@ import os
 import tempfile
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -121,34 +122,91 @@ CDT_URL = (
     "0000000001-16-000001.txt"
 )
 
-# Every column of the three CDT outputs, so an override naming a real column is
-# accepted and a typo still raises. `cik` is unpadded here because production
-# reports it that way -- that is the whole point of the padding guard.
+# Every column of the three CDT outputs, in the order CDT's
+# `publish_contract.json` (contract version 1) lists them, so an override naming
+# a real column is accepted and a typo still raises. `cik` is unpadded here
+# because production reports it that way -- that is the whole point of the
+# padding guard. Amounts are decimals, as CDT publishes them.
 #
-# `end_date` defaults to None, which makes the default instrument Undated. A
-# far-future date would have made it Active without a case having to say so, and
-# any hardcoded future date silently becomes a past date eventually; the active
-# case computes its own instead.
+# `maturity_date` defaults to None, which makes the default instrument Undated.
+# A far-future date would have made it Active without a case having to say so,
+# and any hardcoded future date silently becomes a past date eventually; the
+# active case computes its own instead.
+#
+# The default parties name the borrower as well as the lender, so every debt
+# case also checks that only `lender` parties render as lenders.
+CDT_PARTIES_JSON = json.dumps(
+    [
+        {
+            "role": "lender",
+            "canonical_name": "Fixture National Bank",
+            "kind": "named",
+            "spans": [
+                {
+                    "tag_id": "tag-1",
+                    "char_start": 0,
+                    "char_end": 21,
+                    "text": "Fixture National Bank",
+                },
+            ],
+        },
+        {
+            "role": "borrower",
+            "canonical_name": "Fixture Co",
+            "kind": "named",
+            "spans": [
+                {
+                    "tag_id": "tag-2",
+                    "char_start": 40,
+                    "char_end": 50,
+                    "text": "Fixture Co",
+                },
+            ],
+        },
+    ]
+)
+
 DEFAULT_CDT_ROW: dict[str, Any] = {
     "debt_instrument_id": CDT_MENTION_ID,
     "cik": "1",
     "company_name": "FIXTURE CO",
     "seed_debt_instrument_mention_id": CDT_MENTION_ID,
     "amendment_of_debt_instrument_id": None,
-    "retired_of_debt_instrument_id": None,
+    "retired_by_debt_instrument_ids": None,
     "split_of_debt_instrument_id": None,
+    "superseded_by_debt_instrument_id": None,
+    "lineage_family_id": CDT_MENTION_ID,
+    "is_lineage_head": True,
+    "first_seen_filing_date": "2016-01-04",
+    "last_seen_filing_date": "2016-01-04",
+    "mention_count": 1,
+    "document_count": 1,
     "name": "revolving credit facility",
+    "name_source_mention_id": CDT_MENTION_ID,
+    "instrument_type": None,
+    "instrument_type_source_mention_id": None,
     "start_date": "2016-01-04",
-    "end_date": None,
-    "amount": "10000000",
-    "lenders_json": (
-        '[{"mentions": [{"char_end": 21, "char_start": 0, "tag_id": "tag-1",'
-        ' "text": "Fixture National Bank", "type": "organization"},'
-        ' {"char_end": 30, "char_start": 26, "tag_id": "tag-2",'
-        ' "text": "Bank", "type": "organization"}],'
-        ' "tag_ids": ["tag-1", "tag-2"]}]'
-    ),
-    "other_interested_parties_json": "[]",
+    "start_date_source_mention_id": CDT_MENTION_ID,
+    "maturity_date": None,
+    "maturity_source_mention_id": None,
+    "commitment_termination_date": None,
+    "commitment_termination_source_mention_id": None,
+    "principal_amount": Decimal("10000000.00"),
+    "principal_currency": "USD",
+    "principal_amount_kind": "commitment",
+    "principal_source_mention_id": CDT_MENTION_ID,
+    "outstanding_balance": None,
+    "outstanding_balance_currency": None,
+    "outstanding_balance_as_of": None,
+    "outstanding_balance_as_of_is_filing_date": None,
+    "outstanding_balance_source_mention_id": None,
+    "interest_rate_kind": None,
+    "interest_rate_pct": None,
+    "interest_rate_source_mention_id": None,
+    "parties_json": CDT_PARTIES_JSON,
+    "lender_disclosure": "complete",
+    "amendment_inferred_by": None,
+    "synthesized_only": False,
 }
 
 DEFAULT_CDT_MENTION_ROW: dict[str, Any] = {
@@ -160,18 +218,32 @@ DEFAULT_CDT_MENTION_ROW: dict[str, Any] = {
     "date": "2016-01-04",
     "raw_id": "i-1",
     "name": "revolving credit facility",
+    "instrument_type": None,
     "start_date": "2016-01-04",
-    "end_date": None,
-    "amount": "10000000",
+    "maturity_date": None,
+    "commitment_termination_date": None,
+    "principal_amount": Decimal("10000000.00"),
+    "principal_currency": "USD",
+    "principal_amount_kind": "commitment",
+    "status": None,
+    "status_date": None,
+    "interest_rate_kind": None,
+    "interest_rate_pct": None,
     "amendment_of": None,
-    "retired_of": None,
+    "retired_by_json": None,
     "split_of": None,
-    "lenders_json": "[]",
-    "other_interested_parties_json": "[]",
-    "name_json": '{"mentions": []}',
-    "start_date_json": '{"mentions": []}',
-    "end_date_json": '{"mentions": []}',
-    "amount_json": '{"currency": "USD", "mentions": []}',
+    "parties_json": CDT_PARTIES_JSON,
+    "name_json": None,
+    "start_date_json": None,
+    "maturity_date_json": None,
+    "commitment_termination_date_json": None,
+    "amounts_json": None,
+    "status_json": None,
+    "interest_rate_json": None,
+    "dates_json": None,
+    "lender_disclosure": "complete",
+    "synthesized_by": None,
+    "synthesized_from_mention_id": None,
 }
 
 DEFAULT_CDT_ITEM_ROW: dict[str, Any] = {
@@ -191,6 +263,7 @@ DEFAULT_CDT_ITEM_ROW: dict[str, Any] = {
     "start_line": 1,
     "end_line": 2,
     "section_char_count": 67,
+    "form_type": "8-K",
 }
 
 # The columns of the shareholder-tracker output that `attach_shareholders`

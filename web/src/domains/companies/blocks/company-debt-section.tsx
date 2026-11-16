@@ -319,7 +319,7 @@ function DebtTable({
 }
 
 const INFO_COPY =
-  "Commercial debt instruments disclosed in this company's 8-K filings, one row per instrument, each linking to the filing it was extracted from. Matured and superseded instruments are excluded, and private debt never disclosed in an 8-K does not appear at all.";
+  "Commercial debt instruments disclosed in this company's 8-K and 6-K filings, one row per instrument, each linking to the filing it was extracted from. Matured and superseded instruments are excluded, and private debt never disclosed in an 8-K or 6-K does not appear at all.";
 
 /**
  * The count line under the section title: how many instruments, how they split
@@ -370,11 +370,11 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
       >
         <p className="type-body m-0">
           No commercial debt instrument is in scope for this company. Instruments
-          are extracted from 8-K filings, and only those that have neither
-          matured nor been superseded are shown — a company with no 8-K debt
-          disclosure, or whose disclosed instruments have all matured, appears
-          here. Debt raised privately or never disclosed in an 8-K is not
-          covered.
+          are extracted from 8-K and 6-K filings, and only those that have
+          neither matured nor been superseded are shown — a company with no
+          such debt disclosure, or whose disclosed instruments have all
+          matured, appears here. Debt raised privately or never disclosed in an
+          8-K or 6-K is not covered.
         </p>
       </SectionCard>
     );
@@ -393,7 +393,7 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
       info={INFO_COPY}
       source={
         <>
-          {documents} SEC 8-K filing{documents === 1 ? "" : "s"}
+          {documents} SEC filing{documents === 1 ? "" : "s"}
           {retrieved ? `, retrieved ${retrieved}` : null}.
         </>
       }

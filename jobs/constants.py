@@ -70,9 +70,18 @@ SHAREHOLDER_INVESTOR_TYPE_INSTITUTIONAL = "INSTITUTIONAL INVESTOR"
 SHAREHOLDER_SOURCE_NAME_13F = "SEC Form 13-F"
 SHAREHOLDER_SOURCE_NAME_FALLBACK = "Shareholder disclosure"
 
-# CDT extracts debt instruments from 8-K material-event filings. 6-Ks are named
-# in the spec as a future source and are not in the data yet.
-CDT_FORM_TYPE = "8-K"
+# CDT extracts debt instruments from 8-K material-event filings and from the
+# 6-Ks foreign private issuers file instead; `items.form_type` says which. An
+# 8-K row's `item` is the item number EDGAR labels it with ("1.01"). A 6-K has
+# no items, and its row's `item` is CDT's internal window id, so a 6-K citation
+# names the form alone.
+CDT_FORM_TYPE_8K = "8-K"
+
+# The `parties_json` role whose parties are rendered as an instrument's lenders.
+# CDT labels every party cluster with one role (`lender`, `borrower`, `agent`,
+# `trustee`, `underwriter`, `guarantor`, `other`); before it did, the borrower
+# and the underwriters reached the frontend as "lenders".
+CDT_LENDER_ROLE = "lender"
 
 # An instrument whose end date is in the future is Active; one whose filing
 # stated no end date is Undated. There is deliberately no matured or superseded
@@ -81,17 +90,16 @@ CDT_FORM_TYPE = "8-K"
 DEBT_STATUS_ACTIVE = "Active"
 DEBT_STATUS_UNDATED = "Undated"
 
-# The three columns of `items` that a citation needs, plus the join key. The file
-# is 26.5 MB of which its unread `text` column -- the full 8-K section body the
-# extraction ran over -- is the bulk, and only ~1,900 of its ~26,000 rows are
-# ever joined, so it is read narrow.
+# The columns of `items` that a citation needs, plus the join key. Most of the
+# file is its unread `text` column -- the full section body the extraction ran
+# over -- so it is read narrow.
 #
 # `item_information` is deliberately absent. It is the human-readable gloss for
 # `item`, but it is lowercase and runs to 135 characters ("triggering events that
 # accelerate or increase a direct financial obligation or an obligation under an
 # off-balance sheet arrangement"), which makes a poor citation name. The item
 # number is the identifier EDGAR itself uses.
-CDT_ITEM_COLUMNS: tuple[str, ...] = ("item_id", "url", "date", "item")
+CDT_ITEM_COLUMNS: tuple[str, ...] = ("item_id", "url", "date", "item", "form_type")
 
 # CDT publishes each generation of its tables atomically: every table goes under
 # an immutable `snapshots/snapshot=<run_id>/` prefix first, then one
@@ -109,11 +117,12 @@ CDT_TABLES: tuple[str, ...] = (
     CDT_ITEMS_TABLE,
 )
 
-# The version of CDT's `publish_contract.json` this build was written against.
-# CDT bumps it, and stamps it into `latest.json`, when a change is one a reader
-# must know about -- a renamed column or a reshaped payload, which has already
-# shipped silently empty sections twice. So a mismatch fails the build: update
-# the readers in `debt.py`, then this number.
+# The version of CDT's `publish_contract.json` (in CDT's `src/cdt/`) that the
+# readers in `debt.py` and the CDT fixtures are written against. CDT bumps it,
+# and stamps it into `latest.json`, when a change is one a reader must know
+# about -- a renamed column or a reshaped payload, which has already shipped
+# silently empty sections twice. So a mismatch fails the build: port the
+# readers and fixtures to the new contract, then bump this number.
 CDT_CONTRACT_VERSION = 1
 
 # Company-level columns, all read off one winning row. Rows sharing an

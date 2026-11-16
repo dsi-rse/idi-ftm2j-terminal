@@ -99,7 +99,7 @@ export default function AboutPage() {
               dataset rather than being uniform across them. Roughly a third
               have a corporate tree traced from their subsidiary disclosures; a
               smaller share have commercial-debt instruments extracted from
-              their 8-K filings; and institutional and pension-fund
+              their 8-K and 6-K filings; and institutional and pension-fund
               shareholdings are attached wherever a holder&rsquo;s disclosures
               resolve to the company. Every company page states what it does and
               does not have, and coverage expands as new filings are reconciled

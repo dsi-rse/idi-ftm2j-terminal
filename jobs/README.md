@@ -189,68 +189,75 @@ problem, not something to do implicitly here.
 
 ## Inputs 3, 4, 5 — commercial debt (CDT)
 
-Three files for one section, and that is not an accident of convenience.
+Three tables for one section, and that is not an accident of convenience. All
+three are resolved from one CDT generation through `latest.json` (see *CDT
+generations*), and are read as CDT's publish contract version 1 describes them
+— `src/cdt/publish_contract.json` in the CDT repo is the source of truth for
+every column and payload shape named here. A new contract version fails the
+build until the readers below are ported and `CDT_CONTRACT_VERSION` is bumped.
 
-`s3://{bucket}/database/cdt/debt-instruments/latest.parquet` holds the
-instruments — one row per debt instrument, resolved across the filings that
-mention it — and **carries no provenance whatsoever**. Thirteen columns, none of
-them a document link, filing date, accession number, or access date. Since every
-fact rendered on a company page has to cite its source, that file alone cannot
-populate the section. The citation comes from two sibling outputs:
+`debt-instruments` holds the instruments — one row per debt instrument,
+resolved across the filings that mention it — and **carries no provenance**:
+none of its columns is a document link, filing date, or access date. Since every
+fact rendered on a company page has to cite its source, that table alone cannot
+populate the section. The citation comes from two sibling tables:
 
 ```
 debt-instruments.seed_debt_instrument_mention_id
-  → debt-instrument-mentions.debt_instrument_mention_id   (amount_json → currency)
+  → debt-instrument-mentions.debt_instrument_mention_id
   → debt-instrument-mentions.item_id
-  → items.item_id                                         (url, date, item)
+  → items.item_id                                  (url, date, item, form_type)
 ```
 
-Both hops are total on today's data: 1,640 of 1,640 instruments resolve a mention,
-and 1,891 of 1,891 mentions resolve an item. An instrument that fails to resolve
-**fails the build** — it would otherwise be rendered uncited, which is worse than
-not rendering it.
+An instrument that renders but fails to resolve **fails the build** — it would
+otherwise be rendered uncited, which is worse than not rendering it.
 
-`debt-instrument-mentions` is also the only place the **currency** lives, in
-`amount_json.currency`. `debt-instruments.amount` is a bare number.
-
-`items` is read narrow, four columns of sixteen. It is 26.5 MB mostly because of
-`text`, the full 8-K section body the extraction ran over, and only ~1,900 of its
-~26,000 rows are ever joined.
+`items` covers both 8-Ks and the 6-Ks foreign private issuers file instead
+(`form_type`; on 2026-11-14's beta, 1,437 and 1,395 rows). It is read narrow,
+five columns, because most of it is `text`, the full section body the
+extraction ran over.
 
 Populates `Company.currentCommercialDebt`:
 
 | `CurrentCommercialDebt` field | Source column |
 | --- | --- |
 | `instrumentName` | `debt-instruments.name`, verbatim |
-| `lenders` | `debt-instruments.lenders_json`, one label per coreference group |
-| `amount` | `debt-instruments.amount` |
-| `currency` | `mentions.amount_json` → `currency` |
+| `lenders` | `debt-instruments.parties_json`, the `canonical_name` of each `lender` party |
+| `amount` | `debt-instruments.principal_amount` (a decimal) |
+| `currency` | `debt-instruments.principal_currency` |
 | `startDate` | `debt-instruments.start_date` |
-| `endDate` | `debt-instruments.end_date` |
+| `endDate` | `debt-instruments.maturity_date` |
 | `status` | derived from `endDate` vs the build date |
 | `asOf` | `items.date` (the filing date) |
-| `sources[].name` | `items.item`, e.g. `SEC 8-K Item 1.01` |
+| `sources[].name` | `items.form_type` + `items.item`: `SEC 8-K Item 1.01`, or `SEC 6-K` |
 | `sources[].url` | `items.url`, verbatim |
 | `sources[].lastAccessed` | the pipeline run date |
 | (join key) | `debt-instruments.cik`, zero-padded |
-| (scope filter) | the three `*_of_debt_instrument_id` lineage columns |
+| (scope filter) | `is_lineage_head`, `retired_by_debt_instrument_ids`, `split_of_debt_instrument_id` |
 
-Unused columns: `company_name` on all three files (company-info stays the single
-source for company identity, as with corporate structure),
-`other_interested_parties_json` (borrowers and guarantors — the same coreference
-problem as lenders, with less payoff), everything in `mentions` that
-`debt-instruments` already resolves (`name_json`, `start_date_json`,
-`end_date_json`, `raw_id`, and the per-mention lineage columns), and everything in
-`items` outside the four read — including `item_information`, the gloss for
-`item`, which is lowercase and runs to 135 characters and so makes a poor
-citation name.
+An instrument is out of scope once it is superseded: amended (CDT sets
+`is_lineage_head` false on the prior state), retired (CDT sets
+`retired_by_debt_instrument_ids` on the retired row itself), or split (each
+piece names its origin in `split_of_debt_instrument_id`).
 
-**Both auxiliary files must be de-duplicated before joining.** `mentions` carries
-23 duplicate ids (exact repeats within one item) and `items` carries 803 duplicate
-`item_id`s in which `company_name` is the only column that varies, because each
-co-registrant on one 8-K gets a row. The naive join turns 1,640 instruments into
-1,861. The merges also pass `validate="many_to_one"`, so removing the de-duplication
-raises rather than quietly inflating.
+A 6-K's `items.item` is CDT's internal window id (`000110465916089282:0:1`), not
+an item number, so a 6-K citation names the form alone.
+
+Unused columns: `company_name` on all three tables (company-info stays the
+single source for company identity, as with corporate structure); on
+`debt-instruments`, the outstanding balance, interest rate, commitment
+termination date, `instrument_type`, `lender_disclosure`, and the per-field
+`*_source_mention_id` provenance; everything in `mentions` beyond the join keys;
+and everything in `items` outside the five read — including `item_information`,
+the gloss for `item`, which is lowercase and runs to 135 characters and so makes
+a poor citation name.
+
+**Both auxiliary tables are de-duplicated before joining.** Older CDT output
+carried duplicate mention ids and duplicate `item_id`s (one row per
+co-registrant on an 8-K), which multiplied instruments when joined as-is. The
+contract now makes both primary keys, but the de-duplication stays and the
+merges pass `validate="many_to_one"`, so a regression raises rather than
+quietly inflating.
 
 ## Input 6 — shareholders
 
@@ -364,18 +371,19 @@ non-deterministic field in the output. Do not "fix" that by using the filing dat
 that would assert a 2016 retrieval of a document first read years later.
 
 **Debt amounts are never converted or summed.** No CDT output supplies an FX rate,
-so the spec's "Amount USD" cannot be produced. Twelve in-scope instruments are
-EUR, CHF, or GBP, and 385 have no amount at all, so any total both mixes
-currencies and understates by a third.
+so the spec's "Amount USD" cannot be produced. CDT takes each amount and its
+currency from one mention together, so they cannot detach, but amounts still
+come in many currencies and many instruments have none, so any total both mixes
+currencies and understates.
 
-**Lender labels ship unfiltered, role words included.** `lenders_json` is a
-coreference mention graph, and many groups contain no name anywhere — their
-longest span is `lenders`, `underwriters`, or `lenders party thereto`, which is
-what the filing said in place of a name. 494 of 1,132 instruments disclose no
-lender at all and 638 carry at least one label. Separating roles from names, and
-normalizing the names that remain, is its own piece of work; the labels here are
-the evidence it needs. `extract_lender_labels` is the single place any such
-cleanup belongs.
+**Lenders are `lender` parties only, collective ones included.** CDT labels
+every party cluster with a role; only `lender` renders as a lender, so the
+borrower, agents, trustees, underwriters, and guarantors no longer appear in
+that list. `kind` is not filtered: a `collective` lender such as `lenders party
+thereto` is what the filing said in place of a name, and dropping it would make
+a hidden syndicate look like an instrument with no lender. Normalizing the
+names that remain is its own piece of work; `extract_lender_labels` is the
+single place any such cleanup belongs.
 
 **Misextracted amounts are passed through.** Six values dataset-wide are below
 1,000 and at least three are plainly interest-rate margins the extractor put in

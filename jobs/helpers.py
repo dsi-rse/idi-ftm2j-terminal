@@ -15,6 +15,7 @@ import pandas as pd
 
 # Local imports
 from constants import (
+    CDT_LENDER_ROLE,
     IDENTIFIER_TYPE_CIK,
     IDENTIFIER_TYPE_CUSIP,
     SECTOR_CODE,
@@ -289,94 +290,64 @@ def cusip_rows(identifier_types: pd.Series) -> pd.Series:
 
 
 def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
-    """Reads lender labels out of the CDT `lenders_json` blob.
+    """Reads lender names out of the CDT `parties_json` blob.
 
-    The blob is a list of coreference groups, each holding character-offset
-    spans into the 8-K text::
+    The blob lists every party cluster the extractor found in the filing, each
+    with a `role`, a `canonical_name` (the longest span naming the party rather
+    than its role, else the longest span), a `kind`, and evidence spans::
 
-        [{"mentions": [{"char_start": 265, "char_end": 286, "tag_id": "tag-10",
-                        "text": "Western Alliance Bank", "type": "organization"},
-                       {"char_start": 304, "char_end": 308, "tag_id": "tag-11",
-                        "text": "Bank", "type": "organization"}],
-          "tag_ids": ["tag-10", "tag-11"]}]
+        [{"role": "lender", "canonical_name": "Western Alliance Bank",
+          "kind": "named", "spans": [...]},
+         {"role": "borrower", "canonical_name": "Fixture Co",
+          "kind": "named", "spans": [...]}]
 
-    One group is one entity's chain of references, so most of its spans are
-    anaphora -- "Bank" repeated five times -- rather than the name. Where the
-    chain contains a name, that name is its longest span, which is what this
-    returns.
+    Only `CDT_LENDER_ROLE` parties are lenders. The borrower, agents, trustees,
+    underwriters and guarantors are parties to the instrument but not who holds
+    the debt.
 
-    Nothing is filtered, and that is the whole point. Many groups contain no name
-    anywhere: their longest span is a role word, and across the in-scope
-    instruments "lenders" is the label of 35 groups, "underwriters" 28, "lenders
-    party thereto" 24, "holders" 17. Those are returned as written.
-
-    Two filters look obviously right here and are both wrong:
-
-    Restricting to `type == "organization"` does not separate names from roles.
-    "underwriters" and "Underwriters" are themselves tagged `organization`, so
-    the roles survive anyway -- while 304 groups lose their only span and the
-    instruments carrying a lender drop from 638 to 431.
-
-    A stopword set of role words would work, and is the first step of separating
-    roles from names. That is deferred, deliberately: it belongs with the rest of
-    the lender-normalization work, and the labels this returns are the evidence
-    that work needs. Filtering them here would hide the problem instead of
-    scoping it. Note the difference from `parse_address_country`, which screens
-    an open set and so must name what a country is *not*: the set of role words
-    is closed and small, which is exactly why deferring costs nothing.
+    `kind` is deliberately not filtered. A `collective` lender is one the filing
+    never names -- "the lenders party thereto" -- and its role phrase is returned
+    as written. Dropping it would make a syndicate whose members are hidden look
+    like an instrument with no lender at all, which is a different and less
+    honest statement; the frontend shows these phrases as what they are.
 
     Args:
-        value: A raw `lenders_json` cell.
+        value: A raw `parties_json` cell.
         logger: A standard logger instance.
 
     Returns:
-        One label per group, de-duplicated in document order. Empty when the
-        filing discloses no lender -- 494 of the 1,132 in-scope instruments.
+        One name per lender cluster, de-duplicated in document order. Empty when
+        the filing names no lender -- a public note series, a redemption notice.
     """
     text = _clean(value)
     if not text:
         return []
 
     try:
-        groups = json.loads(text)
+        parties = json.loads(text)
     except ValueError:
         logger.warning(
-            "Could not parse a lenders_json cell as JSON; treating the "
+            "Could not parse a parties_json cell as JSON; treating the "
             "instrument as disclosing no lender. Cell begins: %.80s",
             text,
         )
         return []
 
-    if not isinstance(groups, list):
+    if not isinstance(parties, list):
         logger.warning(
-            "A lenders_json cell parsed to %s rather than a list of groups; "
+            "A parties_json cell parsed to %s rather than a list of parties; "
             "treating the instrument as disclosing no lender.",
-            type(groups).__name__,
+            type(parties).__name__,
         )
         return []
 
     labels: dict[str, None] = {}
-    for group in groups:
-        if not isinstance(group, dict):
+    for party in parties:
+        if not isinstance(party, dict) or party.get("role") != CDT_LENDER_ROLE:
             continue
-        mentions = group.get("mentions")
-        if not isinstance(mentions, list):
-            continue
-        spans = [
-            span
-            for span in (
-                _clean(mention.get("text"))
-                for mention in mentions
-                if isinstance(mention, dict)
-            )
-            if span
-        ]
-        if not spans:
-            continue
-        # `max` keeps the first of equal-length spans, which is the earliest in
-        # the document, so the result does not depend on dict iteration luck.
-        labels.setdefault(max(spans, key=len), None)
-
+        name = _clean(party.get("canonical_name"))
+        if name:
+            labels.setdefault(name, None)
     return list(labels)
 
 
@@ -395,7 +366,8 @@ def parse_amount(value: object) -> int | float | None:
     would silently drop real instruments. The fix belongs upstream.
 
     Args:
-        value: A raw numeric cell (a debt `amount`, or a company-facts figure).
+        value: A raw numeric cell (a debt `principal_amount`, which CDT
+            publishes as a decimal, or a company-facts figure).
 
     Returns:
         The number, or `None` if the cell was blank or not a number.

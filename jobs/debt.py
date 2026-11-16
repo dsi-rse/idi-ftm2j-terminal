@@ -9,7 +9,7 @@ import pandas as pd
 
 # Local imports
 from constants import (
-    CDT_FORM_TYPE,
+    CDT_FORM_TYPE_8K,
     CDT_ITEM_COLUMNS,
     CIK_WIDTH,
     DEBT_STATUS_ACTIVE,
@@ -24,70 +24,68 @@ from helpers import (
 from output import normalize_cik
 
 
-def build_debt_source_name(item: str | None) -> str:
-    """Names the citation after the 8-K item the instrument was disclosed under.
+def build_debt_source_name(form_type: str | None, item: str | None) -> str:
+    """Names the citation after the filing the instrument was disclosed in.
 
     Parallel to `build_source_name` for corporate structure: the citation says
-    which part of which form it came from. Six items appear -- 1.01 and 1.02
-    (entering and terminating a material definitive agreement), 2.03 and 2.04
-    (creating and accelerating a financial obligation), 7.01 (Regulation FD) and
-    8.01 (other events) -- and the number is how EDGAR itself labels them.
+    which part of which form it came from. An 8-K citation carries its item --
+    1.01 and 1.02 (entering and terminating a material definitive agreement),
+    2.03 and 2.04 (creating and accelerating a financial obligation), 7.01
+    (Regulation FD), 8.01 (other events) -- the number EDGAR itself labels them
+    with. A 6-K has no items; its `item` is CDT's internal window id, which means
+    nothing to a reader, so the citation names the form alone.
 
     Args:
-        item: The 8-K item number, e.g. `"1.01"`.
+        form_type: `items.form_type`, `"8-K"` or `"6-K"`. Defaults to 8-K when
+            blank.
+        item: `items.item`.
 
     Returns:
-        A source name such as `"SEC 8-K Item 1.01"`.
+        A source name such as `"SEC 8-K Item 1.01"` or `"SEC 6-K"`.
     """
-    if not item:
-        return f"SEC {CDT_FORM_TYPE}"
-    return f"SEC {CDT_FORM_TYPE} Item {item}"
+    form = form_type or CDT_FORM_TYPE_8K
+    if form != CDT_FORM_TYPE_8K or not item:
+        return f"SEC {form}"
+    return f"SEC {form} Item {item}"
 
 
-def parse_amount_currency(value: object, logger: logging.Logger) -> str | None:
-    """Reads the ISO 4217 currency out of the CDT `amount_json` blob.
+def _has_retirer(value: object) -> bool:
+    """Tells whether a `retired_by_debt_instrument_ids` cell names any instrument.
 
-    The currency lives only in the mentions file -- `debt-instruments.amount` is
-    a bare number with no currency column -- so this is the reason the mentions
-    join carries anything beyond provenance.
-
-    There is no conversion, here or anywhere: no CDT output supplies an FX rate,
-    so the spec's "Amount USD" field cannot be produced. Amounts are reported in
-    whatever the filing said, and the code travels with the number so the UI can
-    show it.
-
-    Args:
-        value: A raw `amount_json` cell.
-        logger: A standard logger instance.
-
-    Returns:
-        The currency code, or `None` if the blob names none.
+    The cell is a JSON array of ids, or null when nothing retired the row.
+    Anything else is not a shape the contract allows; it raises rather than
+    guessing, because guessing either way changes which instruments render.
     """
     text = _clean(value)
     if not text:
-        return None
+        return False
     try:
-        payload = json.loads(text)
-    except ValueError:
-        logger.warning(
-            "Could not parse an amount_json cell as JSON; leaving the currency "
-            "unset. Cell begins: %.80s",
-            text,
+        ids = json.loads(text)
+    except ValueError as e:
+        raise RuntimeError(
+            f"A retired_by_debt_instrument_ids cell is not JSON: {text[:80]!r}"
+        ) from e
+    if not isinstance(ids, list):
+        raise RuntimeError(
+            "A retired_by_debt_instrument_ids cell is not a JSON array: "
+            f"{text[:80]!r}"
         )
-        return None
-    if not isinstance(payload, dict):
-        return None
-    return _clean(payload.get("currency"))
+    return any(_clean(i) for i in ids)
 
 
 def collect_superseded_instrument_ids(instruments_df: pd.DataFrame) -> set[str]:
-    """Collects the instruments that a later filing replaced.
+    """Collects the instruments that are no longer a live obligation.
 
-    An instrument names its predecessor through one of three columns:
-    `amendment_of_debt_instrument_id`, `retired_of_debt_instrument_id`, or
-    `split_of_debt_instrument_id`. Every id they name is itself a row in the same
-    table, so this is a membership test rather than a graph walk -- there is no
-    chain to follow, and 65 of 1,640 instruments are named.
+    Three ways, each of which CDT records on a different row:
+
+    - Amended: `is_lineage_head` is False on the prior state an amendment
+      replaced. CDT computes it, so the multi-child case
+      (`superseded_by_debt_instrument_id` is set only for exactly one child)
+      needs no graph walk here.
+    - Retired: `retired_by_debt_instrument_ids` is set on the retired
+      instrument's own row.
+    - Split: `split_of_debt_instrument_id` is set on each piece, naming the
+      instrument it was split from.
 
     Args:
         instruments_df: The debt-instruments dataset.
@@ -95,15 +93,17 @@ def collect_superseded_instrument_ids(instruments_df: pd.DataFrame) -> set[str]:
     Returns:
         The `debt_instrument_id` values that have been superseded.
     """
-    superseded: set[str] = set()
-    for column in (
-        "amendment_of_debt_instrument_id",
-        "retired_of_debt_instrument_id",
-        "split_of_debt_instrument_id",
-    ):
-        superseded |= {
-            text for text in (_clean(value) for value in instruments_df[column]) if text
-        }
+    ids = instruments_df["debt_instrument_id"].map(_clean)
+    not_head = ~instruments_df["is_lineage_head"].fillna(True).astype(bool)
+    retired = instruments_df["retired_by_debt_instrument_ids"].map(_has_retirer)
+    superseded = set(ids[not_head | retired].dropna())
+    superseded |= {
+        text
+        for text in (
+            _clean(value) for value in instruments_df["split_of_debt_instrument_id"]
+        )
+        if text
+    }
     return superseded
 
 
@@ -115,14 +115,14 @@ def resolve_debt_documents(
 ) -> pd.DataFrame:
     """Joins each debt instrument to the 8-K it was extracted from.
 
-    `debt-instruments/latest.parquet` carries no provenance at all -- no document
-    link, filing date, accession number, or access date -- so a citation is only
-    possible through the two sibling CDT outputs:
+    `debt-instruments` carries no provenance at all -- no document link, filing
+    date, accession number, or access date -- so a citation is only possible
+    through the two sibling CDT outputs:
 
         debt-instruments.seed_debt_instrument_mention_id
-          -> debt-instrument-mentions.debt_instrument_mention_id  (amount_json)
+          -> debt-instrument-mentions.debt_instrument_mention_id
           -> debt-instrument-mentions.item_id
-          -> items.item_id                                        (url, date, item)
+          -> items.item_id                      (url, date, item, form_type)
 
     Both sides are de-duplicated first, and neither drop is cosmetic. `mentions`
     carries 23 duplicate ids -- exact repeats within one item -- and `items`
@@ -137,7 +137,7 @@ def resolve_debt_documents(
         logger: A standard logger instance.
 
     Returns:
-        `instruments_df` with `url`, `date`, `item`, and `amount_json` attached.
+        `instruments_df` with `url`, `date`, `item`, and `form_type` attached.
         A row that resolved no document keeps those columns as nulls rather than
         failing here -- whether that matters depends on whether the row renders,
         which this function cannot know. `require_renderable_citations` decides.
@@ -159,7 +159,7 @@ def resolve_debt_documents(
     )
 
     resolved = instruments_df.merge(
-        mentions[["debt_instrument_mention_id", "item_id", "amount_json"]],
+        mentions[["debt_instrument_mention_id", "item_id"]],
         left_on="seed_debt_instrument_mention_id",
         right_on="debt_instrument_mention_id",
         how="left",
@@ -278,7 +278,9 @@ def build_debt_instrument(
         # instead of the address is how a citation quietly starts 404ing.
         "sources": [
             {
-                "name": build_debt_source_name(_clean(row["item"])),
+                "name": build_debt_source_name(
+                    _clean(row["form_type"]), _clean(row["item"])
+                ),
                 "url": _clean(row["url"]),
                 # Not the filing date -- that is `asOf` below. Nothing in the
                 # three CDT files records when the document was retrieved, so
@@ -294,11 +296,15 @@ def build_debt_instrument(
         # carries the latter when the filing states it.
         "asOf": parse_iso_date(row["date"]),
         "instrumentName": _clean(row["name"]),
-        "lenders": extract_lender_labels(row["lenders_json"], logger),
-        "amount": parse_amount(row["amount"]),
-        "currency": parse_amount_currency(row["amount_json"], logger),
+        "lenders": extract_lender_labels(row["parties_json"], logger),
+        # Amount and currency come from one CDT mention together, so the code
+        # cannot detach from its figure. Nothing is converted: no CDT output
+        # supplies an FX rate, so the spec's "Amount USD" cannot be produced, and
+        # the code travels with the number for the UI to show.
+        "amount": parse_amount(row["principal_amount"]),
+        "currency": _clean(row["principal_currency"]),
         "startDate": parse_iso_date(row["start_date"]),
-        "endDate": parse_iso_date(row["end_date"]),
+        "endDate": parse_iso_date(row["maturity_date"]),
         "status": status,
     }
 
@@ -374,7 +380,7 @@ def attach_commercial_debt(
     # instrument is Undated rather than assumed expired. Comparing against the
     # build date rather than a fresh `today()` per row keeps one run internally
     # consistent.
-    end_dates = pd.to_datetime(resolved["end_date"], errors="coerce")
+    end_dates = pd.to_datetime(resolved["maturity_date"], errors="coerce")
     as_of_build = pd.Timestamp(run_date)
     matured = end_dates <= as_of_build
 
