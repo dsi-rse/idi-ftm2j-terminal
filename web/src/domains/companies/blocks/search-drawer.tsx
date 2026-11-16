@@ -423,7 +423,7 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               Recent and Saved are short and unfiltered -- so typing from
               either of them switches to All rather than appearing to do
               nothing. */}
-          <div className={cn("sticky top-0 z-10 -mx-4 bg-background")}>
+          <div className={cn("sticky top-0 z-10 -mx-4 bg-muted-foreground")}>
             <div className={cn("p-3")}>
               <SearchInput
                 value={searchQuery}
