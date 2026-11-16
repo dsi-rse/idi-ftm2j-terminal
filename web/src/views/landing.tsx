@@ -11,6 +11,7 @@ import { SearchBar, type SearchBarHandle } from "@/components/search";
 import type { CorpusStats } from "@/domains/companies/dataset";
 import { formatCountShort } from "@/lib/format-count";
 import { SEARCH_FOCUS_PARAM, SEARCH_FOCUS_VALUE } from "@/lib/search-focus";
+import { cn } from "@/lib/utils";
 import { StandardPageLayout } from "@/layouts";
 
 type LandingProps = {
@@ -71,7 +72,7 @@ function Header({ stats }: LandingProps) {
     // sits lower than it did when the button was there.
     <Article
       id="landing"
-      className="md:max-w-xl md:justify-self-start md:pb-25.5"
+      className={cn("md:max-w-xl md:justify-self-start md:pb-25.5")}
     >
       <Article.Header className="flex flex-col gap-4">
         <Article.Header.Eyebrow>

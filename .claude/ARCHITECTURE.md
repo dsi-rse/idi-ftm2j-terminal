@@ -310,9 +310,11 @@ grep -n "from \"\\./" web/src/blocks/*.tsx
 ```
 
 ```bash
-# Corners go through the radius roles. Should print only the comment in
-# globals.css that names the raw classes it replaces.
-grep -rnE "rounded-(xs|sm|md|lg|xl|2xl|3xl)\b" web/src
+# Corners go through the radius roles, including the per-side and per-corner
+# forms (`rounded-r-md`, `rounded-tl-lg`) and Tailwind's bare `rounded`.
+# Should print only the comment in globals.css that names the raw classes it
+# replaces.
+grep -rnE "rounded(-[trblse]{1,2})?-(xs|sm|md|lg|xl|2xl|3xl)\b|[\"' \`]rounded[\"' \`]" web/src
 ```
 
 ```bash

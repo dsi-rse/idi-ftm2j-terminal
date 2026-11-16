@@ -413,7 +413,7 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
       {/* No top padding: the sticky search block below pins to the body's
           content edge, so padding here would leave a strip above it that
           results scroll through. */}
-      <Drawer.Body className="pt-0">
+      <Drawer.Body className={cn("pt-0")}>
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as "all" | "recent" | "saved")}
@@ -429,7 +429,9 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
                 value={searchQuery}
                 onValueChange={(query) => {
                   setSearchQuery(query);
-                  if (activeTab !== "all") setActiveTab("all");
+                  // Only typing switches; clearing the box from Recent or
+                  // Saved leaves the user where they are.
+                  if (query !== "" && activeTab !== "all") setActiveTab("all");
                 }}
                 placeholder="Search by name, subsidiary, PermID, or ticker…"
               />

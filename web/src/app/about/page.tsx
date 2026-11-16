@@ -171,14 +171,10 @@ export default function AboutPage() {
               Refresh cadence
             </Article.Body.Section.Title>
             <Article.Body.Section.Paragraph>
-              The graph is reconciled on a weekly cycle. Individual company
-              pages display the date each section was last refreshed so that
-              users can judge currency at a glance.
-            </Article.Body.Section.Paragraph>
-            <Article.Body.Section.Paragraph>
-              Scrapers run on a rolling basis between cycles, and the most
-              recent reconciliation timestamp is shown in the status bar of
-              each company profile.
+              The site is rebuilt from the latest processed data each time it
+              is deployed, rather than on a fixed schedule. The &ldquo;Last
+              updated&rdquo; date in the footer is the day of the most recent
+              build.
             </Article.Body.Section.Paragraph>
           </Article.Body.Section>
 

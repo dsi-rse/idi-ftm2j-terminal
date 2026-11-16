@@ -6,6 +6,7 @@ import { Navbar as NavbarBlock } from "@/blocks/navbar";
 import { ThemeToggle } from "@/blocks/theme-toggle";
 import { SiteLogo } from "@/components/logo";
 import { SEARCH_FOCUS_HREF } from "@/lib/search-focus";
+import { cn } from "@/lib/utils";
 
 /**
  * The navigation bar for the FTM2J Terminal site.
@@ -32,8 +33,9 @@ export function Navbar() {
         <NavbarBlock.List.Item>
           <NavbarBlock.Link
             href={SEARCH_FOCUS_HREF}
-            icon={<Search className="size-4" aria-hidden />}
+            icon={<Search className={cn("size-4")} aria-hidden />}
             iconOnly
+            handsOffFocus
           >
             Search
           </NavbarBlock.Link>

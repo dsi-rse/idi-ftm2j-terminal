@@ -22,9 +22,13 @@ import { cn } from "@/lib/utils";
 type NavbarContext = {
   isOpen: boolean;
   setIsOpen: Dispatch<SetStateAction<boolean>>;
-  close: () => void;
-  /** Whether the menu is closing because a link inside it was followed. */
-  closedByLink: () => boolean;
+  /**
+   * Closes the menu. Pass `handOffFocus` when the page the link opens moves
+   * focus itself, so the menu does not pull it back to its trigger.
+   */
+  close: (options?: { handOffFocus?: boolean }) => void;
+  /** Whether the last close handed focus off to the page. */
+  focusHandedOff: () => boolean;
   brand: ReactNode;
   setBrand: Dispatch<SetStateAction<ReactNode>>;
   extras: ReactNode;
@@ -43,18 +47,18 @@ const NavbarProvider = ({ children }: PropsWithChildren) => {
   const [isOpen, setIsOpen] = useState(false);
   const [brand, setBrand] = useState<ReactNode>(null);
   const [extras, setExtras] = useState<ReactNode>(null);
-  // Set when a link closes the menu, cleared when it opens again. Read when the
-  // dialog decides where focus goes on close.
-  const followedLink = useRef(false);
-  const close = () => {
-    followedLink.current = true;
+  // Set when a link that moves focus itself closes the menu, cleared when it
+  // opens again. Read when the dialog decides where focus goes on close.
+  const handedOff = useRef(false);
+  const close = ({ handOffFocus = false }: { handOffFocus?: boolean } = {}) => {
+    handedOff.current = handOffFocus;
     setIsOpen(false);
   };
-  const closedByLink = () => followedLink.current;
+  const focusHandedOff = () => handedOff.current;
   const openChange: Dispatch<SetStateAction<boolean>> = (next) => {
     setIsOpen((prev) => {
       const open = typeof next === "function" ? next(prev) : next;
-      if (open) followedLink.current = false;
+      if (open) handedOff.current = false;
       return open;
     });
   };
@@ -64,7 +68,7 @@ const NavbarProvider = ({ children }: PropsWithChildren) => {
         isOpen,
         setIsOpen: openChange,
         close,
-        closedByLink,
+        focusHandedOff,
         brand,
         setBrand,
         extras,
@@ -93,9 +97,15 @@ type NavbarLinkProps = {
   icon?: ReactNode;
   /**
    * Show only the icon in the desktop bar, keeping the label for screen
-   * readers. The mobile menu always shows the label beside the icon.
+   * readers and as a hover title. The mobile menu always shows the label
+   * beside the icon.
    */
   iconOnly?: boolean;
+  /**
+   * The page this link opens moves focus itself (the search link focuses the
+   * landing's search bar), so the mobile menu leaves focus alone on close.
+   */
+  handsOffFocus?: boolean;
 };
 
 /**
@@ -160,7 +170,7 @@ NavbarExtras.displayName = "Navbar.Extras";
  * fullscreen modal via Base UI's Dialog.
  */
 function NavbarList({ children }: PropsWithChildren) {
-  const { isOpen, setIsOpen, close, closedByLink, brand, extras } =
+  const { isOpen, setIsOpen, close, focusHandedOff, brand, extras } =
     useNavbar();
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
@@ -187,15 +197,17 @@ function NavbarList({ children }: PropsWithChildren) {
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden" />
         <Dialog.Popup
           id="mobile-nav-menu"
-          // Following a link hands focus to the page it opens -- the search
-          // link focuses the landing's search bar, say -- so the menu does not
-          // pull it back to its own trigger as it closes.
-          finalFocus={() => !closedByLink()}
-          className="fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden"
+          // A link whose page takes focus -- the search link focuses the
+          // landing's search bar -- keeps the menu from pulling focus back to
+          // its trigger as it closes. Every other close returns it there.
+          finalFocus={() => !focusHandedOff()}
+          className={cn(
+            "fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden",
+          )}
         >
           <Dialog.Title className="sr-only">Site navigation</Dialog.Title>
           <div className="mx-4 md:mx-12 py-3 flex items-center justify-between gap-4">
-            <Link href="/" aria-label="Home page" onClick={close}>
+            <Link href="/" aria-label="Home page" onClick={() => close()}>
               {brand}
             </Link>
             <Dialog.Close
@@ -247,6 +259,7 @@ function NavbarLink({
   href,
   icon,
   iconOnly = false,
+  handsOffFocus = false,
   children,
 }: PropsWithChildren<NavbarLinkProps>) {
   const { close } = useNavbar();
@@ -265,6 +278,9 @@ function NavbarLink({
       <NavigationMenu.Link
         render={<Link href={href} />}
         aria-current={isCurrent ? "page" : undefined}
+        // The label is visually hidden when icon-only; the title gives sighted
+        // mouse users the same name on hover.
+        title={iconOnly && icon && typeof children === "string" ? children : undefined}
         className={cn(
           "hidden lg:flex items-center gap-2 py-1 border-b-2",
           state,
@@ -275,7 +291,7 @@ function NavbarLink({
       </NavigationMenu.Link>
       <NavigationMenu.Link
         render={<Link href={href} />}
-        onClick={close}
+        onClick={() => close({ handOffFocus: handsOffFocus })}
         aria-current={isCurrent ? "page" : undefined}
         className={cn("flex items-center gap-2 py-1 border-b-2 lg:hidden", state)}
       >
