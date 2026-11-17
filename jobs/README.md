@@ -382,7 +382,7 @@ agents, trustees, underwriters, and guarantors do not appear in that list. Only
 `named` lenders render: a `collective` one such as `lenders party thereto` or
 `Holders` is a role phrase standing in for a name, not a lender anyone can look
 up, and the CDT dashboard leaves those out of its party lists too. An
-instrument whose lenders are all collective shows "Lender not disclosed".
+instrument whose lenders are all collective shows "Lender not named".
 Normalizing the names that remain is its own piece of work;
 `extract_lender_labels` is the single place any such cleanup belongs.
 

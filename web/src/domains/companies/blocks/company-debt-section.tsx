@@ -115,7 +115,7 @@ function LenderCell({
     return (
       <Table.Cell
         primary={
-          <span className={cn(name, "text-muted")}>Lender not disclosed</span>
+          <span className={cn(name, "text-muted")}>Lender not named</span>
         }
       />
     );

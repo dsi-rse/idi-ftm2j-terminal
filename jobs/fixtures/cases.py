@@ -1544,7 +1544,7 @@ def debt_collective_lenders_are_dropped() -> None:
     A filing that names no counterparty says "the lenders party thereto", and
     CDT records it as a `collective` lender. That phrase is not a lender anyone
     can look up, so only `named` lenders render; an instrument left with none
-    shows as "Lender not disclosed". Non-lender parties are dropped whatever
+    shows as "Lender not named". Non-lender parties are dropped whatever
     their kind.
     """
     parties = json.dumps(

@@ -310,7 +310,7 @@ def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
     one the filing never names -- "the lenders party thereto", "Holders" -- and
     its role phrase is not a lender anyone can look up or search for. An
     instrument whose lenders are all collective therefore carries no labels and
-    renders as "Lender not disclosed".
+    renders as "Lender not named".
 
     Args:
         value: A raw `parties_json` cell.
