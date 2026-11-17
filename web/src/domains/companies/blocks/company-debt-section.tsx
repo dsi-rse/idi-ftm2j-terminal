@@ -87,9 +87,9 @@ function maturityLabel(instrument: CurrentCommercialDebt): string {
 /**
  * The Lender cell: the first label, with the rest behind a toggle.
  *
- * A label is whatever the filing called the counterparty, which is often a role
- * rather than a name — "lenders party thereto", "the underwriters". Those are
- * carried through deliberately; see the section's info copy.
+ * A label is a lender the filing names. Role phrases standing in for a name —
+ * "lenders party thereto", "Holders" — are dropped in the pipeline, so an
+ * instrument whose filing names no lender shows the placeholder.
  *
  * "+N more" is a button rather than a caption because this section is the only
  * place those labels exist. 178 of the 638 instruments that name a lender name

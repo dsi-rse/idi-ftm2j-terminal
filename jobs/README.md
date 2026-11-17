@@ -222,7 +222,7 @@ Populates `Company.currentCommercialDebt`:
 | `CurrentCommercialDebt` field | Source column |
 | --- | --- |
 | `instrumentName` | `debt-instruments.name`, verbatim |
-| `lenders` | `debt-instruments.parties_json`, the `canonical_name` of each `lender` party |
+| `lenders` | `debt-instruments.parties_json`, the `canonical_name` of each `named` `lender` party |
 | `amount` | `debt-instruments.principal_amount` (a decimal) |
 | `currency` | `debt-instruments.principal_currency` |
 | `startDate` | `debt-instruments.start_date` |
@@ -376,14 +376,15 @@ currency from one mention together, so they cannot detach, but amounts still
 come in many currencies and many instruments have none, so any total both mixes
 currencies and understates.
 
-**Lenders are `lender` parties only, collective ones included.** CDT labels
-every party cluster with a role; only `lender` renders as a lender, so the
-borrower, agents, trustees, underwriters, and guarantors no longer appear in
-that list. `kind` is not filtered: a `collective` lender such as `lenders party
-thereto` is what the filing said in place of a name, and dropping it would make
-a hidden syndicate look like an instrument with no lender. Normalizing the
-names that remain is its own piece of work; `extract_lender_labels` is the
-single place any such cleanup belongs.
+**Lenders are named `lender` parties only.** CDT labels every party cluster
+with a role and a kind. Only `lender` renders as a lender, so the borrower,
+agents, trustees, underwriters, and guarantors do not appear in that list. Only
+`named` lenders render: a `collective` one such as `lenders party thereto` or
+`Holders` is a role phrase standing in for a name, not a lender anyone can look
+up, and the CDT dashboard leaves those out of its party lists too. An
+instrument whose lenders are all collective shows "Lender not disclosed".
+Normalizing the names that remain is its own piece of work;
+`extract_lender_labels` is the single place any such cleanup belongs.
 
 **Misextracted amounts are passed through.** Six values dataset-wide are below
 1,000 and at least three are plainly interest-rate margins the extractor put in

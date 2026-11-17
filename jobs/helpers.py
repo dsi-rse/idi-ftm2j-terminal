@@ -16,6 +16,7 @@ import pandas as pd
 # Local imports
 from constants import (
     CDT_LENDER_ROLE,
+    CDT_NAMED_PARTY_KIND,
     IDENTIFIER_TYPE_CIK,
     IDENTIFIER_TYPE_CUSIP,
     SECTOR_CODE,
@@ -305,19 +306,20 @@ def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
     underwriters and guarantors are parties to the instrument but not who holds
     the debt.
 
-    `kind` is deliberately not filtered. A `collective` lender is one the filing
-    never names -- "the lenders party thereto" -- and its role phrase is returned
-    as written. Dropping it would make a syndicate whose members are hidden look
-    like an instrument with no lender at all, which is a different and less
-    honest statement; the frontend shows these phrases as what they are.
+    Only `CDT_NAMED_PARTY_KIND` lenders are returned. A `collective` lender is
+    one the filing never names -- "the lenders party thereto", "Holders" -- and
+    its role phrase is not a lender anyone can look up or search for. An
+    instrument whose lenders are all collective therefore carries no labels and
+    renders as "Lender not disclosed".
 
     Args:
         value: A raw `parties_json` cell.
         logger: A standard logger instance.
 
     Returns:
-        One name per lender cluster, de-duplicated in document order. Empty when
-        the filing names no lender -- a public note series, a redemption notice.
+        One name per named lender cluster, de-duplicated in document order.
+        Empty when the filing names no lender -- a public note series, a
+        redemption notice, a syndicate described only as "the lenders".
     """
     text = _clean(value)
     if not text:
@@ -343,7 +345,11 @@ def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
 
     labels: dict[str, None] = {}
     for party in parties:
-        if not isinstance(party, dict) or party.get("role") != CDT_LENDER_ROLE:
+        if not isinstance(party, dict):
+            continue
+        if party.get("role") != CDT_LENDER_ROLE:
+            continue
+        if party.get("kind") != CDT_NAMED_PARTY_KIND:
             continue
         name = _clean(party.get("canonical_name"))
         if name:

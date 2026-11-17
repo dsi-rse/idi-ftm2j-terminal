@@ -1538,13 +1538,14 @@ def debt_split_instrument_is_excluded() -> None:
     assert names == ["tranche A term loan"], f"expected only the piece, got {names}"
 
 
-def debt_generic_lender_labels_survive() -> None:
-    """A lender the filing never names reaches the frontend as its role phrase.
+def debt_collective_lenders_are_dropped() -> None:
+    """A lender the filing never names does not reach the frontend.
 
     A filing that names no counterparty says "the lenders party thereto", and
-    CDT records it as a `collective` lender. Dropping collective parties would
-    make a hidden syndicate look like an instrument with no lender at all, so
-    this case fails if someone filters on `kind` without revisiting that.
+    CDT records it as a `collective` lender. That phrase is not a lender anyone
+    can look up, so only `named` lenders render; an instrument left with none
+    shows as "Lender not disclosed". Non-lender parties are dropped whatever
+    their kind.
     """
     parties = json.dumps(
         [
@@ -1552,6 +1553,12 @@ def debt_generic_lender_labels_survive() -> None:
                 "role": "lender",
                 "canonical_name": "lenders party thereto",
                 "kind": "collective",
+                "spans": [],
+            },
+            {
+                "role": "lender",
+                "canonical_name": "Fixture National Bank",
+                "kind": "named",
                 "spans": [],
             },
             {
@@ -1565,7 +1572,25 @@ def debt_generic_lender_labels_survive() -> None:
     result = run_debt_build(debt=cdt_rows({"parties_json": parties}))
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
-    assert debt[0]["lenders"] == ["lenders party thereto"], debt[0]["lenders"]
+    assert debt[0]["lenders"] == ["Fixture National Bank"], debt[0]["lenders"]
+
+
+def debt_only_collective_lenders_means_none() -> None:
+    """An instrument whose lenders are all collective carries no lender label."""
+    parties = json.dumps(
+        [
+            {
+                "role": "lender",
+                "canonical_name": "Holders",
+                "kind": "collective",
+                "spans": [],
+            }
+        ]
+    )
+    result = run_debt_build(debt=cdt_rows({"parties_json": parties}))
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+    assert debt[0]["lenders"] == [], debt[0]["lenders"]
 
 
 def debt_currency_travels_with_its_amount() -> None:
@@ -1896,7 +1921,8 @@ CASES = [
     debt_pointer_outside_the_root_fails_the_build,
     debt_pointer_row_count_mismatch_fails_the_build,
     debt_unknown_contract_version_fails_the_build,
-    debt_generic_lender_labels_survive,
+    debt_collective_lenders_are_dropped,
+    debt_only_collective_lenders_means_none,
     debt_currency_travels_with_its_amount,
     debt_six_k_cites_the_form_alone,
     debt_duplicate_items_do_not_multiply_instruments,

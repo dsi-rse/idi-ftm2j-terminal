@@ -83,6 +83,12 @@ CDT_FORM_TYPE_8K = "8-K"
 # and the underwriters reached the frontend as "lenders".
 CDT_LENDER_ROLE = "lender"
 
+# The `parties_json` kind of a party the filing actually names. The other kind,
+# `collective`, is a cluster whose every span is a role word or pronoun -- "the
+# lenders party thereto", "Holders" -- which says a lender exists but not who.
+# Only named lenders are rendered, matching the CDT dashboard's own party lists.
+CDT_NAMED_PARTY_KIND = "named"
+
 # An instrument whose end date is in the future is Active; one whose filing
 # stated no end date is Undated. There is deliberately no matured or superseded
 # variant -- those are filtered out here and never reach the frontend, so the
