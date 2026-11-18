@@ -4,7 +4,14 @@ import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
 import { ArrowRight, Dot, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type Ref,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { type SiteSearchResult, useSiteSearch } from "@/hooks/use-site-search";
 import { matchFields } from "@/lib/match-fields";
@@ -29,7 +36,7 @@ function Marked({ segments }: { segments: MatchSegment[] }) {
           <mark
             key={i}
             className={cn(
-              "rounded-sm bg-primary/25 text-inherit underline decoration-2 underline-offset-2",
+              "rounded-chip bg-primary/25 text-inherit underline decoration-2 underline-offset-2",
             )}
           >
             {segment.text}
@@ -50,13 +57,21 @@ type ResponsivePlaceholder = string | { short: string; long: string };
  */
 const identifyCompany = (company: PagefindCompanyMeta) => company.permId;
 
-type SearchBarProps = {
-  placeholder: ResponsivePlaceholder;
+/** What a {@link SearchBar} exposes through its `ref`. */
+export type SearchBarHandle = {
+  /** Moves focus into the search input. */
+  focus: () => void;
 };
 
-export function SearchBar({ placeholder }: SearchBarProps) {
+type SearchBarProps = {
+  placeholder: ResponsivePlaceholder;
+  ref?: Ref<SearchBarHandle>;
+};
+
+export function SearchBar({ placeholder, ref }: SearchBarProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }), []);
   const [query, setQuery] = useState("");
   const { results, handleSearch } =
     useSiteSearch<PagefindCompanyMeta>({
@@ -136,7 +151,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
           <Autocomplete.Input
             ref={inputRef}
             placeholder={resolvedPlaceholder}
-            className="bg-muted-foreground type-value text-sm max-md:text-base w-full pl-8 pr-2 py-3 border border-muted/25 rounded-sm outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
+            className="bg-muted-foreground type-value text-sm max-md:text-base w-full pl-8 pr-2 py-3 placeholder:text-muted border border-muted/25 rounded-control outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
           />
         </div>
         {/* Opens the top hit for the current query. With nothing typed it
@@ -150,7 +165,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
             else inputRef.current?.focus();
           }}
           className={cn(
-            "shrink-0 inline-flex items-center gap-1.5 rounded-sm px-4",
+            "shrink-0 inline-flex items-center gap-1.5 rounded-control px-4",
             "bg-primary text-primary-foreground type-label-sm tracking-label-tight text-primary-foreground",
             "hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
@@ -164,7 +179,7 @@ export function SearchBar({ placeholder }: SearchBarProps) {
           sideOffset={4}
           className="w-[var(--anchor-width)] z-50"
         >
-          <Autocomplete.Popup className="bg-background border border-muted/25 rounded-sm shadow-md overflow-hidden">
+          <Autocomplete.Popup className="bg-background border border-muted/25 rounded-card shadow-md overflow-hidden">
             <Autocomplete.List className="max-h-64 overflow-y-auto">
               {(hit: CompanyHit) => {
                 const company = hit.meta;

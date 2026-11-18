@@ -88,7 +88,7 @@ function treeGateway(company: Company): Gateway {
   const citation = latest.sources[0]?.name ?? "SEC filing";
   return {
     ...base,
-    value: String(relationships.length),
+    value: relationships.length.toLocaleString("en-US"),
     meta: `${plural(jurisdictions, "jurisdiction")} · ${citation} · filed on ${latest.asOf}`,
   };
 }
@@ -132,7 +132,7 @@ function debtGateway(company: Company): Gateway {
   );
   return {
     ...base,
-    value: String(debt.length),
+    value: debt.length.toLocaleString("en-US"),
     meta: `${withLender} with a disclosed lender · SEC 8-K · latest filed on ${latest}`,
   };
 }
@@ -173,7 +173,7 @@ function shareholdersGateway(company: Company): Gateway {
   );
   return {
     ...base,
-    value: String(holdings.length),
+    value: holdings.length.toLocaleString("en-US"),
     meta: `SEC 13-F & pension disclosures · reported ${latest}`,
   };
 }
@@ -276,7 +276,14 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
         event.preventDefault();
         scrollToSection(gateway.section);
       }}
-      className="group flex flex-col gap-1 p-4 md:p-6 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      // The tiles run to the card's bottom edge, so the ones in its corners
+      // take the card radius there; otherwise the hover fill pokes square
+      // corners past the card's curved ones. Stacked on a phone, the last
+      // tile holds both corners; in the three-column row, the outer two do.
+      className={cn(
+        "group flex flex-col gap-1 p-4 md:p-6 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+        "last:rounded-b-card md:last:rounded-bl-none md:first:rounded-bl-card",
+      )}
     >
       <span className="type-label">
         {gateway.kicker}

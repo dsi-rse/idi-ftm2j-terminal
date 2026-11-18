@@ -60,7 +60,7 @@ export function SectionCard({
     <section
       id={id}
       className={cn(
-        "w-full rounded-md border border-muted/25 bg-overlay/40 p-4 md:p-6 scroll-mt-16",
+        "w-full rounded-card border border-muted/25 bg-overlay/40 p-4 md:p-6 scroll-mt-16",
         className,
       )}
     >
@@ -83,7 +83,7 @@ export function SectionCard({
             <Modal open={isExpanded} onOpenChange={setIsExpanded}>
               <Modal.Trigger
                 aria-label={`Expand ${title}`}
-                className="text-muted cursor-pointer p-1 rounded-sm hover:text-foreground hover:bg-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                className="text-muted cursor-pointer p-1 rounded-control hover:text-foreground hover:bg-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
               >
                 <Maximize2 className="size-4" aria-hidden />
               </Modal.Trigger>

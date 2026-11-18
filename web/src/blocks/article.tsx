@@ -1,6 +1,8 @@
 import { CircleAlertIcon, DownloadIcon } from "lucide-react";
 import { ComponentPropsWithoutRef, PropsWithChildren } from "react";
 
+import { cn } from "@/lib/utils";
+
 /**
  * The root of the {@link Article} compound component.
  * Articles are self-contained, independent pieces of content and render as `article` tags.
@@ -101,7 +103,7 @@ function ArticleYouTubeEmbed({
   title = "Embedded video",
 }: ArticleYouTubeEmbedProps) {
   return (
-    <div className="w-full aspect-video overflow-hidden rounded-md border border-muted/25 bg-overlay">
+    <div className="w-full aspect-video overflow-hidden rounded-card border border-muted/25 bg-overlay">
       <iframe
         src={`https://www.youtube.com/embed/${videoId}`}
         title={title}
@@ -138,7 +140,7 @@ function ArticleBulkDownload({
   href,
 }: ArticleBulkDownloadProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-6 border border-muted/25 border-l-2 border-l-primary rounded-md p-6 bg-overlay">
+    <div className="flex flex-col md:flex-row md:items-center gap-6 border border-muted/25 border-l-2 border-l-primary rounded-card p-6 bg-overlay">
       <div className="flex-1 space-y-2">
         <p className="type-label-sm text-primary">
           {label}
@@ -159,7 +161,7 @@ function ArticleBulkDownload({
       </div>
       <a
         href={href}
-        className="inline-flex items-center justify-center gap-2 rounded-md border border-primary/60 bg-primary/10 px-5 py-3 type-label-sm text-xs tracking-label-tight text-foreground hover:bg-primary/20 hover:border-primary transition-colors self-start md:self-center"
+        className="inline-flex items-center justify-center gap-2 rounded-control border border-primary/60 bg-primary/10 px-5 py-3 type-label-sm text-xs tracking-label-tight text-foreground hover:bg-primary/20 hover:border-primary transition-colors self-start md:self-center"
       >
         <DownloadIcon className="size-4 text-primary" />
         Download {format}
@@ -239,7 +241,11 @@ ArticleSectionParagraph.displayName = "Article.Body.Section.Paragraph";
  */
 function ArticleCallout({ children }: PropsWithChildren) {
   return (
-    <div className="flex flex-row items-start gap-2 border-1 border-muted/25 border-l-2 border-l-primary pl-4 py-4">
+    <div
+      className={cn(
+        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 border-l-2 border-l-primary pl-4 py-4",
+      )}
+    >
       <CircleAlertIcon className="size-4 text-primary" />
       <p className="type-body text-xs text-justified md:text-sm md:text-left">
         {children}
@@ -339,7 +345,7 @@ function ArticleDataset({
           <a
             key={f.label}
             href={f.href}
-            className="inline-flex items-center rounded-md border border-muted/40 px-3 py-1.5 type-label-sm tracking-label-tight text-foreground hover:border-primary hover:text-primary transition-colors"
+            className="inline-flex items-center rounded-control border border-muted/40 px-3 py-1.5 type-label-sm tracking-label-tight text-foreground hover:border-primary hover:text-primary transition-colors"
           >
             {f.label}
           </a>
@@ -365,7 +371,7 @@ type ArticleBlockQuoteProps = {
  */
 function ArticleBlockQuote({ quote }: ArticleBlockQuoteProps) {
   return (
-    <figure className="md:float-right md:w-2/5 md:ml-8 md:mt-2 md:mb-4 mb-6 flex flex-col gap-4 border border-muted/25 border-l-2 border-l-primary rounded-md p-6 bg-overlay">
+    <figure className="md:float-right md:w-2/5 md:ml-8 md:mt-2 md:mb-4 mb-6 flex flex-col gap-4 border border-muted/25 border-l-2 border-l-primary rounded-card p-6 bg-overlay">
       <div
         aria-hidden
         className="type-display tracking-tight text-primary text-5xl leading-none"

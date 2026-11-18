@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -51,7 +50,7 @@ function InspectorHandle({ className, ...props }: InspectorHandleProps) {
       type="button"
       {...props}
       className={cn(
-        "hidden md:flex items-center justify-center w-6 h-20 rounded-r-md",
+        "hidden md:flex items-center justify-center w-6 h-20 rounded-r-card",
         "bg-primary text-primary-foreground shadow-md cursor-pointer",
         "hover:brightness-110 hover:shadow-lg transition-all duration-200",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
@@ -327,6 +326,11 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
   const allData = useAllCompaniesSearch();
   const recentData = useRecentCompaniesSearch();
   const savedData = useSavedCompaniesSearch();
+  // Whether each stored list has anything in it, so an empty filtered tab can
+  // tell "nothing matched" apart from "nothing here yet".
+  const hasRecent = useCompaniesStore((s) => s.recentlyViewed.length > 0);
+  const hasSaved = useCompaniesStore((s) => s.bookmarked.length > 0);
+  const hasQuery = searchQuery.trim() !== "";
 
   return (
     <Drawer
@@ -387,18 +391,10 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               }
             />
             <Popover.Content title="Using company search">
-              <div className={cn("flex flex-col gap-2 text-xs")}>
-                <p>
-                  Search by company name, subsidiary name, PermID, or ticker.
-                  Select a result to open its profile.
-                </p>
-                <Link
-                  href="/help"
-                  className={cn("text-primary hover:underline self-start")}
-                >
-                  Read the help page →
-                </Link>
-              </div>
+              <p className={cn("text-xs")}>
+                Search by company name, subsidiary name, PermID, or ticker.
+                Select a result to open its profile.
+              </p>
             </Popover.Content>
           </Popover>
           {/* Phone-only: the sheet covers the page, and the desktop collapse
@@ -419,27 +415,41 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
           </button>
         </div>
       </Drawer.Header>
-      <Drawer.Body>
+      {/* No top padding: the sticky search block below pins to the body's
+          content edge, so padding here would leave a strip above it that
+          results scroll through. */}
+      <Drawer.Body className={cn("pt-0")}>
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as "all" | "recent" | "saved")}
         >
-          <Tabs.Header className="-mx-4">
-            {/* Bare labels, as the design has them: the RESULTS count below
-                already says how many, and icons only crowd a 312px rail. */}
-            <Tabs.Trigger value="all">All</Tabs.Trigger>
-            <Tabs.Trigger value="recent">Recent</Tabs.Trigger>
-            <Tabs.Trigger value="saved">Saved</Tabs.Trigger>
-          </Tabs.Header>
+          {/* The search box and the tabs stay pinned while results scroll.
+              One query filters whichever tab is showing, and it stays put
+              across tabs. All searches the full index, subsidiaries included;
+              Recent and Saved filter the entries kept on this device, which
+              hold no subsidiaries -- hence the narrower placeholder there. */}
+          <div className={cn("sticky top-0 z-10 -mx-4 bg-muted-foreground")}>
+            <div className={cn("p-3")}>
+              <SearchInput
+                value={searchQuery}
+                onValueChange={setSearchQuery}
+                placeholder={
+                  activeTab === "all"
+                    ? "Search by name, subsidiary, PermID, or ticker…"
+                    : "Search by name, PermID, or ticker…"
+                }
+              />
+            </div>
+            <Tabs.Header>
+              {/* Bare labels, as the design has them: the RESULTS count below
+                  already says how many, and icons only crowd a 312px rail. */}
+              <Tabs.Trigger value="all">All</Tabs.Trigger>
+              <Tabs.Trigger value="recent">Recent</Tabs.Trigger>
+              <Tabs.Trigger value="saved">Saved</Tabs.Trigger>
+            </Tabs.Header>
+          </div>
           <Tabs.Body className="-mx-4 py-0">
             <Tabs.Panel value="all">
-              <div className="p-3 border-b border-muted/25">
-                <SearchInput
-                  value={searchQuery}
-                  onValueChange={setSearchQuery}
-                  placeholder="Search by name, subsidiary, PermID, or ticker…"
-                />
-              </div>
               <PanelBody
                 data={allData}
                 activeCompanyId={activeCompanyId}
@@ -453,14 +463,22 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               <PanelBody
                 data={recentData}
                 activeCompanyId={activeCompanyId}
-                emptyMessage="Nothing recent yet — visit a company to see it here."
+                emptyMessage={
+                  hasQuery && hasRecent
+                    ? "No matches in Recent."
+                    : "Nothing recent yet — visit a company to see it here."
+                }
               />
             </Tabs.Panel>
             <Tabs.Panel value="saved">
               <PanelBody
                 data={savedData}
                 activeCompanyId={activeCompanyId}
-                emptyMessage="No saved companies. Tap the star to bookmark one."
+                emptyMessage={
+                  hasQuery && hasSaved
+                    ? "No matches in Saved."
+                    : "No saved companies. Tap the star to bookmark one."
+                }
               />
             </Tabs.Panel>
           </Tabs.Body>
@@ -496,7 +514,7 @@ export function CompanyInspectorOpener() {
           aria-label="Open company search"
           onClick={() => setMobileInspectorOpen(true)}
           className={cn(
-            "fixed right-4 bottom-4 z-20 inline-flex items-center gap-2 px-4 h-11 rounded-md md:hidden",
+            "fixed right-4 bottom-4 z-20 inline-flex items-center gap-2 px-4 h-11 rounded-control md:hidden",
             "bg-primary text-primary-foreground type-label-sm tracking-label-wide shadow-lg cursor-pointer",
             "hover:brightness-110 transition-all duration-200",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",

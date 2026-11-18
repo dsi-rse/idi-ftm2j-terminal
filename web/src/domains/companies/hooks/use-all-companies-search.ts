@@ -60,7 +60,8 @@ export type CompanySearchResultItem = CompanySearchMeta & {
    * It lives here rather than on `CompanySearchMeta` on purpose. That type is
    * the *persisted* shape: bookmarking a company writes one to IndexedDB, and a
    * company with 1,284 subsidiaries would write 46 KB of names nobody reads
-   * back, since the Recent and Saved tabs never consult the query. Keeping the
+   * back, since the Recent and Saved tabs search only the stored name, ticker,
+   * PermID, sector and country -- never subsidiaries. Keeping the
    * field on the search-result type means the persisted record cannot grow one
    * by accident — and `toSearchMeta` in the store enforces the same boundary at
    * runtime.

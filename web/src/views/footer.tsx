@@ -3,9 +3,7 @@ import { Footer as FooterBlock } from "@/blocks";
 const SITE_MAP_LINKS = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
-  { label: "Methodology", href: "/methodology" },
   { label: "Downloads", href: "/downloads" },
-  { label: "Help", href: "/help" },
 ];
 
 const TOOL_SUITE_LINKS = [
@@ -23,6 +21,29 @@ const TOOL_SUITE_LINKS = [
     href: "https://www.followingthemoney.org/",
   },
 ];
+
+const BUILD_DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  // UTC, not the reader's zone: the label names the day the build ran, which
+  // must read the same for everyone and match between prerender and hydration.
+  timeZone: "UTC",
+});
+
+/**
+ * Formats a build timestamp (ISO 8601) as "Mar 6, 2026". Returns `null` for a
+ * missing or unparseable value so callers can omit the label rather than show
+ * "Invalid Date".
+ */
+function formatBuildDate(iso: string | undefined): string | null {
+  if (!iso) return null;
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? null : BUILD_DATE_FORMAT.format(date);
+}
+
+/** The day this site was built; set in `next.config.ts`. */
+const BUILD_DATE = formatBuildDate(process.env.NEXT_PUBLIC_BUILD_TIME);
 
 /**
  * The footer of the FTM2J Terminal site.
@@ -42,7 +63,7 @@ export function Footer() {
             srcDark="/idi-logo-white.webp"
             alt="Inclusive Development International"
           />
-          <FooterBlock.LastUpdated date="Mar 6, 2026" />
+          {BUILD_DATE ? <FooterBlock.LastUpdated date={BUILD_DATE} /> : null}
         </FooterBlock.Column>
 
         <FooterBlock.Column justify="left">
