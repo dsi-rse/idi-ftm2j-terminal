@@ -314,19 +314,20 @@ const INFO_COPY =
   "Holdings in this company, one row per disclosed holding. Institutional holdings come from SEC Form 13-F. Only investment managers with at least $100 million in U.S.-listed securities must file a 13-F, so smaller holders don't appear.";
 
 /**
- * The count line under the section title: how many disclosed holdings, and the
- * report date they were disclosed as of. This counts holdings, not distinct
- * holders — share classes are not collapsed, so one investor holding two
- * classes is two rows. The date is the latest across holdings; today's data
- * reports a single quarter-end, but a mix would show the most recent.
+ * The count line under the section title: how many holdings (table rows), and
+ * the report date they were disclosed as of. This counts holdings, not
+ * distinct holders or filings. A 13-F often reports one stock on several
+ * lines -- split across the funds or sub-managers that hold it, or across
+ * share classes -- and each line is its own row, so this can exceed the filing
+ * count on the source line. The date is the latest across holdings; today's
+ * data reports a single quarter-end, but a mix would show the most recent.
  */
 function subtitle(holdings: CurrentShareholder[]): string {
   const latest = holdings.reduce(
     (newest, holding) => (holding.asOf > newest ? holding.asOf : newest),
     "",
   );
-  const count = `${holdings.length} disclosed holding${holdings.length === 1 ? "" : "s"
-    }`;
+  const count = `${holdings.length.toLocaleString("en-US")} holding${holdings.length === 1 ? "" : "s"}`;
   return latest ? `${count} · reported ${latest}` : count;
 }
 
@@ -392,7 +393,9 @@ export function CompanyShareholdersSection({
     );
   }
 
-  const documents = new Set(
+  // Distinct filings, not holdings: one filing can contribute several rows
+  // (see `subtitle`), so the two counts are labelled differently.
+  const filings = new Set(
     holdings.map((holding) => holding.sources[0]?.url).filter(Boolean),
   ).size;
 
@@ -404,7 +407,7 @@ export function CompanyShareholdersSection({
       info={INFO_COPY}
       source={
         <>
-          {documents} disclosure{documents === 1 ? "" : "s"}
+          {filings.toLocaleString("en-US")} filing{filings === 1 ? "" : "s"}
           {retrievedLabel(holdings)}.
         </>
       }

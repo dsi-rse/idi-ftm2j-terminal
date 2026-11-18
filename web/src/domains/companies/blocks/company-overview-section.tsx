@@ -88,7 +88,7 @@ function treeGateway(company: Company): Gateway {
   const citation = latest.sources[0]?.name ?? "SEC filing";
   return {
     ...base,
-    value: String(relationships.length),
+    value: relationships.length.toLocaleString("en-US"),
     meta: `${plural(jurisdictions, "jurisdiction")} · ${citation} · filed on ${latest.asOf}`,
   };
 }
@@ -132,7 +132,7 @@ function debtGateway(company: Company): Gateway {
   );
   return {
     ...base,
-    value: String(debt.length),
+    value: debt.length.toLocaleString("en-US"),
     meta: `${withLender} with a disclosed lender · SEC 8-K · latest filed on ${latest}`,
   };
 }
@@ -173,7 +173,7 @@ function shareholdersGateway(company: Company): Gateway {
   );
   return {
     ...base,
-    value: String(holdings.length),
+    value: holdings.length.toLocaleString("en-US"),
     meta: `SEC 13-F & pension disclosures · reported ${latest}`,
   };
 }

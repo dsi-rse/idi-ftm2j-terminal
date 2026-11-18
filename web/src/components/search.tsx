@@ -151,7 +151,7 @@ export function SearchBar({ placeholder, ref }: SearchBarProps) {
           <Autocomplete.Input
             ref={inputRef}
             placeholder={resolvedPlaceholder}
-            className="bg-muted-foreground type-value text-sm max-md:text-base w-full pl-8 pr-2 py-3 border border-muted/25 rounded-control outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
+            className="bg-muted-foreground type-value text-sm max-md:text-base w-full pl-8 pr-2 py-3 placeholder:text-muted border border-muted/25 rounded-control outline-none focus:ring-0.5 focus:ring-primary focus:border-primary"
           />
         </div>
         {/* Opens the top hit for the current query. With nothing typed it
