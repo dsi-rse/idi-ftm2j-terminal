@@ -1,6 +1,8 @@
 import { CircleAlertIcon, DownloadIcon } from "lucide-react";
 import { ComponentPropsWithoutRef, PropsWithChildren } from "react";
 
+import { cn } from "@/lib/utils";
+
 /**
  * The root of the {@link Article} compound component.
  * Articles are self-contained, independent pieces of content and render as `article` tags.
@@ -239,7 +241,11 @@ ArticleSectionParagraph.displayName = "Article.Body.Section.Paragraph";
  */
 function ArticleCallout({ children }: PropsWithChildren) {
   return (
-    <div className="flex flex-row items-start gap-2 border-1 border-muted/25 border-l-2 border-l-primary pl-4 py-4">
+    <div
+      className={cn(
+        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 border-l-2 border-l-primary pl-4 py-4",
+      )}
+    >
       <CircleAlertIcon className="size-4 text-primary" />
       <p className="type-body text-xs text-justified md:text-sm md:text-left">
         {children}
