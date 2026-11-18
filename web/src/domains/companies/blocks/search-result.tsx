@@ -1,3 +1,4 @@
+import { CornerDownRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
@@ -149,13 +150,14 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
         ROW_TEXT,
       )}
     >
-      {/* Fixed-width and non-shrinking, so a long name truncates on its own
-          side rather than squeezing the guide out of the row. Teal stays on the
-          guide alone; the name text is foreground so it clears AA at 12px.
-          Raw font-mono on purpose: a glyph, not a text role. */}
-      <span aria-hidden className={cn("shrink-0 font-mono text-primary")}>
-        ↳
-      </span>
+      {/* Fixed-size and non-shrinking, so a long name truncates on its own
+          side rather than squeezing the marker out of the row. Teal stays on
+          the marker alone; the name text is foreground so it clears AA at
+          12px. */}
+      <CornerDownRight
+        aria-hidden
+        className={cn("size-3 shrink-0 self-center text-primary")}
+      />
       {/* The visible line is windowed to the match; the full name goes to
           assistive tech unabridged. `pb-0.5` keeps `truncate`'s overflow:hidden
           from clipping the match underline, which sits below the baseline. */}

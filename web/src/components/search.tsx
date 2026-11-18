@@ -2,7 +2,7 @@
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
-import { ArrowRight, Dot, Search } from "lucide-react";
+import { ArrowRight, CornerDownRight, Dot, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   type Ref,
@@ -211,13 +211,12 @@ export function SearchBar({ placeholder, ref }: SearchBarProps) {
                             "type-caption text-foreground flex items-baseline gap-1 mt-0.5 min-w-0",
                           )}
                         >
-                          {/* Raw font-mono on purpose: a glyph, not a text role. */}
-                          <span
+                          <CornerDownRight
                             aria-hidden
-                            className={cn("shrink-0 font-mono text-primary")}
-                          >
-                            ↳
-                          </span>
+                            className={cn(
+                              "size-3 shrink-0 self-center text-primary",
+                            )}
+                          />
                           <span className={cn("sr-only")}>
                             Matched subsidiary: {match.name}
                           </span>

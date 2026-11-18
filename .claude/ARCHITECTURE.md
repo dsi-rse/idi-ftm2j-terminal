@@ -223,9 +223,8 @@ orders multi-property utilities before single-property ones, so the override
 wins. Two sizes sit below `text-sm`, both tokens and never arbitrary values:
 `text-value` (12px) for data and captions, and `text-micro` (11px, the floor)
 for uppercase labels and chips only. From `text-sm` up the scale is Tailwind's
-own. `font-mono` appears raw only on glyphs (tree guides, the `↳` match
-marker), with a comment saying so; it resolves to the system monospace stack,
-so no second font is loaded.
+own. `font-mono` and `font-sans` never appear in a component. The tree branch
+and the subsidiary-match arrow are SVG icons, not characters.
 
 **Radii.** Corners come from three named radii in `globals.css`, stepped by
 element size so a badge and a card look equally rounded: `rounded-chip` (2px —
@@ -319,11 +318,10 @@ grep -rnE "rounded(-[trblse]{1,2})?-(xs|sm|md|lg|xl|2xl|3xl)\b|[\"' \`]rounded[\
 
 ```bash
 # Typography goes through the role utilities, not pixel values or raw stacks.
-# The first should return nothing; the second only glyph one-offs that carry a
-# "Raw font-mono on purpose" comment; the third nothing, since regular and
-# semibold are the only weights and nothing is set in italics.
+# All three should return nothing: no pixel sizes, no family named in a
+# component, and no weight but regular and semibold or any italics.
 grep -rnE "text-\[[0-9.]+px\]|tracking-\[[0-9.]+em\]" web/src --include='*.tsx'
-grep -rnE "font-mono|font-sans|font-inter" web/src --include='*.tsx' | grep -v app/layout.tsx
+grep -rnE "\bfont-(mono|sans)\b" web/src --include='*.tsx'
 grep -rnE "font-(thin|extralight|light|medium|bold|extrabold|black)\b|\bitalic\b" web/src --include='*.tsx'
 ```
 

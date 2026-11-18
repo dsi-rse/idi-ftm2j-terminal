@@ -187,3 +187,23 @@ export function YouTubeIcon(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/**
+ * The branch that joins a subsidiary to its parent in the corporate tree: a
+ * line down from the row above, then across to the name. Drawn on half-pixel
+ * coordinates so both strokes land on whole pixels at its native 24x16.
+ */
+export function TreeBranchIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 24 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1}
+      aria-hidden
+      {...props}
+    >
+      <path d="M4.5 0v8.5H24" />
+    </svg>
+  );
+}
