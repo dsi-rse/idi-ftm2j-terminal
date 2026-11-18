@@ -88,7 +88,7 @@ FooterColumn.displayName = "Footer.Column";
  */
 function FooterSectionTitle({ children }: PropsWithChildren) {
   return (
-    <h4 className="type-label-sm text-foreground">
+    <h4 className="type-label text-foreground">
       {children}
     </h4>
   );
@@ -308,7 +308,7 @@ FooterYouTubeButtonLink.displayName = "Footer.YouTubeButtonLink";
  */
 function FooterWordmark() {
   return (
-    <span className="type-display text-lg font-bold">
+    <span className="type-display text-lg">
       FTM<span className="text-primary">2</span>J
     </span>
   );
@@ -364,7 +364,7 @@ type FooterLastUpdatedProps = { date: string };
  */
 function FooterLastUpdated({ date }: FooterLastUpdatedProps) {
   return (
-    <span className="inline-flex items-center gap-2 type-label-sm text-primary">
+    <span className="inline-flex items-center gap-2 type-label text-primary">
       <span className="relative inline-flex size-1.5">
         <span className="absolute inset-0 rounded-full bg-primary opacity-75 animate-ping" />
         <span className="relative inline-flex size-1.5 rounded-full bg-primary" />

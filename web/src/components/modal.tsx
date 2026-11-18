@@ -66,7 +66,7 @@ type ModalHeadingProps = {
 };
 
 /**
- * A title with an optional mono subtitle beneath it -- the heading block that
+ * A title with an optional subtitle beneath it -- the heading block that
  * opens both a modal and a {@link SectionCard}, so the two cannot drift apart.
  * Size is set by the caller; the modal runs one step larger than a card.
  */

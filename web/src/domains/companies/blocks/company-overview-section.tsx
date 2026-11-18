@@ -183,7 +183,7 @@ const NOT_REPORTED = "Not reported";
 const identifierLinkClassName =
   "underline decoration-dotted underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
-/** One labelled identifier: a micro-label over one or more mono values. */
+/** One labelled identifier: a micro-label over one or more values. */
 function Identifier({
   label,
   children,
@@ -292,17 +292,17 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
         className={cn(
           "type-display tracking-tight",
           unavailable
-            ? "text-lg md:text-xl font-medium text-muted"
+            ? "text-lg md:text-xl font-normal text-muted"
             : "text-3xl md:text-4xl font-semibold text-foreground",
         )}
       >
         {unavailable ? "Not available" : gateway.value}
       </span>
       <span className="type-value">{gateway.unit}</span>
-      <span className="type-meta leading-relaxed">
+      <span className="type-caption leading-relaxed">
         {gateway.meta}
       </span>
-      <span className="mt-2 type-label-sm text-primary">
+      <span className="mt-2 type-label text-primary">
         {gateway.link} →
       </span>
     </a>

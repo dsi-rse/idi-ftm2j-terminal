@@ -121,19 +121,19 @@ function ShareholderRow({
       <Table.Cell
         primary={
           // Names are the display voice; the rest of the table is data.
-          <span className={cn("type-display text-name")}>
+          <span className={cn("type-display")}>
             {holding.investor.name ?? "Unnamed holder"}
           </span>
         }
         secondary={holding.investorType}
       />
       <Table.Cell>
-        <span className="type-label-sm">
+        <span className="type-label">
           {holding.investorCountry ?? "—"}
         </span>
       </Table.Cell>
       <Table.Cell>
-        <span className="type-label-sm">
+        <span className="type-label">
           {holding.securityType || "—"}
         </span>
       </Table.Cell>

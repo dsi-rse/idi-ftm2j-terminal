@@ -62,7 +62,7 @@ function filterRows(rows: TreeRow[], query: string): TreeRow[] {
 
 function TreeLines({ rows }: { rows: TreeRow[] }) {
   return (
-    <div className="type-display font-medium text-name">
+    <div className="text-value text-foreground">
       <ul className="list-none m-0 p-0">
         {rows.map((row, i) => (
           <li
@@ -76,13 +76,13 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
             <span className="flex min-w-0 items-start">
               <span
                 aria-hidden
-                className="shrink-0 whitespace-pre font-mono font-normal tracking-normal text-muted"
+                className="shrink-0 whitespace-pre font-mono text-muted"
               >
                 {guidePrefix(row.depth)}
               </span>
               <span className="min-w-0">{row.name}</span>
             </span>
-            <span className="type-label-sm font-normal tracking-widest whitespace-nowrap">
+            <span className="type-label whitespace-nowrap">
               {row.jurisdiction ?? ""}
             </span>
           </li>
@@ -322,7 +322,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
         // Wraps so the pager drops to its own line on a phone: the count and a
         // six-page list side by side are wider than the card there.
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-          <p className="type-label-sm m-0">
+          <p className="type-label m-0">
             {filtering
               ? `${filtered.length} of ${subsidiaryCount} subsidiaries`
               : `${subsidiaryCount} subsidiaries`}

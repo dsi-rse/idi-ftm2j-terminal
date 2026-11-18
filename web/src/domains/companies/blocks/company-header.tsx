@@ -103,11 +103,12 @@ type HeaderCellProps = {
 };
 
 /**
- * One cell of the header strip: a micro-label over a mono value. The
+ * One cell of the header strip: a micro-label over a value. The
  * categorical cells pass only those; a financial figure adds an info popover
  * and an as-of/currency subline linking the filing it came from. One component
- * rather than two so the cells cannot drift apart — the label row is a fixed
- * height so the 16px info icon never pushes one label below its neighbours.
+ * rather than two so the cells cannot drift apart — the label row has a minimum
+ * height so the 16px info icon never pushes one label below its neighbours,
+ * and a label that wraps on a phone grows the row instead of overflowing it.
  */
 function HeaderCell({
   label,
@@ -120,7 +121,7 @@ function HeaderCell({
 }: HeaderCellProps) {
   return (
     <div className="flex flex-col gap-1 md:rounded-card md:border md:border-muted/25 md:px-3 md:py-2">
-      <span className="flex h-4 items-center gap-1">
+      <span className="flex min-h-4 items-center gap-1">
         <span className="type-label md:whitespace-nowrap">{label}</span>
         {info ? (
           <Popover>
@@ -140,7 +141,7 @@ function HeaderCell({
         {value}
       </span>
       {sub || href ? (
-        <span className="type-meta whitespace-nowrap">
+        <span className="type-caption whitespace-nowrap">
           {sub}
           {sub && href ? " · " : null}
           {href ? (
@@ -248,7 +249,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
         {company.name}
       </h1>
       {/* At md+ the cells size to their content and wrap, rather than sitting
-          in a fixed grid — mono labels vary enough in width that equal columns
+          in a fixed grid — the labels vary enough in width that equal columns
           either clip or force the longest label onto two lines. On a phone the
           boxes stack four deep and push the tabs below the fold, so the strip
           drops its borders and becomes a two-column list of label/value pairs. */}

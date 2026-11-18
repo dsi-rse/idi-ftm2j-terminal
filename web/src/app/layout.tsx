@@ -1,26 +1,14 @@
 import type { Metadata } from "next";
-import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 
 import "./globals.css";
 import { Providers } from "./providers";
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
-  subsets: ["latin"],
-  display: "swap",
-});
-
+// The site's one typeface. Inter is a variable font, so every weight comes
+// from this single file.
 const inter = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700"],
-  display: "swap",
-});
-
-const interTight = Inter_Tight({
-  variable: "--font-inter-tight",
-  subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700"],
   display: "swap",
 });
 
@@ -44,7 +32,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${interTight.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+      className={inter.variable}
       suppressHydrationWarning
     >
       <head>

@@ -203,29 +203,29 @@ Same rule for types and helpers.
 **Composition.** All class strings go through
 [cn()](../web/src/lib/utils.ts). Never concatenate class strings by hand.
 
-**Typography.** The design's rule is that JetBrains Mono is the data and label
-voice, Inter Tight the display voice, and Inter the body voice. Those roles are
-named `@utility` classes in `globals.css`, and a component names the role
-rather than spelling out a stack or a pixel size:
+**Typography.** One family, Inter, in two weights: regular and semibold.
+Hierarchy comes from size, weight and color, never from a second typeface, a
+third weight, or italics. The roles are named `@utility` classes in
+`globals.css`, and a component names the role rather than spelling out its
+properties:
 
 | Utility | Role |
 | --- | --- |
-| `type-label` | micro-label: cell and stat labels, table headers, kickers |
-| `type-label-sm` | dense label one step up: rail title and tabs, counts, uppercase links |
-| `type-caption` | subtitles, citations, empty states |
-| `type-meta` | the muted line under a value or name |
+| `type-label` | the one uppercase, letter-spaced voice: cell and stat labels, table headers, kickers, tabs, counts, uppercase links |
+| `type-caption` | the muted small line: subtitles, citations, empty states, the line under a value or name |
 | `type-value` | a datum: cell values, table cells, identifiers, inputs |
-| `type-display` | names and headline numbers; size set at the call site |
+| `type-display` | names and headline numbers, semibold; size set at the call site |
 | `type-body` | prose |
 | `type-chip` | ticker badge |
 | `type-source-kicker` | the `SOURCE.` lead-in |
 
 A call site may override one property (`type-label text-primary`); Tailwind
 orders multi-property utilities before single-property ones, so the override
-wins. Sizes below `text-sm` are tokens (`text-label`, `text-micro`,
-`text-caption`, `text-value`, `text-name`), never arbitrary values. `font-mono`
-appears raw only on glyphs (tree guides, the `↳` match marker), with a comment
-saying so.
+wins. Two sizes sit below `text-sm`, both tokens and never arbitrary values:
+`text-micro` (11px, the floor) and `text-value` (12px). From `text-sm` up the
+scale is Tailwind's own. `font-mono` appears raw only on glyphs (tree guides,
+the `↳` match marker), with a comment saying so; it resolves to the system
+monospace stack, so no second font is loaded.
 
 **Radii.** Corners come from three named radii in `globals.css`, stepped by
 element size so a badge and a card look equally rounded: `rounded-chip` (2px —
@@ -320,9 +320,11 @@ grep -rnE "rounded(-[trblse]{1,2})?-(xs|sm|md|lg|xl|2xl|3xl)\b|[\"' \`]rounded[\
 ```bash
 # Typography goes through the role utilities, not pixel values or raw stacks.
 # The first should return nothing; the second only glyph one-offs that carry a
-# "Raw font-mono on purpose" comment.
+# "Raw font-mono on purpose" comment; the third nothing, since regular and
+# semibold are the only weights and nothing is set in italics.
 grep -rnE "text-\[[0-9.]+px\]|tracking-\[[0-9.]+em\]" web/src --include='*.tsx'
-grep -rnE "font-mono|font-inter" web/src --include='*.tsx' | grep -v app/layout.tsx
+grep -rnE "font-mono|font-sans|font-inter" web/src --include='*.tsx' | grep -v app/layout.tsx
+grep -rnE "font-(thin|extralight|light|medium|bold|extrabold|black)\b|\bitalic\b" web/src --include='*.tsx'
 ```
 
 Each of the first two commands should return nothing. The last two should only

@@ -14,7 +14,7 @@ export function Statistic({ value, description, title }: StatisticProps) {
       <h3 className="type-display text-2xl" title={title}>
         {value}
       </h3>
-      <p className="type-label-sm text-primary">
+      <p className="type-label text-primary">
         {description}
       </p>
     </div>

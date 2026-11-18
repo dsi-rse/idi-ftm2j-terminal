@@ -108,9 +108,9 @@ function LenderCell({
   onToggle: () => void;
 }) {
   const [first, ...rest] = instrument.lenders;
-  // Every branch sets the lender in the display face, as holder names are;
-  // the placeholder too, muted, so one column does not switch faces by row.
-  const name = "type-display text-name";
+  // Every branch sets the lender in the display weight, as holder names are;
+  // the placeholder too, muted, so one column does not switch weights by row.
+  const name = "type-display";
   if (!first)
     return (
       <Table.Cell
@@ -143,7 +143,7 @@ function LenderCell({
           onClick={onToggle}
           aria-expanded={expanded}
           className={cn(
-            "type-label-sm cursor-pointer",
+            "type-label cursor-pointer",
             "hover:text-foreground rounded-control",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}

@@ -133,10 +133,9 @@ function Highlighted({
  * typography changes only what communication needs, and the rank, name,
  * sector, and country had three sizes and two families between them. All
  * four now share 12px Inter; the name alone is set semibold, and the muted
- * colour does the rest. The ticker chip keeps its mono, as a badge not a
- * line of text.
+ * colour does the rest.
  */
-const ROW_TEXT = "font-sans text-value";
+const ROW_TEXT = "text-value";
 
 /** The matched subsidiary name, with the query's hits marked. */
 function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
@@ -280,7 +279,7 @@ export function SearchResult({
                 )}
               </p>
               {matchHint && (
-                <p className={cn(ROW_TEXT, "italic text-muted")}>
+                <p className={cn(ROW_TEXT, "text-muted")}>
                   {matchHint}
                 </p>
               )}
@@ -320,7 +319,7 @@ export function SearchResult({
                     // A selected row shows no match cue on its ticker: the solid
                     // accent chip, the row's accent border, and the highlighted
                     // title already explain the hit, and an underline on three
-                    // mono characters inside the filled pill only reads as noise.
+                    // characters inside the filled pill only reads as noise.
                     ticker
                   )}
                 </p>

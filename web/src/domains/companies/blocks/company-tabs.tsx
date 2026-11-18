@@ -178,7 +178,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
                     href={`#${tab.id}`}
                     onClick={handleClick(tab.id)}
                     className={cn(
-                      "inline-flex items-center px-3 py-2 font-sans text-name font-medium cursor-pointer",
+                      "inline-flex items-center px-3 py-2 text-value cursor-pointer",
                       "border-b-2 -mb-px transition-colors",
                       "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                       isActive
@@ -205,7 +205,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
               type="button"
               disabled
               title="Not available yet"
-              className="rounded-control border border-muted/40 px-3 py-1 type-label-sm normal-case tracking-label-tight disabled:cursor-not-allowed"
+              className="rounded-control border border-muted/40 px-3 py-1 type-caption disabled:cursor-not-allowed"
             >
               {action}
             </button>

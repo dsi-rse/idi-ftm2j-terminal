@@ -105,7 +105,7 @@ function PanelBody({
   return (
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between gap-2 px-3 py-2 border-b border-muted/25">
-        <span className="type-label tracking-label-wide text-foreground">
+        <span className="type-label text-foreground">
           Results
         </span>
         <span
@@ -368,7 +368,7 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
       ) : null}
       <Drawer.Header>
         <div className="flex items-center gap-2">
-          <h2 className="inline-flex items-center gap-1.5 type-label-sm tracking-label-wide text-foreground">
+          <h2 className="inline-flex items-center gap-1.5 type-label text-foreground">
             <Search className="size-3.5" /> Company Search
           </h2>
           {/* A question-mark glyph beside the title, as the design has it. A
@@ -515,7 +515,7 @@ export function CompanyInspectorOpener() {
           onClick={() => setMobileInspectorOpen(true)}
           className={cn(
             "fixed right-4 bottom-4 z-20 inline-flex items-center gap-2 px-4 h-11 rounded-control md:hidden",
-            "bg-primary text-primary-foreground type-label-sm tracking-label-wide shadow-lg cursor-pointer",
+            "bg-primary text-primary-foreground type-label shadow-lg cursor-pointer",
             "hover:brightness-110 transition-all duration-200",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
           )}

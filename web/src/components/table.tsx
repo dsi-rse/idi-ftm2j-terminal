@@ -221,7 +221,7 @@ function TableCell({
       >
         <span className="text-foreground">{primary}</span>
         {secondary ? (
-          <span className="type-label-sm">
+          <span className="type-label">
             {secondary}
           </span>
         ) : null}
@@ -288,7 +288,7 @@ TableEmpty.displayName = "Table.Empty";
  */
 export function RowIndex({ index }: { index: number }) {
   return (
-    <span className="type-meta tabular-nums">
+    <span className="type-caption tabular-nums">
       {String(index).padStart(2, "0")}
     </span>
   );
