@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import { filterStoredCompanies } from "@/domains/companies/filter-stored-companies";
 import { useCompaniesStore } from "@/domains/companies/stores/companies";
 
 import type { CompanySearchHookReturn } from "./use-all-companies-search";
@@ -11,14 +12,21 @@ const PAGE_SIZE = 10;
 export function useSavedCompaniesSearch(): CompanySearchHookReturn {
   const savedPage = useCompaniesStore((s) => s.savedPage);
   const bookmarked = useCompaniesStore((s) => s.bookmarked);
+  const searchQuery = useCompaniesStore((s) => s.searchQuery);
   const setPage = useCompaniesStore((s) => s.setPage);
 
-  const totalCount = bookmarked.length;
+  // The rail's one query filters this tab too, on the fields a stored entry
+  // keeps. Short, local lists, so it runs on every keystroke, undebounced.
+  const matched = useMemo(
+    () => filterStoredCompanies(bookmarked, searchQuery),
+    [bookmarked, searchQuery],
+  );
+  const totalCount = matched.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const offset = (savedPage - 1) * PAGE_SIZE;
   const results = useMemo(
-    () => bookmarked.slice(offset, offset + PAGE_SIZE),
-    [bookmarked, offset],
+    () => matched.slice(offset, offset + PAGE_SIZE),
+    [matched, offset],
   );
 
   return {

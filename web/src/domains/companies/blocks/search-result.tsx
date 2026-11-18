@@ -44,14 +44,14 @@ type SearchResultProps = {
   /**
    * The company's own name, pre-segmented against the query. When a run is
    * marked, the title carries the same highlight a subsidiary line does; when
-   * nothing matched (empty query, a Recent/Saved row, or a hit these rules
-   * cannot re-derive) it renders as plain text.
+   * nothing matched (empty query, or a hit these rules cannot re-derive) it
+   * renders as plain text.
    */
   nameSegments?: MatchSegment[];
   /**
    * The country, displayed sector, and per-ticker runs, segmented for the same
-   * highlight the name and subsidiaries get. Absent for Recent/Saved rows, which
-   * carry no query, so they render plain.
+   * highlight the name and subsidiaries get. Absent when there is no query, so
+   * the row renders plain.
    */
   countrySegments?: MatchSegment[];
   sectorSegments?: MatchSegment[];

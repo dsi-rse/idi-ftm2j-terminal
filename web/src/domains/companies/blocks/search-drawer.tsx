@@ -326,6 +326,11 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
   const allData = useAllCompaniesSearch();
   const recentData = useRecentCompaniesSearch();
   const savedData = useSavedCompaniesSearch();
+  // Whether each stored list has anything in it, so an empty filtered tab can
+  // tell "nothing matched" apart from "nothing here yet".
+  const hasRecent = useCompaniesStore((s) => s.recentlyViewed.length > 0);
+  const hasSaved = useCompaniesStore((s) => s.bookmarked.length > 0);
+  const hasQuery = searchQuery.trim() !== "";
 
   return (
     <Drawer
@@ -419,21 +424,20 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
           onValueChange={(v) => setActiveTab(v as "all" | "recent" | "saved")}
         >
           {/* The search box and the tabs stay pinned while results scroll.
-              The box sits above the tabs but searches only the All list --
-              Recent and Saved are short and unfiltered -- so typing from
-              either of them switches to All rather than appearing to do
-              nothing. */}
+              One query filters whichever tab is showing, and it stays put
+              across tabs. All searches the full index, subsidiaries included;
+              Recent and Saved filter the entries kept on this device, which
+              hold no subsidiaries -- hence the narrower placeholder there. */}
           <div className={cn("sticky top-0 z-10 -mx-4 bg-muted-foreground")}>
             <div className={cn("p-3")}>
               <SearchInput
                 value={searchQuery}
-                onValueChange={(query) => {
-                  setSearchQuery(query);
-                  // Only typing switches; clearing the box from Recent or
-                  // Saved leaves the user where they are.
-                  if (query !== "" && activeTab !== "all") setActiveTab("all");
-                }}
-                placeholder="Search by name, subsidiary, PermID, or ticker…"
+                onValueChange={setSearchQuery}
+                placeholder={
+                  activeTab === "all"
+                    ? "Search by name, subsidiary, PermID, or ticker…"
+                    : "Search by name, PermID, or ticker…"
+                }
               />
             </div>
             <Tabs.Header>
@@ -459,14 +463,22 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               <PanelBody
                 data={recentData}
                 activeCompanyId={activeCompanyId}
-                emptyMessage="Nothing recent yet — visit a company to see it here."
+                emptyMessage={
+                  hasQuery && hasRecent
+                    ? "No matches in Recent."
+                    : "Nothing recent yet — visit a company to see it here."
+                }
               />
             </Tabs.Panel>
             <Tabs.Panel value="saved">
               <PanelBody
                 data={savedData}
                 activeCompanyId={activeCompanyId}
-                emptyMessage="No saved companies. Tap the star to bookmark one."
+                emptyMessage={
+                  hasQuery && hasSaved
+                    ? "No matches in Saved."
+                    : "No saved companies. Tap the star to bookmark one."
+                }
               />
             </Tabs.Panel>
           </Tabs.Body>
