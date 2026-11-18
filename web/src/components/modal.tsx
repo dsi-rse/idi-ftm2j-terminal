@@ -104,7 +104,7 @@ function ModalHeader({ title, subtitle, className }: ModalHeaderProps) {
       <ModalHeading title={title} subtitle={subtitle} className="[&>h2]:text-xl" />
       <Dialog.Close
         aria-label="Close"
-        className="p-2 rounded-sm bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+        className="p-2 rounded-control bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       >
         <X className="size-4" aria-hidden />
       </Dialog.Close>

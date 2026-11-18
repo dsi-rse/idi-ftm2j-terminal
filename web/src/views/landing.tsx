@@ -2,12 +2,16 @@
 
 import { ChevronRightIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef } from "react";
 
 import { Article, StatisticGrid } from "@/blocks";
 import { HeroGlobe } from "@/components/hero-globe";
-import { SearchBar } from "@/components/search";
+import { SearchBar, type SearchBarHandle } from "@/components/search";
 import type { CorpusStats } from "@/domains/companies/dataset";
 import { formatCountShort } from "@/lib/format-count";
+import { SEARCH_FOCUS_PARAM, SEARCH_FOCUS_VALUE } from "@/lib/search-focus";
+import { cn } from "@/lib/utils";
 import { StandardPageLayout } from "@/layouts";
 
 type LandingProps = {
@@ -31,7 +35,30 @@ function countTile(value: number | undefined, description: string) {
     };
 }
 
+/**
+ * Focuses the search bar when the URL asks for it (the navbar's search link
+ * sends `/?focus=search`), then drops the parameter so a reload or a Back
+ * press does not refocus. Reacts to the parameter rather than to mount, so the
+ * link still works when it is followed from the landing page itself.
+ *
+ * Its own component so the `useSearchParams` read sits inside a Suspense
+ * boundary and the rest of the statically rendered landing stays static.
+ */
+function FocusSearchOnRequest({ onRequest }: { onRequest: () => void }) {
+  const router = useRouter();
+  const requested =
+    useSearchParams().get(SEARCH_FOCUS_PARAM) === SEARCH_FOCUS_VALUE;
+  useEffect(() => {
+    if (!requested) return;
+    onRequest();
+    router.replace("/", { scroll: false });
+  }, [requested, onRequest, router]);
+  return null;
+}
+
 function Header({ stats }: LandingProps) {
+  const searchBar = useRef<SearchBarHandle>(null);
+  const focusSearch = useCallback(() => searchBar.current?.focus(), []);
   const tiles = [
     countTile(stats?.companies, "companies tracked"),
     countTile(stats?.subsidiaries, "ownership links"),
@@ -39,7 +66,18 @@ function Header({ stats }: LandingProps) {
     countTile(stats?.debtInstruments, "debt instruments tracked"),
   ];
   return (
-    <Article id="landing" className="md:max-w-xl md:justify-self-start">
+    // The grid centers this column against the globe; `md:pb-25.5` (102px)
+    // lifts the text 51px -- half the padding -- above that center, so the
+    // block sits slightly high beside the globe rather than dead level with it.
+    // The lift is a fixed offset, not a measurement of anything else in the
+    // column: a taller or shorter header or stat grid stays centered, just as
+    // high. Where the text outgrows the globe (narrow two-column widths), the
+    // padding instead adds height below it, which keeps the text's top where it
+    // is and moves the globe down to match.
+    <Article
+      id="landing"
+      className={cn("md:max-w-xl md:justify-self-start md:pb-25.5")}
+    >
       <Article.Header className="flex flex-col gap-4">
         <Article.Header.Eyebrow>
           Follow the Money to Justice
@@ -63,7 +101,11 @@ function Header({ stats }: LandingProps) {
           </Link>
         </div>
       </Article.Header>
+      <Suspense fallback={null}>
+        <FocusSearchOnRequest onRequest={focusSearch} />
+      </Suspense>
       <SearchBar
+        ref={searchBar}
         placeholder={{
           // The magnifying-glass icon carries "search", so the short variant
           // spends its width on the fields instead: "Search by name,
@@ -74,15 +116,6 @@ function Header({ stats }: LandingProps) {
         }}
       />
       <StatisticGrid stats={tiles} />
-      <div className="flex gap-4 justify-end type-display mt-8">
-        <Link
-          className="inline-flex items-center gap-1 hover:bg-overlay border border-muted/25 rounded-sm text-sm p-2 hover:cursor-pointer"
-          href="/methodology"
-        >
-          Read the methodology{" "}
-          <ChevronRightIcon className="size-4 text-black dark:text-white" />
-        </Link>
-      </div>
     </Article>
   );
 }

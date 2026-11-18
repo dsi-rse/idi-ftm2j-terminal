@@ -119,7 +119,7 @@ function HeaderCell({
   hrefLabel,
 }: HeaderCellProps) {
   return (
-    <div className="flex flex-col gap-1 md:border md:border-muted/25 md:px-3 md:py-2">
+    <div className="flex flex-col gap-1 md:rounded-card md:border md:border-muted/25 md:px-3 md:py-2">
       <span className="flex h-4 items-center gap-1">
         <span className="type-label md:whitespace-nowrap">{label}</span>
         {info ? (
@@ -166,7 +166,15 @@ function HeaderCell({
 const PUBLIC_FLOAT_INFO =
   "The market value of shares held by non-affiliates. It is similar to market " +
   "capitalization, but excludes insider and controlling holdings. It is " +
-  "measured as of the date shown, not today.";
+  "measured as of the date shown.";
+
+/**
+ * The revenue info body. Says which filing the figure comes from and that the
+ * currency is the filing's own, since the header shows no exchange rate.
+ */
+const REVENUE_INFO =
+  "Total revenue reported in the company's most recent 10-K or 20-F, for " +
+  "the fiscal year ending on the date shown, in the filing's currency.";
 
 /**
  * Formats a company-facts figure with its currency symbol and ISO code -- `$53.60B
@@ -279,6 +287,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           value={revenue.value}
           sub={revenue.sub}
           muted={revenue.muted}
+          info={REVENUE_INFO}
           href={revenue.href}
           hrefLabel={revenue.hrefLabel}
         />

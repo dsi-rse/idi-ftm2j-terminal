@@ -12,7 +12,7 @@ export function ThemeToggle() {
       type="button"
       aria-label="Toggle theme"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-      className="p-2 rounded-sm bg-transparent border border-muted/40 cursor-pointer hover:bg-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className="p-2 rounded-control bg-transparent border border-muted/40 cursor-pointer hover:bg-overlay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
       <MoonIcon className="size-4 hidden dark:block text-muted hover:text-primary" />
       <SunIcon className="size-4 block dark:hidden text-muted hover:text-primary" />

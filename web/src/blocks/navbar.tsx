@@ -13,13 +13,22 @@ import React, {
   type ReactNode,
   type SetStateAction,
   useEffect,
+  useRef,
   useState,
 } from "react";
+
+import { cn } from "@/lib/utils";
 
 type NavbarContext = {
   isOpen: boolean;
   setIsOpen: Dispatch<SetStateAction<boolean>>;
-  close: () => void;
+  /**
+   * Closes the menu. Pass `handOffFocus` when the page the link opens moves
+   * focus itself, so the menu does not pull it back to its trigger.
+   */
+  close: (options?: { handOffFocus?: boolean }) => void;
+  /** Whether the last close handed focus off to the page. */
+  focusHandedOff: () => boolean;
   brand: ReactNode;
   setBrand: Dispatch<SetStateAction<ReactNode>>;
   extras: ReactNode;
@@ -38,10 +47,33 @@ const NavbarProvider = ({ children }: PropsWithChildren) => {
   const [isOpen, setIsOpen] = useState(false);
   const [brand, setBrand] = useState<ReactNode>(null);
   const [extras, setExtras] = useState<ReactNode>(null);
-  const close = () => setIsOpen(false);
+  // Set when a link that moves focus itself closes the menu, cleared when it
+  // opens again. Read when the dialog decides where focus goes on close.
+  const handedOff = useRef(false);
+  const close = ({ handOffFocus = false }: { handOffFocus?: boolean } = {}) => {
+    handedOff.current = handOffFocus;
+    setIsOpen(false);
+  };
+  const focusHandedOff = () => handedOff.current;
+  const openChange: Dispatch<SetStateAction<boolean>> = (next) => {
+    setIsOpen((prev) => {
+      const open = typeof next === "function" ? next(prev) : next;
+      if (open) handedOff.current = false;
+      return open;
+    });
+  };
   return (
     <NavbarContext.Provider
-      value={{ isOpen, setIsOpen, close, brand, setBrand, extras, setExtras }}
+      value={{
+        isOpen,
+        setIsOpen: openChange,
+        close,
+        focusHandedOff,
+        brand,
+        setBrand,
+        extras,
+        setExtras,
+      }}
     >
       {children}
     </NavbarContext.Provider>
@@ -61,6 +93,19 @@ function useNavbar() {
 
 type NavbarLinkProps = {
   href: string;
+  /** A glyph shown before the label. */
+  icon?: ReactNode;
+  /**
+   * Show only the icon in the desktop bar, keeping the label for screen
+   * readers and as a hover title. The mobile menu always shows the label
+   * beside the icon.
+   */
+  iconOnly?: boolean;
+  /**
+   * The page this link opens moves focus itself (the search link focuses the
+   * landing's search bar), so the mobile menu leaves focus alone on close.
+   */
+  handsOffFocus?: boolean;
 };
 
 /**
@@ -125,7 +170,8 @@ NavbarExtras.displayName = "Navbar.Extras";
  * fullscreen modal via Base UI's Dialog.
  */
 function NavbarList({ children }: PropsWithChildren) {
-  const { isOpen, setIsOpen, close, brand, extras } = useNavbar();
+  const { isOpen, setIsOpen, close, focusHandedOff, brand, extras } =
+    useNavbar();
   return (
     <Dialog.Root open={isOpen} onOpenChange={setIsOpen}>
       <NavigationMenu.List className="hidden lg:flex ml-auto items-center gap-6 text-name font-medium list-none p-0 m-0">
@@ -137,7 +183,7 @@ function NavbarList({ children }: PropsWithChildren) {
             type="button"
             aria-label={isOpen ? "Close menu" : "Open menu"}
             aria-controls="mobile-nav-menu"
-            className="ml-auto p-2 rounded-sm bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground lg:hidden"
+            className="ml-auto p-2 rounded-control bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground lg:hidden"
           />
         }
       >
@@ -151,11 +197,17 @@ function NavbarList({ children }: PropsWithChildren) {
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden" />
         <Dialog.Popup
           id="mobile-nav-menu"
-          className="fixed inset-0 z-50 flex flex-col bg-background pt-1 transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden"
+          // A link whose page takes focus -- the search link focuses the
+          // landing's search bar -- keeps the menu from pulling focus back to
+          // its trigger as it closes. Every other close returns it there.
+          finalFocus={() => !focusHandedOff()}
+          className={cn(
+            "fixed inset-0 z-50 flex flex-col bg-background transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden",
+          )}
         >
           <Dialog.Title className="sr-only">Site navigation</Dialog.Title>
           <div className="mx-4 md:mx-12 py-3 flex items-center justify-between gap-4">
-            <Link href="/" aria-label="Home page" onClick={close}>
+            <Link href="/" aria-label="Home page" onClick={() => close()}>
               {brand}
             </Link>
             <Dialog.Close
@@ -163,7 +215,7 @@ function NavbarList({ children }: PropsWithChildren) {
                 <Button
                   type="button"
                   aria-label="Close menu"
-                  className="p-2 rounded-sm bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground"
+                  className="p-2 rounded-control bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground"
                 />
               }
             >
@@ -203,11 +255,19 @@ NavbarListItem.displayName = "Navbar.List.Item";
 /**
  * A responsive navigation bar link.
  */
-function NavbarLink({ href, children }: PropsWithChildren<NavbarLinkProps>) {
+function NavbarLink({
+  href,
+  icon,
+  iconOnly = false,
+  handsOffFocus = false,
+  children,
+}: PropsWithChildren<NavbarLinkProps>) {
   const { close } = useNavbar();
   const pathname = usePathname();
   // Match the section, not just the exact page, so /companies/<id> still marks
   // Companies as current. "/" would prefix-match everything, so it is exact.
+  // An href with a query (the search link's "/?focus=search") never matches a
+  // pathname, so it is never marked current.
   const isCurrent =
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
   const state = isCurrent
@@ -218,16 +278,24 @@ function NavbarLink({ href, children }: PropsWithChildren<NavbarLinkProps>) {
       <NavigationMenu.Link
         render={<Link href={href} />}
         aria-current={isCurrent ? "page" : undefined}
-        className={`hidden lg:block py-1 border-b-2 ${state}`}
+        // The label is visually hidden when icon-only; the title gives sighted
+        // mouse users the same name on hover.
+        title={iconOnly && icon && typeof children === "string" ? children : undefined}
+        className={cn(
+          "hidden lg:flex items-center gap-2 py-1 border-b-2",
+          state,
+        )}
       >
-        {children}
+        {icon}
+        <span className={cn(iconOnly && icon && "sr-only")}>{children}</span>
       </NavigationMenu.Link>
       <NavigationMenu.Link
         render={<Link href={href} />}
-        onClick={close}
+        onClick={() => close({ handOffFocus: handsOffFocus })}
         aria-current={isCurrent ? "page" : undefined}
-        className={`block py-1 border-b-2 ${state} lg:hidden`}
+        className={cn("flex items-center gap-2 py-1 border-b-2 lg:hidden", state)}
       >
+        {icon}
         {children}
       </NavigationMenu.Link>
     </>

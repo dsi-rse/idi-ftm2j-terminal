@@ -28,8 +28,9 @@ export type RecentlyViewedEntry = CompanySearchMeta & {
  * `CompanySearchResultItem` adds the company's full subsidiary list, up to 1,284
  * names. TypeScript permits that (excess-property checks do not apply to a
  * variable passed as an argument) and the extra field would then be written
- * straight to IndexedDB, where nothing ever reads it: neither the Recent nor the
- * Saved tab consults the search query.
+ * straight to IndexedDB, where nothing ever reads it: the Recent and Saved tabs
+ * search only the fields kept here (see `filterStoredCompanies`), never
+ * subsidiaries.
  *
  * So the boundary is enforced here, once, rather than trusted to every call
  * site. Persisted records stay small no matter what gets handed in.
@@ -147,7 +148,9 @@ export const useCompaniesStore = create<CompaniesState>()(
       isInspectorOpen: true,
       isMobileInspectorOpen: false,
       inspectorWidth: INSPECTOR_WIDTH_DEFAULT,
-      setSearchQuery: (q) => set({ searchQuery: q, allPage: 1 }),
+      // Every tab filters on the query, so a new one starts each at page 1.
+      setSearchQuery: (q) =>
+        set({ searchQuery: q, allPage: 1, recentPage: 1, savedPage: 1 }),
       setActiveTab: (t) => set({ activeTab: t }),
       setPage: (tab, page) =>
         set(

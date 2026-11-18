@@ -165,7 +165,7 @@ function LenderCell({
           aria-expanded={expanded}
           className={cn(
             "type-label-sm cursor-pointer",
-            "hover:text-foreground rounded-sm",
+            "hover:text-foreground rounded-control",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
         >

@@ -205,7 +205,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
               type="button"
               disabled
               title="Not available yet"
-              className="border border-muted/40 px-3 py-1 type-label-sm normal-case tracking-label-tight disabled:cursor-not-allowed"
+              className="rounded-control border border-muted/40 px-3 py-1 type-label-sm normal-case tracking-label-tight disabled:cursor-not-allowed"
             >
               {action}
             </button>

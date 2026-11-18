@@ -227,6 +227,13 @@ wins. Sizes below `text-sm` are tokens (`text-label`, `text-micro`,
 appears raw only on glyphs (tree guides, the `↳` match marker), with a comment
 saying so.
 
+**Radii.** Corners come from three named radii in `globals.css`, stepped by
+element size so a badge and a card look equally rounded: `rounded-chip` (2px —
+ticker badges, inline highlights), `rounded-control` (4px — buttons, inputs,
+icon buttons) and `rounded-card` (6px — section cards, boxes, popovers,
+callouts). Name the role, never Tailwind's raw `rounded-sm` / `rounded-md`;
+`rounded-full` stays for dots, pills and switches.
+
 **Base UI.** Every interactive primitive in `components/` wraps a
 `@base-ui/react` headless component. Base UI is the bottom of the stack — its
 presence is why `components/` files stay small and never need `forwardRef`
@@ -300,6 +307,14 @@ grep -n "from \"\\./" web/src/components/*.tsx
 
 # No block-to-block imports
 grep -n "from \"\\./" web/src/blocks/*.tsx
+```
+
+```bash
+# Corners go through the radius roles, including the per-side and per-corner
+# forms (`rounded-r-md`, `rounded-tl-lg`) and Tailwind's bare `rounded`.
+# Should print only the comment in globals.css that names the raw classes it
+# replaces.
+grep -rnE "rounded(-[trblse]{1,2})?-(xs|sm|md|lg|xl|2xl|3xl)\b|[\"' \`]rounded[\"' \`]" web/src
 ```
 
 ```bash

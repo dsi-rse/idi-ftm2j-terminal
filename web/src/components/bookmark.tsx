@@ -32,7 +32,7 @@ export function BookmarkButton({
     <Button
       type="button"
       aria-label="Bookmark"
-      className="rounded-sm bg-transparent border-0 cursor-pointer"
+      className="rounded-control bg-transparent border-0 cursor-pointer"
       onClick={toggleBookmark}
     >
       <StarIcon
