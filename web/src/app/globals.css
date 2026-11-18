@@ -110,11 +110,12 @@
 /* TYPOGRAPHY ROLES
    Two families with separate jobs. DM Sans sets all text, in two weights
    (regular and semibold). Datatype, a monospace, sets figures only: a number
-   or a ticker standing on its own. Hierarchy comes from size, weight and
-   color. Each role below is one @utility so a component names the role
-   rather than its properties, and a call site can still override a single
-   property (`type-label text-primary`): Tailwind orders multi-property
-   utilities before single-property ones. */
+   or a ticker standing on its own. Datatype draws its letters and digits in
+   one weight, so a weight class has no effect on a figure. Hierarchy comes
+   from size, weight and color. Each role below is one @utility so a
+   component names the role rather than its properties, and a call site can
+   still override a single property (`type-label text-primary`): Tailwind
+   orders multi-property utilities before single-property ones. */
 @utility type-label {
 	/* The one uppercase voice, and the one place letters are spaced: cell and
 	   stat labels, table headers, kickers, tabs, counts, uppercase links.
@@ -133,17 +134,30 @@
 }
 @utility type-figure {
 	/* A number or a ticker standing on its own: table figures, identifiers,
-	   counts, headline numbers. The only way into the mono besides the chip.
+	   counts. The way into the mono, with `type-stat` and the chip.
 	   Added alongside another role (`type-value type-figure`), and never on
 	   anything with words in it: a date inside a sentence stays in the sans. */
 	@apply font-mono;
 }
+@utility type-stat {
+	/* A headline number: the Overview tiles and the landing stats. Datatype
+	   has no bold (its weight axis only thickens its inline charts), so the
+	   emphasis is a stroke around each glyph, drawn behind the fill and sized
+	   in em so it holds at any size. */
+	@apply font-mono text-foreground;
+	-webkit-text-stroke: 0.045em currentColor;
+	paint-order: stroke fill;
+}
+@utility type-wordmark {
+	/* The FTM2J wordmark. A logo rather than text, and the one bold in the
+	   sans. */
+	@apply font-bold text-foreground;
+}
 @utility type-display {
-	/* Names and headline numbers: the semibold weight. Size is set at the call
-	   site and defaults to the text around it, so a name in a table row is
-	   that row's size. Only elements of roughly 30px and up add
-	   `tracking-tight`: the company title, the article page titles, and the
-	   KPI numbers. */
+	/* Names and headings: the semibold weight. Size is set at the call site
+	   and defaults to the text around it, so a name in a table row is that
+	   row's size. Only elements of roughly 30px and up add `tracking-tight`:
+	   the company title and the article page titles. */
 	@apply font-semibold text-foreground;
 }
 @utility type-body {

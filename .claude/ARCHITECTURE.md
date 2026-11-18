@@ -206,18 +206,22 @@ Same rule for types and helpers.
 **Typography.** Two families with separate jobs. DM Sans sets all text, in
 two weights: regular and semibold. Datatype, a monospace, sets figures only: a
 number or a ticker standing on its own. Anything with words in it stays in the
-sans, including a date inside a sentence. Hierarchy comes from size, weight
-and color, never from a third typeface, a third weight, or italics. The roles
-are named `@utility` classes in `globals.css`, and a component names the role
-rather than spelling out its properties:
+sans, including a date inside a sentence. Datatype draws its letters and
+digits in one weight, so a weight class does nothing on a figure. Hierarchy
+comes from size, weight and color, never from a third typeface or italics, and
+the only heavier weights are the two roles that own them: the wordmark and
+the headline numbers. The roles are named `@utility` classes in `globals.css`,
+and a component names the role rather than spelling out its properties:
 
 | Utility | Role |
 | --- | --- |
 | `type-label` | the one uppercase, letter-spaced voice: cell and stat labels, table headers, kickers, tabs, counts, uppercase links |
 | `type-caption` | the muted line: subtitles, citations, empty states, the line under a value or name; the data's size, told apart by color alone |
 | `type-value` | a datum: cell values, table cells, identifiers, inputs |
-| `type-figure` | a number or a ticker on its own, in the mono: table figures, identifiers, counts, headline numbers; added alongside another role (`type-value type-figure`) |
-| `type-display` | names and headline numbers, semibold; size set at the call site |
+| `type-figure` | a number or a ticker on its own, in the mono: table figures, identifiers, counts; added alongside another role (`type-value type-figure`) |
+| `type-stat` | a headline number, in the mono and emboldened with a stroke; size set at the call site |
+| `type-display` | names and headings, semibold; size set at the call site |
+| `type-wordmark` | the FTM2J wordmark, bold |
 | `type-body` | prose |
 | `type-chip` | ticker badge, in the mono |
 
@@ -227,7 +231,7 @@ wins. Two sizes sit below `text-sm`, both tokens and never arbitrary values:
 `text-value` (13px) for data and captions, and `text-micro` (12px, the floor)
 for uppercase labels and chips only. From `text-sm` up the scale is Tailwind's
 own. `font-mono` and `font-sans` never appear in a component: the mono is
-reached only through `type-figure` and `type-chip`. The tree branch and the
+reached only through `type-figure`, `type-stat` and `type-chip`. The tree branch and the
 subsidiary-match arrow are SVG icons, not characters.
 
 **Radii.** Corners come from three named radii in `globals.css`, stepped by

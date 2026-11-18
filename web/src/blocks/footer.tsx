@@ -308,7 +308,7 @@ FooterYouTubeButtonLink.displayName = "Footer.YouTubeButtonLink";
  */
 function FooterWordmark() {
   return (
-    <span className="type-display text-lg">
+    <span className="type-wordmark text-lg">
       FTM<span className="text-primary">2</span>J
     </span>
   );

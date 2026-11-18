@@ -16,6 +16,8 @@ const dmSans = DM_Sans({
 
 // Figures: numbers and tickers only. Self-hosted from `./fonts` (OFL, license
 // alongside) because this version of next/font/google does not list Datatype.
+// The file is variable, but its axes only drive the font's inline charts:
+// letters and digits have one weight and one width.
 // ponytail: Latin subset only. Add the latin-ext file if a currency sign
 // outside Latin-1 has to be set in the mono; until then it falls back to the
 // sans.
@@ -23,7 +25,6 @@ const datatype = localFont({
   src: "./fonts/datatype-latin.woff2",
   variable: "--font-datatype",
   weight: "100 900",
-  declarations: [{ prop: "font-stretch", value: "50% 150%" }],
   display: "swap",
 });
 

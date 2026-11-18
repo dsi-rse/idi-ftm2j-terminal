@@ -292,10 +292,9 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       </span>
       <span
         className={cn(
-          "type-display tracking-tight",
           unavailable
-            ? "text-lg md:text-xl font-normal text-muted"
-            : "type-figure text-3xl md:text-4xl font-semibold text-foreground",
+            ? "type-display tracking-tight text-lg md:text-xl font-normal text-muted"
+            : "type-stat text-3xl md:text-4xl",
         )}
       >
         {unavailable ? "Not available" : gateway.value}
