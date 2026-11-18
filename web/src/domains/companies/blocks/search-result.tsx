@@ -26,8 +26,8 @@ const MAX_SUBSIDIARY_LINES = 2;
 type SearchResultProps = {
   index: number;
   /**
-   * Digits to zero-pad the rank to. Pass the width of the highest rank on the
-   * page so every row's rank is the same width and the names line up; a page
+   * Digits to hold the rank's width to. Pass the width of the highest rank on
+   * the page so every row's rank is the same width and the names line up; a page
    * can straddle a digit boundary (91-100), which would otherwise leave the
    * last rows indented past the rest.
    */
@@ -223,7 +223,14 @@ export function SearchResult({
         {/* The star centres on the rank's line, which is the name's line too. */}
         <div className={cn("flex flex-row items-center gap-2")}>
           <CompanyBookmark company={company} />
-          <p>{index.toString().padStart(Math.max(2, rankWidth), "0")}</p>
+          <p>
+            {/* Invisible figures hold every rank on the page to the widest
+                one's width, so the names line up without a leading zero. */}
+            <span aria-hidden className={cn("invisible")}>
+              {"0".repeat(Math.max(0, rankWidth - index.toString().length))}
+            </span>
+            {index}
+          </p>
         </div>
       </div>
       <div className={cn("min-w-0")}>

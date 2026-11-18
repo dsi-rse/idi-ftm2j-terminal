@@ -286,14 +286,11 @@ function TableEmpty({
 TableEmpty.displayName = "Table.Empty";
 
 /**
- * A tiny numeric row-index label, e.g. `01`, `02`. Pass a 1-based index.
+ * A numeric row-index label. Pass a 1-based index. Set as a plain number, on
+ * the same left edge as the column's `#` header.
  */
 export function RowIndex({ index }: { index: number }) {
-  return (
-    <span className="type-caption tabular-nums">
-      {String(index).padStart(2, "0")}
-    </span>
-  );
+  return <span className="type-caption tabular-nums">{index}</span>;
 }
 
 type DeltaCellProps = {
