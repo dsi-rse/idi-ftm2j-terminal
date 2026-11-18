@@ -272,7 +272,7 @@ function NavbarLink({
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
   const state = isCurrent
     ? "text-foreground border-primary"
-    : "text-muted border-transparent hover:text-primary";
+    : "text-muted border-transparent hover:text-foreground";
   return (
     <>
       <NavigationMenu.Link
