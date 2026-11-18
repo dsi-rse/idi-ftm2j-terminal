@@ -43,8 +43,23 @@ bd ready              # Find available work
 bd show <id>          # View issue details
 bd update <id> --claim  # Claim work atomically
 bd close <id>         # Complete work
-bd dolt push          # Push beads data to remote
 ```
+
+### There is no beads remote — do not add one
+
+This repo has **no Dolt remote, on purpose**. The repo is public, and a
+remote on it would make `bd dolt push` publish the issue database. So:
+
+- **Skip `bd dolt push`.** It fails with "no remote" here, and that is the
+  correct outcome, not an error to resolve. bd generates the session-close
+  block below and may put `bd dolt push` back into it; this rule still wins.
+- **Never configure one** — no `bd dolt remote add`, no `sync.remote` in
+  `.beads/config.yaml`, no `bd init --remote`, even though `bd dolt push`'s
+  error message suggests a GitHub URL.
+- `bd init` adds a remote pointing at the git origin by itself. If you ever
+  run it, undo that as `.beads/README.md` describes.
+
+`git push` is still mandatory; only the beads push is dropped.
 
 ## Non-Interactive Shell Commands
 
@@ -102,8 +117,7 @@ bd close <id>         # Complete work
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd dolt push
-   git push
+   git push            # no `bd dolt push`: there is no beads remote, see above
    git status  # MUST show "up to date with origin"
    ```
 5. **Clean up** - Clear stashes, prune remote branches
