@@ -166,7 +166,7 @@ export function SearchBar({ placeholder, ref }: SearchBarProps) {
           }}
           className={cn(
             "shrink-0 inline-flex items-center gap-1.5 rounded-control px-4",
-            "bg-primary text-primary-foreground type-label text-primary-foreground",
+            "bg-primary type-caption text-primary-foreground",
             "hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
         >

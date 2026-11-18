@@ -215,8 +215,8 @@ and a component names the role rather than spelling out its properties:
 
 | Utility | Role |
 | --- | --- |
-| `type-label` | the one uppercase, letter-spaced voice: cell and stat labels, table headers, kickers, tabs, counts, uppercase links |
-| `type-caption` | the muted line: subtitles, citations, empty states, the line under a value or name; the data's size, told apart by color alone |
+| `type-label` | the one uppercase, letter-spaced voice, for text that names the thing beside it: cell and stat labels, table headers, kickers, eyebrows. Never content (a value, a sentence) or a control (a tab, a button, a link) |
+| `type-caption` | the muted line: subtitles, citations, empty states, the line under a value or name, and the text of a control; the data's size, told apart by color alone |
 | `type-value` | a datum: cell values, table cells, identifiers, inputs |
 | `type-figure` | a number or a ticker on its own, in the mono: table figures, identifiers, counts; added alongside another role (`type-value type-figure`) |
 | `type-stat` | a headline number, in the mono and emboldened with a stroke; size set at the call site |

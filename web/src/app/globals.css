@@ -117,15 +117,17 @@
    still override a single property (`type-label text-primary`): Tailwind
    orders multi-property utilities before single-property ones. */
 @utility type-label {
-	/* The one uppercase voice, and the one place letters are spaced: cell and
-	   stat labels, table headers, kickers, tabs, counts, uppercase links.
+	/* The one uppercase voice, and the one place letters are spaced. For text
+	   that names the thing beside it: cell and stat labels, table headers,
+	   kickers, eyebrows, column titles. Never for content (a value, a
+	   sentence) or for a control (a tab, a button, a link).
 	   The weight is stated because a `<th>` is bold by default. */
 	@apply text-micro font-normal uppercase tracking-wider text-muted;
 }
 @utility type-caption {
-	/* The muted line: subtitles, citations, empty states, and the line under
-	   a value or a name. Set at the data's size and told apart by color
-	   alone: one signal, not two. */
+	/* The muted line: subtitles, citations, empty states, the line under a
+	   value or a name, and the text of a control. Set at the data's size and
+	   told apart by color alone: one signal, not two. */
 	@apply text-value text-muted;
 }
 @utility type-value {

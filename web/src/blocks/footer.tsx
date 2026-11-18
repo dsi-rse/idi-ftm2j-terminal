@@ -359,12 +359,12 @@ FooterLogoImage.displayName = "Footer.LogoImage";
 type FooterLastUpdatedProps = { date: string };
 
 /**
- * A "Last updated {date}" label with an animated pulse indicator, styled in
+ * A "Last updated {date}" line with an animated pulse indicator, styled in
  * the primary color.
  */
 function FooterLastUpdated({ date }: FooterLastUpdatedProps) {
   return (
-    <span className="inline-flex items-center gap-2 type-label text-primary">
+    <span className="inline-flex items-center gap-2 type-caption text-primary">
       <span className="relative inline-flex size-1.5">
         <span className="absolute inset-0 rounded-full bg-primary opacity-75 animate-ping" />
         <span className="relative inline-flex size-1.5 rounded-full bg-primary" />

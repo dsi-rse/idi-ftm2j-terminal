@@ -74,7 +74,7 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
               ) : null}
               <span className="min-w-0">{row.name}</span>
             </span>
-            <span className="type-label whitespace-nowrap">
+            <span className="type-caption whitespace-nowrap">
               {row.jurisdiction ?? ""}
             </span>
           </li>
@@ -314,7 +314,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
         // Wraps so the pager drops to its own line on a phone: the count and a
         // six-page list side by side are wider than the card there.
         <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-          <p className="type-label m-0">
+          <p className="type-caption m-0">
             {filtering
               ? `${filtered.length} of ${subsidiaryCount} subsidiaries`
               : `${subsidiaryCount} subsidiaries`}

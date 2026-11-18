@@ -303,7 +303,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       <span className="type-caption leading-relaxed">
         {gateway.meta}
       </span>
-      <span className="mt-2 type-label text-primary">
+      <span className="mt-2 type-caption text-primary">
         {gateway.link} →
       </span>
     </a>

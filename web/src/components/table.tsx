@@ -223,7 +223,7 @@ function TableCell({
       >
         <span className="text-foreground">{primary}</span>
         {secondary ? (
-          <span className="type-label">
+          <span className="type-caption">
             {secondary}
           </span>
         ) : null}

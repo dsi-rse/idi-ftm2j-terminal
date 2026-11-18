@@ -128,12 +128,12 @@ function ShareholderRow({
         secondary={holding.investorType}
       />
       <Table.Cell>
-        <span className="type-label">
+        <span className="type-caption">
           {holding.investorCountry ?? "—"}
         </span>
       </Table.Cell>
       <Table.Cell>
-        <span className="type-label">
+        <span className="type-caption">
           {holding.securityType || "—"}
         </span>
       </Table.Cell>

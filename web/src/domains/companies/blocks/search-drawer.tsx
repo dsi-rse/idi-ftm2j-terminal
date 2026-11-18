@@ -515,7 +515,7 @@ export function CompanyInspectorOpener() {
           onClick={() => setMobileInspectorOpen(true)}
           className={cn(
             "fixed right-4 bottom-4 z-20 inline-flex items-center gap-2 px-4 h-11 rounded-control md:hidden",
-            "bg-primary text-primary-foreground type-label shadow-lg cursor-pointer",
+            "bg-primary type-caption text-primary-foreground shadow-lg cursor-pointer",
             "hover:brightness-110 transition-all duration-200",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground",
           )}

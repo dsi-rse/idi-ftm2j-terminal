@@ -151,7 +151,7 @@ function ArticleBulkDownload({
         <p className="type-body md:text-base">
           {description}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-label">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-caption">
           <span>{format}</span>
           <span aria-hidden>·</span>
           <span>{size}</span>
@@ -161,7 +161,7 @@ function ArticleBulkDownload({
       </div>
       <a
         href={href}
-        className="inline-flex items-center justify-center gap-2 rounded-control border border-primary/60 bg-primary/10 px-5 py-3 type-label text-foreground hover:bg-primary/20 hover:border-primary transition-colors self-start md:self-center"
+        className="inline-flex items-center justify-center gap-2 rounded-control border border-primary/60 bg-primary/10 px-5 py-3 type-caption text-foreground hover:bg-primary/20 hover:border-primary transition-colors self-start md:self-center"
       >
         <DownloadIcon className="size-4 text-primary" />
         Download {format}
@@ -328,7 +328,7 @@ function ArticleDataset({
         <p className="type-body md:text-base">
           {description}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-label">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-caption">
           <span>{size}</span>
           {rows && (
             <>
@@ -345,7 +345,7 @@ function ArticleDataset({
           <a
             key={f.label}
             href={f.href}
-            className="inline-flex items-center rounded-control border border-muted/40 px-3 py-1.5 type-label text-foreground hover:border-primary hover:text-primary transition-colors"
+            className="inline-flex items-center rounded-control border border-muted/40 px-3 py-1.5 type-caption text-foreground hover:border-primary hover:text-primary transition-colors"
           >
             {f.label}
           </a>
@@ -385,7 +385,7 @@ function ArticleBlockQuote({ quote }: ArticleBlockQuoteProps) {
         <span className="type-body text-foreground font-semibold leading-normal">
           {quote.author.name}
         </span>
-        <span className="type-label">
+        <span className="type-caption">
           {quote.author.affiliation}
         </span>
       </figcaption>
