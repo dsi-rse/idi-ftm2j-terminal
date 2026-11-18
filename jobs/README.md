@@ -13,7 +13,7 @@ the contract; if you change the shape here, change it there in the same commit.
 ```bash
 COMPANY_INFO_FILE_PATH=../data/input/latest_company_info.parquet \
 CORPORATE_STRUCTURE_FILE_PATH=../data/input/latest_corporate_structure.parquet \
-CDT_DATABASE_DIR=../data/input/cdt \
+CDT_DATABASE_DIR=../data/input/cdt-beta \
 COMPANY_FACTS_FILE_PATH=../data/input/latest_company_facts.parquet \
 SHAREHOLDERS_FILE_PATH=../data/input/latest_shareholders_raw.parquet \
 OUTPUT_DIR=../data/output \
@@ -24,7 +24,7 @@ uv run python build_dataset.py
 | --- | --- |
 | `COMPANY_INFO_FILE_PATH` | `company-info/latest.parquet` from the processed layer |
 | `CORPORATE_STRUCTURE_FILE_PATH` | `corporate-structure/latest.parquet` from the processed layer |
-| `CDT_DATABASE_DIR` | The `cdt/` database root, holding `latest.json` and `snapshots/` (see *CDT generations*) |
+| `CDT_DATABASE_DIR` | The `cdt-beta/` database root, holding `latest.json` and `snapshots/` (see *CDT generations*). Not `cdt/`: that prefix still holds only the old per-table copies, with no pointer |
 | `COMPANY_FACTS_FILE_PATH` | `company-facts/latest.parquet` from the processed layer |
 | `SHAREHOLDERS_FILE_PATH` | `shareholders/latest.parquet` from the processed layer |
 | `OUTPUT_DIR` | Directory to write the dataset into (see *Output layout*) |
@@ -46,7 +46,7 @@ one at a time, and a build that reads mid-publish gets mentions pointing at
 instruments that do not exist yet. So CDT publishes atomically:
 
 ```text
-cdt/
+cdt-beta/
   latest.json                                  # the generation pointer, replaced last
   snapshots/snapshot=<run_id>/<table>.parquet  # the current and previous generation
   <table>/latest.parquet                       # copies; not read by this build
@@ -63,7 +63,7 @@ the generation its pointer names. In the rare case where the new pointer
 arrives without its files, the build fails loudly and a rerun fixes it.
 
 To get CDT's data locally, sync the whole root, pointer included:
-`aws s3 sync s3://<bucket>/database/cdt ../data/input/cdt`.
+`aws s3 sync s3://<bucket>/database/cdt-beta ../data/input/cdt-beta`.
 
 ### Output layout
 
