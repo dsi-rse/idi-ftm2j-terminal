@@ -119,7 +119,9 @@ function TableHeaderCell({
           type="button"
           onClick={onSort}
           className={cn(
-            "inline-flex items-center gap-1",
+            // `uppercase` restated: a button does not inherit text-transform,
+            // so a sortable header would otherwise drop the label's case.
+            "inline-flex items-center gap-1 uppercase",
             "cursor-pointer hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-control",
             align === "right" && "ml-auto",
           )}
