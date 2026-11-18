@@ -266,6 +266,22 @@ DEFAULT_CDT_ITEM_ROW: dict[str, Any] = {
     "form_type": "8-K",
 }
 
+# Every column of `mention-cluster-edges`. A `member` edge assigns a mention to
+# its instrument, which is how the build finds the mentions an instrument's
+# status is read off. `run_build` derives one from each instrument's seed
+# mention when a case passes no edges, as CDT does for a single-mention
+# instrument.
+DEFAULT_CDT_EDGE_ROW: dict[str, Any] = {
+    "debt_instrument_mention_id": CDT_MENTION_ID,
+    "debt_instrument_id": CDT_MENTION_ID,
+    "cik": "1",
+    "item_id": CDT_ITEM_ID,
+    "edge_type": "member",
+    "match_score": 1.0,
+    "candidate_rank": 1,
+    "match_via": "seed",
+}
+
 # The columns of the shareholder-tracker output that `attach_shareholders`
 # reads. The issuer is identified by `security_cusip`, which company-info
 # resolves to a PermID -- there is no issuer PermID or CIK in this file. The
@@ -382,6 +398,25 @@ def cdt_mention_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
 def cdt_item_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
     """Builds a CDT items fixture frame from partial rows."""
     return rows(DEFAULT_CDT_ITEM_ROW, overrides)
+
+
+def cdt_edge_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
+    """Builds a CDT mention-cluster-edges fixture frame from partial rows."""
+    return rows(DEFAULT_CDT_EDGE_ROW, overrides)
+
+
+def seed_member_edges(debt: pd.DataFrame) -> pd.DataFrame:
+    """One `member` edge per instrument, from its seed mention to it."""
+    return cdt_edge_rows(
+        *(
+            {"debt_instrument_mention_id": seed, "debt_instrument_id": instrument}
+            for seed, instrument in zip(
+                debt["seed_debt_instrument_mention_id"],
+                debt["debt_instrument_id"],
+                strict=True,
+            )
+        )
+    )
 
 
 def shareholder_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
@@ -502,6 +537,7 @@ def run_build(
     debt: pd.DataFrame | None = None,
     mentions: pd.DataFrame | None = None,
     items: pd.DataFrame | None = None,
+    edges: pd.DataFrame | None = None,
     shareholders: pd.DataFrame | None = None,
     facts: pd.DataFrame | None = None,
     cdt_pointer: Callable[[dict], dict | None] | None = None,
@@ -511,7 +547,7 @@ def run_build(
 ) -> FixtureResult:
     """Runs the whole `build_dataset` pipeline against in-memory frames.
 
-    The three CDT frames default to empty, so a case about corporate structure or
+    The CDT frames default to empty, so a case about corporate structure or
     registrants says nothing about debt. They cannot default to one instrument:
     a case that overrides the company CIK -- every multi-CIK case does -- would
     then trip the CDT join guard on a dataset it never meant to describe.
@@ -522,6 +558,9 @@ def run_build(
         debt: A CDT debt-instruments frame, from `cdt_rows`.
         mentions: A CDT debt-instrument-mentions frame, from `cdt_mention_rows`.
         items: A CDT items frame, from `cdt_item_rows`.
+        edges: A CDT mention-cluster-edges frame, from `cdt_edge_rows`.
+            Defaults to `seed_member_edges(debt)`, so each instrument's seed
+            mention is its one member mention.
         shareholders: A shareholder-tracker frame, from `shareholder_rows`.
             Defaults to empty, so a case about another section says nothing about
             shareholders.
@@ -553,6 +592,7 @@ def run_build(
     debt = cdt_rows() if debt is None else debt
     mentions = cdt_mention_rows() if mentions is None else mentions
     items = cdt_item_rows() if items is None else items
+    edges = seed_member_edges(debt) if edges is None else edges
     shareholders = shareholder_rows() if shareholders is None else shareholders
     facts = (
         pd.DataFrame(columns=list(COMPANY_FACTS_COLUMNS)) if facts is None else facts
@@ -574,6 +614,7 @@ def run_build(
                 "debt-instruments": debt,
                 "debt-instrument-mentions": mentions,
                 "items": items,
+                "mention-cluster-edges": edges,
             },
             pointer_hook=cdt_pointer,
             snapshot_file=cdt_snapshot_file,

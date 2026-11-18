@@ -21,6 +21,8 @@ from company import assign_primary_registrants, build_companies
 from constants import (
     CDT_CONTRACT_VERSION,
     CDT_DEBT_INSTRUMENTS_TABLE,
+    CDT_EDGE_COLUMNS,
+    CDT_EDGES_TABLE,
     CDT_ITEM_COLUMNS,
     CDT_ITEMS_TABLE,
     CDT_MENTIONS_TABLE,
@@ -50,13 +52,15 @@ def main(logger: logging.Logger) -> None:
     """Builds the company dataset consumed by the static web application.
 
     Reads `company-info/latest.parquet`,
-    `corporate-structure/latest.parquet`, and the three CDT outputs, and writes
+    `corporate-structure/latest.parquet`, and four CDT outputs, and writes
     JSON records matching the serialized `Company` type in
     `web/src/types/domain.ts`.
 
-    CDT needs three files for one section because the dataset holding the debt
-    instruments carries no provenance -- see `resolve_debt_documents`. Because
-    they reference one another, all three are resolved from CDT's `latest.json`
+    CDT needs four tables for one section. The dataset holding the debt
+    instruments carries no provenance -- see `resolve_debt_documents` -- and its
+    status is read off the instrument's mentions, which only
+    `mention-cluster-edges` ties to it -- see `derive_debt_statuses`. Because
+    they reference one another, all four are resolved from CDT's `latest.json`
     generation pointer rather than read from the per-table `latest.parquet`
     copies, which a CDT publish replaces one at a time.
 
@@ -93,7 +97,7 @@ def main(logger: logging.Logger) -> None:
         raise RuntimeError(f'Missing required environment variable "{e}".') from e
 
     # Resolved once, so every instrument in a run shares a `lastAccessed` and the
-    # Active/matured cutoff cannot shift midway through a long build.
+    # debt-status reference date cannot shift midway through a long build.
     run_date = datetime.datetime.now(datetime.UTC).date().isoformat()
 
     logger.info("Loading company info dataset.")
@@ -145,13 +149,21 @@ def main(logger: logging.Logger) -> None:
     items_df = load_parquet(
         items.path, "CDT items", columns=CDT_ITEM_COLUMNS, expected_rows=items.rows
     )
+    edges = cdt_tables[CDT_EDGES_TABLE]
+    edges_df = load_parquet(
+        edges.path,
+        "CDT mention-cluster edges",
+        columns=CDT_EDGE_COLUMNS,
+        expected_rows=edges.rows,
+    )
     logger.info(
-        "Loaded %d debt instruments covering %d borrowers, %d mentions, and "
-        "%d filing items.",
+        "Loaded %d debt instruments covering %d borrowers, %d mentions, "
+        "%d filing items, and %d mention-cluster edges.",
         len(instruments_df),
         instruments_df["cik"].nunique(),
         len(mentions_df),
         len(items_df),
+        len(edges_df),
     )
 
     logger.info("Loading company facts dataset.")
@@ -177,7 +189,7 @@ def main(logger: logging.Logger) -> None:
 
     logger.info("Attaching disclosed commercial debt.")
     attach_commercial_debt(
-        companies, instruments_df, mentions_df, items_df, run_date, logger
+        companies, instruments_df, mentions_df, items_df, edges_df, run_date, logger
     )
 
     logger.info("Loading shareholder-tracker dataset.")

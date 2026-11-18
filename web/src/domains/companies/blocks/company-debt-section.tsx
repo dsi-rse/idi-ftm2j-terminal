@@ -73,30 +73,43 @@ function sortDebt(
 }
 
 /**
- * The maturity line under an instrument's name. An instrument the filing gave no
- * end date for says so rather than showing an empty cell — 86% of what ships is
- * in that state, so silence would read as a rendering fault.
+ * The line under an instrument's name: its status, then its end date. The
+ * maturity leads; a revolver whose filing states only when the commitment ends
+ * shows that instead. An instrument the filings give no end date for says so
+ * rather than showing nothing — most instruments are in that state, so silence
+ * would read as a rendering fault.
  */
-function maturityLabel(instrument: CurrentCommercialDebt): string {
-  if (instrument.status === "Undated" || !instrument.endDate) {
-    return "No end date disclosed";
-  }
-  return `Matures ${instrument.endDate}`;
+function statusLine(instrument: CurrentCommercialDebt): string {
+  const end = instrument.endDate
+    ? `Matures ${instrument.endDate}`
+    : instrument.commitmentEndDate
+      ? `Commitment ends ${instrument.commitmentEndDate}`
+      : "No end date disclosed";
+  return `${instrument.status} · ${end}`;
 }
+
+/**
+ * The note the CDT dashboard appends to a lender list the filings know is
+ * incomplete, worded as it words it.
+ */
+const OTHER_LENDERS_UNNAMED = "other lenders not named";
 
 /**
  * The Lender cell: the first label, with the rest behind a toggle.
  *
  * A label is a lender the filing names. Role phrases standing in for a name —
  * "lenders party thereto", "Holders" — are dropped in the pipeline, so an
- * instrument whose filing names no lender shows the placeholder.
+ * instrument whose filing names no lender shows the placeholder. When the
+ * filings also describe lenders they never name, the list ends with "other
+ * lenders not named", muted, as on the CDT dashboard — so a lone named bank in
+ * a syndicate does not read as the only lender.
  *
  * "+N more" is a button rather than a caption because this section is the only
- * place those labels exist. 178 of the 638 instruments that name a lender name
- * more than one, and one series of senior notes names 20, so the full list
- * cannot sit on a collapsed row — but leaving it unreachable also broke the
- * search above, which matches every lender: a reader could search a bank, see
- * the row match, and never see the name they searched for.
+ * place those labels exist. Many instruments name more than one lender, and a
+ * series of senior notes can name twenty, so the full list cannot sit on a
+ * collapsed row — but leaving it unreachable also broke the search above,
+ * which matches every lender: a reader could search a bank, see the row match,
+ * and never see the name they searched for.
  */
 function LenderCell({
   instrument,
@@ -107,7 +120,10 @@ function LenderCell({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const [first, ...rest] = instrument.lenders;
+  const [first, ...others] = instrument.lenders;
+  const rest = instrument.otherLendersUnnamed
+    ? [...others, OTHER_LENDERS_UNNAMED]
+    : others;
   // Every branch sets the lender in the display face, as holder names are;
   // the placeholder too, muted, so one column does not switch faces by row.
   const name = "type-display text-name";
@@ -127,11 +143,16 @@ function LenderCell({
       primary={
         expanded ? (
           // Labels are de-duplicated per instrument in the pipeline, so a label
-          // is its own key.
+          // is its own key; the note gets a key no lender name can take.
           <span className={cn(name, "flex flex-col gap-0.5")}>
             {instrument.lenders.map((lender) => (
               <span key={lender}>{lender}</span>
             ))}
+            {instrument.otherLendersUnnamed ? (
+              <span key="__other-lenders-unnamed" className={cn("text-muted")}>
+                {OTHER_LENDERS_UNNAMED}
+              </span>
+            ) : null}
           </span>
         ) : (
           <span className={cn(name)}>{first}</span>
@@ -257,7 +278,7 @@ function DebtTable({
                   </Table.Cell>
                   <Table.Cell
                     primary={displayName(instrument)}
-                    secondary={maturityLabel(instrument)}
+                    secondary={statusLine(instrument)}
                   />
                   <LenderCell
                     instrument={instrument}
@@ -319,11 +340,13 @@ function DebtTable({
 }
 
 const INFO_COPY =
-  "Commercial debt instruments disclosed in this company's 8-K and 6-K filings, one row per instrument, each linking to the filing it was extracted from. Matured and superseded instruments are excluded, and private debt never disclosed in an 8-K or 6-K does not appear at all.";
+  "Commercial debt instruments disclosed in this company's 8-K and 6-K filings, one row per instrument, each linking to the filing it was extracted from. Statuses follow the Commercial Debt Tracker's own definitions. Instruments the filings show closed — matured, repaid, terminated, exchanged, defaulted, or superseded — are excluded, and private debt never disclosed in an 8-K or 6-K does not appear at all.";
 
 /**
  * The count line under the section title: how many instruments, how they split
- * between active and undated, and when the most recent of them was filed.
+ * by status, and when the most recent of them was filed. The three active
+ * statuses count as one — "likely" and "expected" qualify how the filings show
+ * it, and the row says which.
  *
  * The date is the latest of many. Unlike the corporate tree, whose rows all come
  * from one filing, a company's debt is assembled from every 8-K that disclosed an
@@ -331,11 +354,15 @@ const INFO_COPY =
  * and the per-row "Filed on" column carries the rest.
  */
 function subtitle(debt: CurrentCommercialDebt[]): string {
-  const active = debt.filter((i) => i.status === "Active").length;
-  const undated = debt.length - active;
+  const count = (match: (status: CurrentCommercialDebt["status"]) => boolean) =>
+    debt.filter((i) => match(i.status)).length;
+  const active = count((status) => status.startsWith("Active"));
+  const announced = count((status) => status === "Announced");
+  const unknown = count((status) => status === "Unknown");
   const counts = [
     active ? `${active} active` : null,
-    undated ? `${undated} undated` : null,
+    announced ? `${announced} announced` : null,
+    unknown ? `${unknown} status unknown` : null,
   ]
     .filter(Boolean)
     .join(", ");
@@ -370,11 +397,11 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
       >
         <p className="type-body m-0">
           No commercial debt instrument is in scope for this company. Instruments
-          are extracted from 8-K and 6-K filings, and only those that have
-          neither matured nor been superseded are shown — a company with no
-          such debt disclosure, or whose disclosed instruments have all
-          matured, appears here. Debt raised privately or never disclosed in an
-          8-K or 6-K is not covered.
+          are extracted from 8-K and 6-K filings, and only those the filings do
+          not show closed are listed — a company with no such debt disclosure,
+          or whose disclosed instruments have all matured, been repaid, or been
+          superseded, appears here. Debt raised privately or never disclosed in
+          an 8-K or 6-K is not covered.
         </p>
       </SectionCard>
     );

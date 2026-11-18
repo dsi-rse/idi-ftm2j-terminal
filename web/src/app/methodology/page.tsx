@@ -123,10 +123,12 @@ export default function MethodologyPage() {
               reproduced as the filing reported them and are not converted
               between currencies, so figures denominated differently are not
               comparable and are never totalled; interest rates are not
-              extracted; and a lender appears as the filing describes it, which
-              is sometimes a role rather than a name. Most disclosed instruments
-              state no end date, and those are shown as undated rather than
-              assumed current.
+              extracted; and a lender appears only where the filing names it,
+              with a note when the filings mention lenders they do not name.
+              Whether an instrument is announced, active, or of unknown status
+              follows the Commercial Debt Tracker&rsquo;s own definitions, and
+              instruments the filings show matured, repaid, or otherwise closed
+              are not listed.
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Callout>
               Found an error or a missing link? Corrections from researchers

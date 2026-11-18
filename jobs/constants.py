@@ -89,12 +89,30 @@ CDT_LENDER_ROLE = "lender"
 # Only named lenders are rendered, matching the CDT dashboard's own party lists.
 CDT_NAMED_PARTY_KIND = "named"
 
-# An instrument whose end date is in the future is Active; one whose filing
-# stated no end date is Undated. There is deliberately no matured or superseded
-# variant -- those are filtered out here and never reach the frontend, so the
-# type in `web/src/types/domain.ts` has two members rather than four.
-DEBT_STATUS_ACTIVE = "Active"
-DEBT_STATUS_UNDATED = "Undated"
+# CDT's `lender_disclosure` when some filing describes lenders without naming
+# them ("the other lenders party thereto"). The other values are `complete`
+# (every lender cluster named) and `none_named` (no lender cluster at all). The
+# CDT dashboard appends "other lenders not named" to such an instrument's
+# lenders, and the terminal does the same -- see `otherLendersUnnamed`.
+CDT_LENDER_DISCLOSURE_COLLECTIVE_PRESENT = "collective_present"
+
+# The `lifecycle.py` statuses that mean an instrument is no longer a live
+# obligation. Those instruments never reach the frontend; every other status,
+# including no status at all, renders.
+DEBT_CLOSED_STATUSES = frozenset({"closed", "expected_closed"})
+
+# How each rendered `lifecycle.py` status reads, exactly as the CDT dashboard
+# prints it (`STATUS_LABELS` and `formatStatus` in its `src/lib/`), so a reader
+# moving between the two sites sees the same words. An instrument with no
+# status reads "Unknown"; `active` with the subtype `likely` reads
+# "Active - likely". These strings are the members of the `status` union in
+# `web/src/types/domain.ts`.
+DEBT_STATUS_LABELS = {
+    "announced": "Announced",
+    "active": "Active",
+    "expected_active": "Active - expected",
+}
+DEBT_STATUS_UNKNOWN = "Unknown"
 
 # The columns of `items` that a citation needs, plus the join key. Most of the
 # file is its unread `text` column -- the full section body the extraction ran
@@ -117,11 +135,24 @@ CDT_POINTER_FILE_NAME = "latest.json"
 CDT_DEBT_INSTRUMENTS_TABLE = "debt-instruments"
 CDT_MENTIONS_TABLE = "debt-instrument-mentions"
 CDT_ITEMS_TABLE = "items"
+CDT_EDGES_TABLE = "mention-cluster-edges"
 CDT_TABLES: tuple[str, ...] = (
     CDT_DEBT_INSTRUMENTS_TABLE,
     CDT_MENTIONS_TABLE,
     CDT_ITEMS_TABLE,
+    CDT_EDGES_TABLE,
 )
+
+# The columns of `mention-cluster-edges` that status needs. A `member` edge
+# says which instrument a mention belongs to, which the mentions table itself
+# does not record; `lifecycle.py` reads an instrument's status off its member
+# mentions, and the CDT dashboard groups them the same way.
+CDT_EDGE_COLUMNS: tuple[str, ...] = (
+    "debt_instrument_mention_id",
+    "debt_instrument_id",
+    "edge_type",
+)
+CDT_MEMBER_EDGE_TYPE = "member"
 
 # The version of CDT's `publish_contract.json` (in CDT's `src/cdt/`) that the
 # readers in `debt.py` and the CDT fixtures are written against. CDT bumps it,

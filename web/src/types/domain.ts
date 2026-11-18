@@ -345,14 +345,20 @@ export type CurrentCommercialDebt = CitedEntity &
      */
     instrumentName: string;
     /**
-     * Lender labels as extracted, one per coreference group in the filing.
-     * Many are role words rather than names — "lenders", "the underwriters" —
-     * because that is what the filing says in place of a name. They are carried
-     * unfiltered; separating roles from names, and normalizing the names, is
-     * its own piece of work. Empty when the filing discloses no lender at all,
-     * which is 44% of instruments.
+     * The lenders the filings name, one per named lender party, de-duplicated.
+     * Role phrases standing in for a name — "the lenders party thereto",
+     * "Holders" — are dropped in the pipeline. Empty when the filings name no
+     * lender.
      */
     lenders: string[];
+    /**
+     * True when the filings also describe lenders without naming them, so
+     * `lenders` is not the whole syndicate. The CDT dashboard lists such an
+     * instrument's lenders followed by "other lenders not named", and the
+     * Lender cell does the same. Always false when `lenders` is empty: the
+     * placeholder already says no lender is named.
+     */
+    otherLendersUnnamed: boolean;
     /** As reported, in `currency`. Null when the extraction found no amount. */
     amount: number | null;
     /**
@@ -363,20 +369,40 @@ export type CurrentCommercialDebt = CitedEntity &
     currency: string | null;
     /** ISO-8601 date. Null when the filing does not state one. */
     startDate: string | null;
-    /** ISO-8601 date. Null when the filing does not state one. */
+    /** The maturity, as an ISO-8601 date. Null when the filings state none. */
     endDate: string | null;
     /**
-     * `Active` when `endDate` is in the future as of the build, `Undated` when
-     * the filing states no end date. There is no matured or superseded variant:
-     * those are filtered out in the pipeline and never reach the frontend.
-     *
-     * Stored rather than derived in the view because the `endDate > today`
-     * comparison happens at build time, in the same place the filter is
-     * applied. Recomputing it in the browser would evaluate "today" at a
-     * different moment than the filter did, and the two could disagree on a
-     * page served the day an instrument matures.
+     * When the commitment ends, as an ISO-8601 date — the end date a
+     * revolver's filing often states in place of a maturity. Null when the
+     * filings state none.
      */
-    status: "Active" | "Undated";
+    commitmentEndDate: string | null;
+    /**
+     * The instrument's lifecycle status, worded exactly as the CDT dashboard
+     * words it, because both sites derive it with the same `lifecycle.py`:
+     *
+     * - `Announced` — announced, but the filings do not show it has started.
+     * - `Active` — started, and not past its maturity or other end date.
+     * - `Active - likely` — announced over 30 days ago with nothing since and
+     *   its expected end still ahead, so it most likely started.
+     * - `Active - expected` — a planned start date has passed, unconfirmed.
+     * - `Unknown` — nothing dated and no decisive event in the filings.
+     *
+     * There is no closed variant: closed instruments (matured, repaid,
+     * terminated, exchanged, defaulted, superseded) are filtered out in the
+     * pipeline and never reach the frontend.
+     *
+     * Stored rather than derived in the view because it is decided at build
+     * time against the build date, in the same place the filter is applied.
+     * Recomputing it in the browser would evaluate "today" at a different
+     * moment than the filter did.
+     */
+    status:
+      | "Announced"
+      | "Active"
+      | "Active - likely"
+      | "Active - expected"
+      | "Unknown";
   };
 
 // ---------------------------------------------------------------------------
@@ -572,7 +598,7 @@ export type Company = CitedEntity & {
   currentCorporateRelationships: CurrentCorporateRelationship[];
   /**
    * Commercial debt instruments disclosed in this company's 8-K and 6-K filings,
-   * excluding those that have matured or been superseded. A snapshot rather
+   * excluding those the filings show closed. A snapshot rather
    * than a date range — see {@link CurrentCommercialDebt}.
    */
   currentCommercialDebt: CurrentCommercialDebt[];
