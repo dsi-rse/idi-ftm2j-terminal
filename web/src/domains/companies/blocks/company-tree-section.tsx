@@ -307,7 +307,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
           <TreeLines rows={[registrant, ...filtered]} />
           {noMatches}
           <p className="mt-8 type-caption leading-relaxed">
-            <span className="type-source-kicker">
+            <span className="type-label mr-2">
               Source.
             </span>
             <TreeSources company={company} relationships={relationships} />

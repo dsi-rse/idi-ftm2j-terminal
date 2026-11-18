@@ -94,11 +94,13 @@
 	--radius-card: 0.375rem; /* 6px */
 
 	/* TYPE SCALE — the two sizes below Tailwind's `text-sm`, named so no
-	   component spells a pixel value. 11px is the floor: nothing is set
-	   smaller. Everything from `text-sm` up is Tailwind's own scale. */
-	--text-micro: 0.6875rem; /* 11px — labels, captions, chips */
+	   component spells a pixel value. 12px is the small text size. 11px is
+	   the floor, and is for uppercase labels and chips only: capitals read a
+	   size larger than the mixed case beside them. Everything from `text-sm`
+	   up is Tailwind's own scale. */
+	--text-micro: 0.6875rem; /* 11px — uppercase labels, chips */
 	--text-micro--line-height: 1.4;
-	--text-value: 0.75rem; /* 12px — data and the names set among it */
+	--text-value: 0.75rem; /* 12px — data, names, captions */
 	--text-value--line-height: 1.4;
 }
 
@@ -116,9 +118,10 @@
 	@apply text-micro font-normal uppercase tracking-wider text-muted;
 }
 @utility type-caption {
-	/* The muted small line: subtitles, citations, empty states, and the line
-	   under a value or a name. */
-	@apply text-micro text-muted;
+	/* The muted line: subtitles, citations, empty states, and the line under
+	   a value or a name. Set at the data's size and told apart by color
+	   alone: one signal, not two. */
+	@apply text-value text-muted;
 }
 @utility type-value {
 	/* A datum: header cell values, table cells, identifiers, inputs. */
@@ -139,10 +142,6 @@
 @utility type-chip {
 	/* Ticker badge: bordered, on the chip radius. */
 	@apply text-micro tracking-wider px-1.5 py-0.5 border border-muted/25 bg-muted/25 text-foreground rounded-chip;
-}
-@utility type-source-kicker {
-	/* The "SOURCE." lead-in before a citation. */
-	@apply text-micro font-semibold uppercase tracking-wider text-foreground mr-2;
 }
 
 html {

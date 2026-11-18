@@ -295,13 +295,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
       </div>
       {companyInfoSource ? (
         <p className={cn("type-caption leading-relaxed")}>
-          <span
-            className={cn(
-              "type-source-kicker",
-            )}
-          >
-            Source.
-          </span>
+          <span className={cn("type-label mr-2")}>Source.</span>
           <SourceCitation
             source={companyInfoSource}
             detail={`last accessed ${companyInfoSource.lastAccessed}`}

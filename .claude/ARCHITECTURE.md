@@ -212,20 +212,20 @@ properties:
 | Utility | Role |
 | --- | --- |
 | `type-label` | the one uppercase, letter-spaced voice: cell and stat labels, table headers, kickers, tabs, counts, uppercase links |
-| `type-caption` | the muted small line: subtitles, citations, empty states, the line under a value or name |
+| `type-caption` | the muted line: subtitles, citations, empty states, the line under a value or name; the data's size, told apart by color alone |
 | `type-value` | a datum: cell values, table cells, identifiers, inputs |
 | `type-display` | names and headline numbers, semibold; size set at the call site |
 | `type-body` | prose |
 | `type-chip` | ticker badge |
-| `type-source-kicker` | the `SOURCE.` lead-in |
 
 A call site may override one property (`type-label text-primary`); Tailwind
 orders multi-property utilities before single-property ones, so the override
 wins. Two sizes sit below `text-sm`, both tokens and never arbitrary values:
-`text-micro` (11px, the floor) and `text-value` (12px). From `text-sm` up the
-scale is Tailwind's own. `font-mono` appears raw only on glyphs (tree guides,
-the `↳` match marker), with a comment saying so; it resolves to the system
-monospace stack, so no second font is loaded.
+`text-value` (12px) for data and captions, and `text-micro` (11px, the floor)
+for uppercase labels and chips only. From `text-sm` up the scale is Tailwind's
+own. `font-mono` appears raw only on glyphs (tree guides, the `↳` match
+marker), with a comment saying so; it resolves to the system monospace stack,
+so no second font is loaded.
 
 **Radii.** Corners come from three named radii in `globals.css`, stepped by
 element size so a badge and a card look equally rounded: `rounded-chip` (2px —
