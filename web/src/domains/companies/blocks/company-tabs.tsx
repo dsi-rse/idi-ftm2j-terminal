@@ -159,11 +159,13 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
         className="sticky top-0 z-10 flex items-end justify-between gap-4 border-b border-muted/25 bg-background/95 backdrop-blur"
       >
         <div className="flex min-w-0 items-end gap-4">
-          {/* Only while pinned — unpinned, the page header already shows it. */}
+          {/* Only while pinned — unpinned, the page header already shows it.
+              Set at the section headers' size: the name and the headers
+              below it are peers, not two levels. */}
           <span
             aria-hidden={!isStuck}
             className={cn(
-              "type-display truncate pb-1.5 text-base transition-opacity",
+              "type-display truncate pb-1.5 text-lg md:text-xl transition-opacity",
               isStuck ? "opacity-100" : "sr-only opacity-0",
             )}
           >
