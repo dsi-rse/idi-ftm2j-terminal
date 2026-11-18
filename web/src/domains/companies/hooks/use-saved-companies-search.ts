@@ -34,6 +34,8 @@ export function useSavedCompaniesSearch(): CompanySearchHookReturn {
     totalCount,
     totalPages,
     currentPage: savedPage,
+    // Sliced synchronously, so the rows and their offset always agree.
+    resultsOffset: offset,
     pageSize: PAGE_SIZE,
     isLoading: false,
     onNextPage: () => setPage("saved", Math.min(savedPage + 1, totalPages)),

@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Drawer } from "@/components/drawer";
 import { Pagination } from "@/components/pagination";
@@ -67,6 +67,9 @@ type PanelBodyProps = {
   loadingMessage?: string;
   data: CompanySearchHookReturn;
   activeCompanyId?: string;
+  /** The company whose page is loading, if any. */
+  pendingCompanyId?: string | null;
+  onSelect: (permId: string) => void;
 };
 
 function PanelBody({
@@ -74,12 +77,14 @@ function PanelBody({
   loadingMessage,
   data,
   activeCompanyId,
+  pendingCompanyId,
+  onSelect,
 }: PanelBodyProps) {
   const {
     results,
     totalPages,
     currentPage,
-    pageSize,
+    resultsOffset,
     isLoading,
     onPageChange,
   } = data;
@@ -96,7 +101,9 @@ function PanelBody({
     return <p className="px-4 py-3 type-caption">{emptyMessage}</p>;
   }
 
-  const startIndex = (currentPage - 1) * pageSize;
+  // Numbered from the rows actually on screen, not the page just requested:
+  // the All tab keeps the previous page's rows until the next page loads.
+  const startIndex = resultsOffset;
   const start = startIndex + 1;
   const end = startIndex + results.length;
   const rangeText = start === end ? `${start}` : `${start}-${end}`;
@@ -130,6 +137,8 @@ function PanelBody({
           permIdSegments={company.permIdSegments}
           matchHint={company.matchHint}
           active={company.permId === activeCompanyId}
+          pending={company.permId === pendingCompanyId}
+          onSelect={onSelect}
         />
       ))}
       {totalPages > 1 && (
@@ -307,6 +316,31 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
   const params = useParams<{ id?: string }>();
   const activeCompanyId = params?.id;
 
+  // A company page's payload can run to megabytes (#64), so picking a row can
+  // take seconds. The navigation runs in a transition, so `isPending` holds
+  // until the new page is on screen; the row shows a spinner meanwhile. One
+  // pending id for the whole rail: picking a second row while the first loads
+  // moves the cue to it, rather than leaving two rows spinning.
+  const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
+  const [targetCompanyId, setTargetCompanyId] = useState<string | null>(null);
+  const pendingCompanyId = isNavigating ? targetCompanyId : null;
+  const selectCompany = (permId: string) => {
+    if (permId === activeCompanyId) {
+      // Already open: no request. The phone sheet still closes, since picking
+      // the company on screen changes no route and would leave the sheet up
+      // with no visible way past it.
+      setMobileInspectorOpen(false);
+      return;
+    }
+    // Already loading: a repeat click would only start the same fetch again.
+    if (permId === pendingCompanyId) return;
+    setTargetCompanyId(permId);
+    // The sheet is left open until the route changes (the effect below), so a
+    // phone reader sees the spinner too rather than a page that has not moved.
+    startNavigation(() => router.push(`/companies/${permId}`));
+  };
+
   // Follow the selected company: when the reader lands on a page with no
   // query typed, show the browse page that holds it. A typed query is the
   // reader's own view of the list and is left alone.
@@ -453,6 +487,8 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               <PanelBody
                 data={allData}
                 activeCompanyId={activeCompanyId}
+                pendingCompanyId={pendingCompanyId}
+                onSelect={selectCompany}
                 emptyMessage={
                   searchQuery ? "No matches." : "No companies indexed."
                 }
@@ -463,6 +499,8 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               <PanelBody
                 data={recentData}
                 activeCompanyId={activeCompanyId}
+                pendingCompanyId={pendingCompanyId}
+                onSelect={selectCompany}
                 emptyMessage={
                   hasQuery && hasRecent
                     ? "No matches in Recent."
@@ -474,6 +512,8 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               <PanelBody
                 data={savedData}
                 activeCompanyId={activeCompanyId}
+                pendingCompanyId={pendingCompanyId}
+                onSelect={selectCompany}
                 emptyMessage={
                   hasQuery && hasSaved
                     ? "No matches in Saved."

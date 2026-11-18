@@ -1,11 +1,7 @@
-import { CornerDownRight } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { CornerDownRight, LoaderCircle } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-import {
-  type CompanySearchMeta,
-  useCompaniesStore,
-} from "@/domains/companies/stores/companies";
+import type { CompanySearchMeta } from "@/domains/companies/stores/companies";
 import { formatRelativeTime } from "@/lib/format-relative-time";
 import {
   type MatchSegment,
@@ -32,6 +28,13 @@ type SearchResultProps = {
    */
   rankWidth?: number;
   active?: boolean;
+  /** This row's company page is loading: show a spinner in place of the rank. */
+  pending?: boolean;
+  /**
+   * Called with the row's PermID when it is picked. The rail owns navigation
+   * so it can track one pending selection across every row and tab.
+   */
+  onSelect: (permId: string) => void;
   company: CompanySearchMeta;
   viewedAt?: number;
   /**
@@ -167,6 +170,8 @@ export function SearchResult({
   index,
   rankWidth = 2,
   active = false,
+  pending = false,
+  onSelect,
   company,
   viewedAt,
   matches,
@@ -177,10 +182,6 @@ export function SearchResult({
   permIdSegments,
   matchHint,
 }: SearchResultProps) {
-  const router = useRouter();
-  const setMobileInspectorOpen = useCompaniesStore(
-    (s) => s.setMobileInspectorOpen,
-  );
   const rowRef = useRef<HTMLDivElement>(null);
   // The rail follows the selected company to its page; this brings the row
   // itself into view when that page is longer than the rail.
@@ -204,26 +205,43 @@ export function SearchResult({
         "grid grid-cols-[auto_1fr_auto] items-start gap-2 border-b border-muted/25 p-3 cursor-pointer border-l-2 hover:bg-muted/10",
         // The selected row carries a filled surface as well as the accent
         // border, so it reads as selected at a glance rather than on a 2px edge.
-        active ? "border-l-primary bg-overlay" : "border-l-transparent",
+        // A loading row takes the selected surface early, so the click reads
+        // as taken while the page arrives.
+        active || pending
+          ? "border-l-primary bg-overlay"
+          : "border-l-transparent",
+        pending && "cursor-progress",
       )}
-      // The sheet closes here, not only when the route changes: picking the
-      // company already on screen changes no route, and the sheet would stay
-      // up with no visible way past it.
-      onClick={() => {
-        setMobileInspectorOpen(false);
-        router.push(`/companies/${permId}`);
-      }}
+      aria-busy={pending || undefined}
+      onClick={() => onSelect(permId)}
     >
       <div className={cn(ROW_TEXT, "text-muted tabular-nums")}>
         {/* The star centres on the rank's line, which is the name's line too. */}
         <div className={cn("flex flex-row items-center gap-2")}>
           <CompanyBookmark company={company} />
-          <p className={cn("type-figure")}>
-            {/* Invisible zeros pad each rank so the names line up. */}
-            <span aria-hidden className={cn("invisible")}>
-              {"0".repeat(Math.max(0, rankWidth - index.toString().length))}
+          {/* The spinner sits over the rank rather than replacing it, so the
+              column keeps the rank's width and the name does not shift. */}
+          <p className={cn("relative type-figure")}>
+            <span className={cn(pending && "invisible")}>
+              {/* Invisible zeros pad each rank so the names line up. */}
+              <span aria-hidden className={cn("invisible")}>
+                {"0".repeat(Math.max(0, rankWidth - index.toString().length))}
+              </span>
+              {index}
             </span>
-            {index}
+            {pending && (
+              <span
+                className={cn(
+                  "absolute inset-0 flex items-center justify-center text-primary",
+                )}
+              >
+                <LoaderCircle
+                  aria-hidden
+                  className={cn("size-3 motion-safe:animate-spin")}
+                />
+                <span className={cn("sr-only")}>Loading</span>
+              </span>
+            )}
           </p>
         </div>
       </div>

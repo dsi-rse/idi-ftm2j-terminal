@@ -109,6 +109,12 @@ export type CompanySearchHookReturn = {
   totalCount: number;
   totalPages: number;
   currentPage: number;
+  /**
+   * Where `results` start in the full list -- what the rail numbers rows from.
+   * For the All tab it trails `currentPage` while a new page loads; see
+   * `resultsOffset` on `useSiteSearch`.
+   */
+  resultsOffset: number;
   pageSize: number;
   isLoading: boolean;
   onNextPage: () => void;
@@ -133,7 +139,7 @@ export function useAllCompaniesSearch(): CompanySearchHookReturn {
   // effect dependency array, and a fresh object each render would re-run the
   // search forever.
   const sort = debouncedQuery.trim() === "" ? SORT : undefined;
-  const { handleSearch, results, totalCount, isLoading } =
+  const { handleSearch, results, resultsOffset, totalCount, isLoading } =
     useSiteSearch<PagefindCompanyMeta>({
       limit: PAGE_SIZE,
       offset,
@@ -178,6 +184,7 @@ export function useAllCompaniesSearch(): CompanySearchHookReturn {
     totalCount,
     totalPages,
     currentPage: allPage,
+    resultsOffset,
     pageSize: PAGE_SIZE,
     isLoading,
     onNextPage: () => setPage("all", Math.min(allPage + 1, totalPages)),
