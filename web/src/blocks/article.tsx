@@ -247,7 +247,7 @@ function ArticleCallout({ children }: PropsWithChildren) {
       )}
     >
       <CircleAlertIcon className="size-4 text-primary" />
-      <p className="type-body text-xs text-justified md:text-sm md:text-left">
+      <p className="type-body text-value text-justified md:text-sm md:text-left">
         {children}
       </p>
     </div>

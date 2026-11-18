@@ -92,6 +92,8 @@ type HeaderCellProps = {
   value: string;
   /** Dims the value to mark it as absent rather than reported. */
   muted?: boolean;
+  /** The value is a number or a ticker; set in the mono when it is reported. */
+  figure?: boolean;
   /** Popover body explaining the figure; adds a click-to-open info trigger by the label. */
   info?: ReactNode;
   /** Small line under the value, e.g. the as-of date and currency. */
@@ -114,6 +116,7 @@ function HeaderCell({
   label,
   value,
   muted,
+  figure,
   info,
   sub,
   href,
@@ -135,6 +138,7 @@ function HeaderCell({
       <span
         className={cn(
           "type-value md:whitespace-nowrap",
+          figure && !muted && "type-figure",
           muted ? "text-muted" : "text-foreground",
         )}
       >
@@ -273,12 +277,14 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           label="Ticker"
           value={ticker ?? NOT_REPORTED}
           muted={!ticker}
+          figure
         />
         <HeaderCell
           label="Public Float"
           value={publicFloat.value}
           sub={publicFloat.sub}
           muted={publicFloat.muted}
+          figure
           info={PUBLIC_FLOAT_INFO}
           href={publicFloat.href}
           hrefLabel={publicFloat.hrefLabel}
@@ -288,6 +294,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           value={revenue.value}
           sub={revenue.sub}
           muted={revenue.muted}
+          figure
           info={REVENUE_INFO}
           href={revenue.href}
           hrefLabel={revenue.hrefLabel}

@@ -109,7 +109,7 @@ function PanelBody({
           Results
         </span>
         <span
-          className="type-caption"
+          className="type-caption type-figure"
           title={`Viewing ${rangeText} of ${data.totalCount} ${noun}`}
         >
           {data.totalCount}
@@ -391,7 +391,7 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               }
             />
             <Popover.Content title="Using company search">
-              <p className={cn("text-xs")}>
+              <p className={cn("text-value")}>
                 Search by company name, subsidiary name, PermID, or ticker.
                 Select a result to open its profile.
               </p>

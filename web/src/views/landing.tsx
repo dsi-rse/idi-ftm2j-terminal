@@ -94,7 +94,7 @@ function Header({ stats }: LandingProps) {
         </Article.Header.Lead>
         <div className="flex justify-end text-white hover:text-primary hover:cursor-pointer">
           <Link
-            className="inline-flex items-center gap-1 text-xs"
+            className="inline-flex items-center gap-1 text-value"
             href="/about"
           >
             Learn More <ChevronRightIcon className="size-2" />

@@ -270,31 +270,37 @@ function DebtTable({
                       // dozens of filings, so the row is where a citation
                       // belongs — a footer listing 38 links cites nothing
                       // usefully.
-                      source ? (
-                        <a
-                          href={source.url}
-                          title={`${source.name} — ${source.url}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="underline hover:text-foreground"
-                        >
-                          {instrument.asOf}
-                        </a>
-                      ) : (
-                        instrument.asOf
-                      )
+                      <span className="type-figure">
+                        {source ? (
+                          <a
+                            href={source.url}
+                            title={`${source.name} — ${source.url}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline hover:text-foreground"
+                          >
+                            {instrument.asOf}
+                          </a>
+                        ) : (
+                          instrument.asOf
+                        )}
+                      </span>
                     }
                     secondary={source?.name}
                   />
                   <Table.Cell
                     align="right"
                     primary={
-                      instrument.amount === null
-                        ? "Not reported"
-                        : formatAmountShort(
-                          instrument.amount,
-                          instrument.currency,
-                        )
+                      instrument.amount === null ? (
+                        "Not reported"
+                      ) : (
+                        <span className="type-figure">
+                          {formatAmountShort(
+                            instrument.amount,
+                            instrument.currency,
+                          )}
+                        </span>
+                      )
                     }
                     secondary={instrument.currency ?? undefined}
                   />

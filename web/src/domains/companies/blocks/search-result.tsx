@@ -133,8 +133,8 @@ function Highlighted({
  * The row's one text voice. The reviewer's note on the rail: Modernist
  * typography changes only what communication needs, and the rank, name,
  * sector, and country had three sizes and two families between them. All
- * four now share 12px Inter; the name alone is set semibold, and the muted
- * colour does the rest.
+ * four now share one 13px size; the name alone is set semibold, the rank is a
+ * figure, and the muted colour does the rest.
  */
 const ROW_TEXT = "text-value";
 
@@ -153,7 +153,7 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
       {/* Fixed-size and non-shrinking, so a long name truncates on its own
           side rather than squeezing the marker out of the row. Teal stays on
           the marker alone; the name text is foreground so it clears AA at
-          12px. */}
+          13px. */}
       <CornerDownRight
         aria-hidden
         className={cn("size-3 shrink-0 self-center text-primary")}
@@ -225,7 +225,7 @@ export function SearchResult({
         {/* The star centres on the rank's line, which is the name's line too. */}
         <div className={cn("flex flex-row items-center gap-2")}>
           <CompanyBookmark company={company} />
-          <p>
+          <p className={cn("type-figure")}>
             {/* Invisible figures hold every rank on the page to the widest
                 one's width, so the names line up without a leading zero. */}
             <span aria-hidden className={cn("invisible")}>
@@ -303,10 +303,10 @@ export function SearchResult({
       </div>
       {tickers && tickers.length > 0 && (
         // Nudged down to the cap line of the text beside it, not the top of
-        // its line box. At 12px/1.4 with Inter's metrics (ascender 0.969em,
-        // descender 0.242em, cap height 0.727em) the content area is 14.5px
-        // inside a 16.8px line, so 1.1px of half-leading sits above it and the
-        // caps start a further 2.9px down: 4px in all. Aligned to the box
+        // its line box. At 13px/1.4 with DM Sans's metrics (ascender 0.99em,
+        // descender 0.31em, cap height 0.70em) the content area is 16.9px
+        // inside an 18.2px line, so 0.7px of half-leading sits above it and
+        // the caps start a further 3.8px down: about 4px. Aligned to the box
         // instead, the chip reads as floating above the name.
         <div className={cn("justify-self-end leading-none mt-1")}>
           <div className={cn("flex flex-col gap-1")}>

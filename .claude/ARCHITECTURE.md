@@ -203,28 +203,32 @@ Same rule for types and helpers.
 **Composition.** All class strings go through
 [cn()](../web/src/lib/utils.ts). Never concatenate class strings by hand.
 
-**Typography.** One family, Inter, in two weights: regular and semibold.
-Hierarchy comes from size, weight and color, never from a second typeface, a
-third weight, or italics. The roles are named `@utility` classes in
-`globals.css`, and a component names the role rather than spelling out its
-properties:
+**Typography.** Two families with separate jobs. DM Sans sets all text, in
+two weights: regular and semibold. Datatype, a monospace, sets figures only: a
+number or a ticker standing on its own. Anything with words in it stays in the
+sans, including a date inside a sentence. Hierarchy comes from size, weight
+and color, never from a third typeface, a third weight, or italics. The roles
+are named `@utility` classes in `globals.css`, and a component names the role
+rather than spelling out its properties:
 
 | Utility | Role |
 | --- | --- |
 | `type-label` | the one uppercase, letter-spaced voice: cell and stat labels, table headers, kickers, tabs, counts, uppercase links |
 | `type-caption` | the muted line: subtitles, citations, empty states, the line under a value or name; the data's size, told apart by color alone |
 | `type-value` | a datum: cell values, table cells, identifiers, inputs |
+| `type-figure` | a number or a ticker on its own, in the mono: table figures, identifiers, counts, headline numbers; added alongside another role (`type-value type-figure`) |
 | `type-display` | names and headline numbers, semibold; size set at the call site |
 | `type-body` | prose |
-| `type-chip` | ticker badge |
+| `type-chip` | ticker badge, in the mono |
 
 A call site may override one property (`type-label text-primary`); Tailwind
 orders multi-property utilities before single-property ones, so the override
 wins. Two sizes sit below `text-sm`, both tokens and never arbitrary values:
-`text-value` (12px) for data and captions, and `text-micro` (11px, the floor)
+`text-value` (13px) for data and captions, and `text-micro` (12px, the floor)
 for uppercase labels and chips only. From `text-sm` up the scale is Tailwind's
-own. `font-mono` and `font-sans` never appear in a component. The tree branch
-and the subsidiary-match arrow are SVG icons, not characters.
+own. `font-mono` and `font-sans` never appear in a component: the mono is
+reached only through `type-figure` and `type-chip`. The tree branch and the
+subsidiary-match arrow are SVG icons, not characters.
 
 **Radii.** Corners come from three named radii in `globals.css`, stepped by
 element size so a badge and a card look equally rounded: `rounded-chip` (2px —

@@ -65,7 +65,7 @@ function getPaginationRange(
 }
 
 const cellBase =
-  "inline-flex items-center justify-center h-8 min-w-8 px-2 type-value text-sm rounded-control " +
+  "inline-flex items-center justify-center h-8 min-w-8 px-2 type-value type-figure text-sm rounded-control " +
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary " +
   "transition-colors";
 

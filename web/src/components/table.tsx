@@ -290,7 +290,7 @@ TableEmpty.displayName = "Table.Empty";
  * the same left edge as the column's `#` header.
  */
 export function RowIndex({ index }: { index: number }) {
-  return <span className="type-caption tabular-nums">{index}</span>;
+  return <span className="type-caption type-figure">{index}</span>;
 }
 
 type DeltaCellProps = {

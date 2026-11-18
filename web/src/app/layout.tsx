@@ -1,14 +1,29 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans } from "next/font/google";
+import localFont from "next/font/local";
 
 import "./globals.css";
 import { Providers } from "./providers";
 
-// The site's one typeface. Inter is a variable font, so every weight comes
-// from this single file.
-const inter = Inter({
-  variable: "--font-inter",
+// Text. The optical-size axis is loaded so labels and data at 12-13px get the
+// cut drawn for small sizes.
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
+  axes: ["opsz"],
+  display: "swap",
+});
+
+// Figures: numbers and tickers only. Self-hosted from `./fonts` (OFL, license
+// alongside) because this version of next/font/google does not list Datatype.
+// ponytail: Latin subset only. Add the latin-ext file if a currency sign
+// outside Latin-1 has to be set in the mono; until then it falls back to the
+// sans.
+const datatype = localFont({
+  src: "./fonts/datatype-latin.woff2",
+  variable: "--font-datatype",
+  weight: "100 900",
+  declarations: [{ prop: "font-stretch", value: "50% 150%" }],
   display: "swap",
 });
 
@@ -32,7 +47,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={inter.variable}
+      className={`${dmSans.variable} ${datatype.variable}`}
       suppressHydrationWarning
     >
       <head>

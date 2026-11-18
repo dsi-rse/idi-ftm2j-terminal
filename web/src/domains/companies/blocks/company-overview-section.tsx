@@ -181,7 +181,7 @@ function shareholdersGateway(company: Company): Gateway {
 const NOT_REPORTED = "Not reported";
 
 const identifierLinkClassName =
-  "underline decoration-dotted underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
+  "type-figure underline decoration-dotted underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
 
 /** One labelled identifier: a micro-label over one or more values. */
 function Identifier({
@@ -257,7 +257,9 @@ function IdentifiersRow({ company }: { company: Company }) {
       {company.cusips.length > 0 ? (
         <Identifier label={company.cusips.length > 1 ? "CUSIPs" : "CUSIP"}>
           {company.cusips.map((cusip) => (
-            <span key={cusip}>{cusip}</span>
+            <span key={cusip} className={cn("type-figure")}>
+              {cusip}
+            </span>
           ))}
         </Identifier>
       ) : null}
@@ -293,7 +295,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
           "type-display tracking-tight",
           unavailable
             ? "text-lg md:text-xl font-normal text-muted"
-            : "text-3xl md:text-4xl font-semibold text-foreground",
+            : "type-figure text-3xl md:text-4xl font-semibold text-foreground",
         )}
       >
         {unavailable ? "Not available" : gateway.value}
