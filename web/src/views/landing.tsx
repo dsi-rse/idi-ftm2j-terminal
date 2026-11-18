@@ -66,10 +66,14 @@ function Header({ stats }: LandingProps) {
     countTile(stats?.debtInstruments, "debt instruments tracked"),
   ];
   return (
-    // `md:pb-25.5` (102px) holds the space the "Read the methodology" button
-    // took -- its 32px top margin, the article's 32px gap and its 38px height.
-    // The grid centers this column against the globe, so without it the text
-    // sits lower than it did when the button was there.
+    // The grid centers this column against the globe; `md:pb-25.5` (102px)
+    // lifts the text 51px -- half the padding -- above that center, so the
+    // block sits slightly high beside the globe rather than dead level with it.
+    // The lift is a fixed offset, not a measurement of anything else in the
+    // column: a taller or shorter header or stat grid stays centered, just as
+    // high. Where the text outgrows the globe (narrow two-column widths), the
+    // padding instead adds height below it, which keeps the text's top where it
+    // is and moves the globe down to match.
     <Article
       id="landing"
       className={cn("md:max-w-xl md:justify-self-start md:pb-25.5")}

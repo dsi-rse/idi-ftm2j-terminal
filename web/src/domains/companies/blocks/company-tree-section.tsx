@@ -214,7 +214,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
         id="tree"
         title="Corporate Tree"
         subtitle="No disclosed subsidiaries"
-        info="Subsidiaries come from Exhibit 21 of a 10-K or Exhibit 8 of a 20-F. Only companies that filed one in 2016 or later have a tree."
+        info="Subsidiaries come from Exhibit 21 of a 10-K or Exhibit 8 of a 20-F."
       >
         <p className="type-body m-0">
           No subsidiary disclosure is available for this company. A corporate
