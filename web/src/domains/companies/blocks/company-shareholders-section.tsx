@@ -311,7 +311,7 @@ function ShareholdersTable({
 }
 
 const INFO_COPY =
-  "Holdings in this company, one row per disclosed holding. Institutional holdings come from SEC Form 13-F. Only investment managers with at least $100 million in U.S.-listed securities must file a 13-F, so smaller holders don't appear.";
+  "Holdings in this company, one row per disclosed holding. Institutional holdings come from SEC Form 13-F. Only investment managers with at least $100 million in U.S.-listed securities must file a 13-F, so smaller holders don't appear. A holding appears only when its security's CUSIP can be matched to this company.";
 
 /**
  * The count line under the section title: how many holdings (table rows), and
