@@ -121,9 +121,15 @@ function LenderCell({
   onToggle: () => void;
 }) {
   const [first, ...others] = instrument.lenders;
-  const rest = instrument.otherLendersUnnamed
-    ? [...others, OTHER_LENDERS_UNNAMED]
-    : others;
+  const unnamed = instrument.otherLendersUnnamed;
+  // The count is of named lenders only: the note is not a lender, so one
+  // named bank plus the note reads "+ others not named", never "+1 more".
+  const moreLabel =
+    others.length === 0
+      ? "+ others not named"
+      : unnamed
+        ? `+${others.length} more, others not named`
+        : `+${others.length} more`;
   // Every branch sets the lender in the display face, as holder names are;
   // the placeholder too, muted, so one column does not switch faces by row.
   const name = "type-display text-name";
@@ -135,7 +141,7 @@ function LenderCell({
         }
       />
     );
-  if (rest.length === 0)
+  if (others.length === 0 && !unnamed)
     return <Table.Cell primary={<span className={cn(name)}>{first}</span>} />;
 
   return (
@@ -148,7 +154,7 @@ function LenderCell({
             {instrument.lenders.map((lender) => (
               <span key={lender}>{lender}</span>
             ))}
-            {instrument.otherLendersUnnamed ? (
+            {unnamed ? (
               <span key="__other-lenders-unnamed" className={cn("text-muted")}>
                 {OTHER_LENDERS_UNNAMED}
               </span>
@@ -169,7 +175,7 @@ function LenderCell({
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
         >
-          {expanded ? "Show fewer" : `+${rest.length} more`}
+          {expanded ? "Show fewer" : moreLabel}
         </button>
       }
     />
