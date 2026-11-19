@@ -153,7 +153,9 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
 
   return (
     <>
-      <div ref={sentinelRef} aria-hidden className="h-0" />
+      {/* The negative margin cancels the parent's gap. Without it the
+          sentinel counts as a flex item and doubles the space above the bar. */}
+      <div ref={sentinelRef} aria-hidden className="h-0 -mb-4" />
       <nav
         aria-label="Company sections"
         className="sticky top-0 z-10 flex items-end justify-between gap-4 border-b border-muted/25 bg-background/95 backdrop-blur"

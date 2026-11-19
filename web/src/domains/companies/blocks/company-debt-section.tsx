@@ -128,7 +128,7 @@ function LenderCell({
         expanded ? (
           // Labels are de-duplicated per instrument in the pipeline, so a label
           // is its own key.
-          <span className={cn(name, "flex flex-col gap-0.5")}>
+          <span className={cn(name, "flex flex-col gap-1")}>
             {instrument.lenders.map((lender) => (
               <span key={lender}>{lender}</span>
             ))}

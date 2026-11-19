@@ -301,7 +301,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
         />
       </div>
       {companyInfoSource ? (
-        <p className={cn("type-caption leading-relaxed")}>
+        <p className={cn("type-caption")}>
           <span className={cn("type-label mr-2")}>Source.</span>
           <SourceCitation
             source={companyInfoSource}

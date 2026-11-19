@@ -300,7 +300,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
         {unavailable ? "Not available" : gateway.value}
       </span>
       <span className="type-value">{gateway.unit}</span>
-      <span className="type-caption leading-relaxed">
+      <span className="type-caption">
         {gateway.meta}
       </span>
       <span className="mt-2 type-caption text-primary">

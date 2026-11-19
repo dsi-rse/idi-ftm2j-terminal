@@ -136,7 +136,7 @@ function FooterCopyright({
   children,
 }: PropsWithChildren<FooterCopyrightProps>) {
   return (
-    <p className="type-caption leading-relaxed text-center md:text-left">
+    <p className="type-caption text-center md:text-left">
       © {year} {entity}. All rights reserved. {children}
     </p>
   );

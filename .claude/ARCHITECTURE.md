@@ -234,6 +234,14 @@ own. `font-mono` and `font-sans` never appear in a component: the mono is
 reached only through `type-figure`, `type-stat` and `type-chip`. The tree branch and the
 subsidiary-match arrow are SVG icons, not characters.
 
+**Spacing around text.** Text inside a card starts and ends on the card's
+content edge. A table's outer cells drop their outer padding (`first:pl-0
+last:pr-0`) so its text lines up with the title above it and the source line
+below it. Lines of text that belong together, such as a label over its value
+or a name over its second line, sit 4px apart (`gap-1`). A caption keeps the
+role's line height, so `type-caption` is never paired with a `leading-*`
+class.
+
 **Radii.** Corners come from three named radii in `globals.css`, stepped by
 element size so a badge and a card look equally rounded: `rounded-chip` (2px —
 ticker badges, inline highlights), `rounded-control` (4px — buttons, inputs,
@@ -331,6 +339,11 @@ grep -rnE "rounded(-[trblse]{1,2})?-(xs|sm|md|lg|xl|2xl|3xl)\b|[\"' \`]rounded[\
 grep -rnE "text-\[[0-9.]+px\]|tracking-\[[0-9.]+em\]" web/src --include='*.tsx'
 grep -rnE "\bfont-(mono|sans)\b" web/src --include='*.tsx'
 grep -rnE "font-(thin|extralight|light|medium|bold|extrabold|black)\b|\bitalic\b" web/src --include='*.tsx'
+```
+
+```bash
+# Captions keep the role's line height. Should return nothing.
+grep -rnE "type-caption[^\"]*leading-|leading-[a-z]+[^\"]*type-caption" web/src --include='*.tsx'
 ```
 
 Each of the first two commands should return nothing. The last two should only

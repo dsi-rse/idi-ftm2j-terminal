@@ -97,7 +97,7 @@ export function SectionCard({
       </header>
       <div>{children}</div>
       {source ? (
-        <footer className="mt-6 pt-4 border-t border-muted/15 type-caption leading-relaxed">
+        <footer className="mt-6 pt-4 border-t border-muted/15 type-caption">
           <span className="type-label mr-2">
             Source.
           </span>

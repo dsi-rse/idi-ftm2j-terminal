@@ -100,7 +100,9 @@ function TableHeaderCell({
     <th
       {...props}
       className={cn(
-        "px-3 py-2 type-label",
+        // The outer cells drop their outer padding so table text lines up
+        // with the text above and below the table.
+        "px-3 py-2 type-label first:pl-0 last:pr-0",
         alignmentClass,
         className,
       )}
@@ -215,7 +217,7 @@ function TableCell({
     primary !== undefined ? (
       <div
         className={cn(
-          "flex flex-col gap-0.5",
+          "flex flex-col gap-1",
           align === "right" && "items-end",
           align === "center" && "items-center",
         )}
@@ -233,7 +235,7 @@ function TableCell({
   return (
     <td
       {...props}
-      className={cn("px-3 py-3", alignmentClass, className)}
+      className={cn("px-3 py-3 first:pl-0 last:pr-0", alignmentClass, className)}
     >
       {content}
     </td>

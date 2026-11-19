@@ -381,7 +381,7 @@ function ArticleBlockQuote({ quote }: ArticleBlockQuoteProps) {
       <blockquote className="type-display font-normal text-lg leading-snug">
         {quote.text}
       </blockquote>
-      <figcaption className="flex flex-col gap-0.5 mt-2">
+      <figcaption className="flex flex-col gap-1 mt-2">
         <span className="type-body text-foreground font-semibold leading-normal">
           {quote.author.name}
         </span>

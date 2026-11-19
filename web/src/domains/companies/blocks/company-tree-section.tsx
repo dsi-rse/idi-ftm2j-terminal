@@ -295,7 +295,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
           ) : null}
           <TreeLines rows={[registrant, ...filtered]} />
           {noMatches}
-          <p className="mt-8 type-caption leading-relaxed">
+          <p className="mt-8 type-caption">
             <span className="type-label mr-2">
               Source.
             </span>
@@ -310,7 +310,7 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
       {totalPages > 1 || filtering ? (
         // Wraps so the pager drops to its own line on a phone: the count and a
         // six-page list side by side are wider than the card there.
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
           <p className="type-caption m-0">
             {filtering
               ? `${filtered.length} of ${subsidiaryCount} subsidiaries`

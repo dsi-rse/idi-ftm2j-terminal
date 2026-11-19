@@ -366,7 +366,7 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
           />
         </>
       ) : null}
-      <Drawer.Header>
+      <Drawer.Header className={cn("px-3")}>
         <div className="flex items-center gap-2">
           <h2 className="inline-flex items-center gap-1.5 type-label text-foreground">
             <Search className="size-3.5" /> Company Search
