@@ -4,6 +4,13 @@ import { ComponentPropsWithoutRef, PropsWithChildren } from "react";
 import { cn } from "@/lib/utils";
 
 /**
+ * The gold left edge shared by the article's boxed parts -- the callout and the
+ * bulk-download card. One constant so the two cannot drift apart again: solid
+ * gold read too strong, none read flat, and 70% was picked side by side (#63).
+ */
+const BOX_ACCENT_EDGE = "border-l-2 border-l-primary/70";
+
+/**
  * The root of the {@link Article} compound component.
  * Articles are self-contained, independent pieces of content and render as `article` tags.
  */
@@ -155,6 +162,7 @@ function ArticleBulkDownload({
     <div
       className={cn(
         "flex flex-col md:flex-row md:items-center gap-6 border border-muted/25 rounded-card p-6 bg-overlay",
+        BOX_ACCENT_EDGE,
       )}
     >
       <div className="flex-1 space-y-2">
@@ -259,8 +267,8 @@ function ArticleCallout({ children }: PropsWithChildren) {
   return (
     <div
       className={cn(
-        // A 70% gold left edge: solid read too strong, none too weak (#63).
-        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 border-l-2 border-l-primary/70 pl-4 py-4",
+        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 pl-4 py-4",
+        BOX_ACCENT_EDGE,
       )}
     >
       <CircleAlertIcon className="size-4 text-primary" />
