@@ -9,28 +9,17 @@ type PopoverRootProps = ComponentPropsWithoutRef<typeof BasePopover.Root>;
 
 /**
  * The root of the {@link Popover} compound component. Wraps Base UI's
- * `Popover.Root`. It opens on **click/tap** and, from the trigger below, on
- * hover too, and dismisses on outside click or Escape. Unlike {@link Tooltip},
- * which is hover/focus only and closes when its trigger is clicked, it works on
- * touch devices and survives the click a reader gives an info icon.
+ * `Popover.Root`, which opens on **click/tap** (and dismisses on outside click
+ * or Escape) — unlike {@link Tooltip}, which is hover/focus only. Use this for
+ * an affordance the user is meant to click, such as an info icon, so it works
+ * on touch devices too.
  */
 function PopoverRoot(props: PopoverRootProps) {
   return <BasePopover.Root {...props} />;
 }
 PopoverRoot.displayName = "Popover.Root";
 
-type PopoverTriggerProps = ComponentPropsWithoutRef<typeof BasePopover.Trigger>;
-
-/**
- * Opens on click/tap and also on hover, so a mouse reader gets the quick peek a
- * tooltip gives while a tap still works. Base UI keeps a hover-opened popup open
- * while the pointer travels into it, and a click pins it open. Pass
- * `openOnHover={false}` for a trigger that should open on click only.
- */
-function PopoverTrigger(props: PopoverTriggerProps) {
-  return <BasePopover.Trigger openOnHover delay={200} {...props} />;
-}
-PopoverTrigger.displayName = "Popover.Trigger";
+const PopoverTrigger = BasePopover.Trigger;
 
 type PopoverContentProps = {
   title: string;
@@ -80,8 +69,7 @@ PopoverContent.displayName = "Popover.Content";
 
 /**
  * A compound popover built on Base UI's `Popover`, styled to the site's
- * palette and matching {@link Tooltip}. Opens on click/tap and on hover.
- * Compose as:
+ * palette and matching {@link Tooltip}. Opens on click/tap. Compose as:
  *
  * ```tsx
  * <Popover>

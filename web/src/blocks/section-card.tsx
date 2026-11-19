@@ -13,9 +13,9 @@ type SectionCardProps = {
   title: string;
   subtitle?: string;
   /**
-   * Body of the info popover that opens from the (i) beside the title, on hover
-   * or click. Omit it for a section whose contents explain themselves; the
-   * button is not shown.
+   * Body of the info popover that opens from the (i) beside the title on click
+   * or tap. Omit it for a section whose contents explain themselves; the button
+   * is not shown.
    */
   info?: ReactNode;
   /** Aria-label for the info button. Defaults to "About {title}". */
@@ -58,9 +58,16 @@ export function SectionCard({
 }: PropsWithChildren<SectionCardProps>) {
   const [isExpanded, setIsExpanded] = useState(false);
   // The (i) explains the section, so it sits with the title; expand acts on the
-  // whole card, so it keeps the far corner. A Popover, not a Tooltip: the
-  // tooltip closes when its trigger is clicked and never opens on a tap. The
-  // trigger is Base UI's own button rather than `InfoButton`, which lives in
+  // whole card, so it keeps the far corner.
+  //
+  // Click to open, click to close, and nothing on hover: the toggletip pattern
+  // (Carbon's Toggletip, Spectrum's ContextualHelp) for an info icon whose
+  // content is a few sentences rather than a label. A Tooltip closes when its
+  // trigger is clicked and never opens on a tap. Hover-and-click was tried and
+  // dropped (#62): a click on a hover-opened popup toggled it shut, so the
+  // reader who hovers and then clicks to keep it open lost it instead.
+  //
+  // The trigger is Base UI's own button rather than `InfoButton`, which lives in
   // `blocks/` too and so cannot be imported here.
   const infoPopover = info ? (
     <Popover>
