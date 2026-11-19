@@ -58,7 +58,13 @@ ArticleHeaderEyebrow.displayName = "Article.Header.Eyebrow";
  */
 function ArticleHeaderTitle({ children }: PropsWithChildren) {
   return (
-    <h1 className="type-display tracking-tight text-3xl text-center md:text-5xl md:text-left m-0 leading-none">
+    <h1
+      className={cn(
+        // `text-balance` evens the lines of a wrapped title, so a phone shows
+        // "power through / public records." rather than stranding the last word.
+        "type-display tracking-tight text-3xl text-center md:text-5xl md:text-left m-0 leading-none text-balance",
+      )}
+    >
       {children}
     </h1>
   );
