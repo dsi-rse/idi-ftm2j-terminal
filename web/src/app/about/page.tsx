@@ -23,9 +23,7 @@ export default function AboutPage() {
         {/** HEADER */}
         <Article.Header>
           <Article.Header.Eyebrow>About</Article.Header.Eyebrow>
-          <Article.Header.Title>
-            A public record of who owns what.
-          </Article.Header.Title>
+          <Article.Header.Title>Follow the money to justice</Article.Header.Title>
           <Article.Header.Lead>
             FTM2J brings scattered corporate disclosures into one navigable
             structure, making it possible to understand the entities behind
@@ -35,18 +33,6 @@ export default function AboutPage() {
 
         {/** BODY */}
         <Article.Body>
-          {/** BLOCK QUOTE */}
-          <Article.Body.BlockQuote
-            quote={{
-              text: "FTM2J is quickly becoming an indispensable starting point for anyone trying to trace who ultimately controls a company. It turns weeks of disclosure work into an afternoon.",
-              author: {
-                name: "Investigative Reporter",
-                affiliation:
-                  "International Consortium of Investigative Journalists",
-              },
-            }}
-          />
-
           {/** MISSION */}
           <Article.Body.Section>
             <Article.Body.Section.Title>Our mission</Article.Body.Section.Title>

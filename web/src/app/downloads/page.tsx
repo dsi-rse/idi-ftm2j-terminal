@@ -72,9 +72,7 @@ export default function DownloadsPage() {
         {/** HEADER */}
         <Article.Header>
           <Article.Header.Eyebrow>Downloads</Article.Header.Eyebrow>
-          <Article.Header.Title>
-            Every reconciliation, in a box.
-          </Article.Header.Title>
+          <Article.Header.Title>Download the data behind FTM2J</Article.Header.Title>
           <Article.Header.Lead>
             Access every FTM2J dataset as flat files. Refreshed each Monday and
             distributed under an open license, so you can trace ownership
