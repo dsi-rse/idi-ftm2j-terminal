@@ -113,7 +113,13 @@ type NavbarLinkProps = {
  * Defines a shell that distributes space evenly among
  * its children and applies margin and padding.
  */
-function NavbarRoot({ children }: PropsWithChildren) {
+function NavbarRoot({
+  children,
+  className,
+}: PropsWithChildren<{
+  /** Overrides the bar's side margins, for a layout with its own edges. */
+  className?: string;
+}>) {
   return (
     <NavbarProvider>
       {/* Border and shadow together mark the bar's lower edge against page
@@ -122,7 +128,14 @@ function NavbarRoot({ children }: PropsWithChildren) {
           shadow adds depth in light mode, where the content reads as sliding
           under the bar on the terminal shell's scrolling pane. */}
       <NavigationMenu.Root className="relative z-20 border-b border-muted/40 bg-background/95 shadow-sm backdrop-blur">
-        <div className="mx-4 md:mx-12 py-3 flex items-center gap-4">{children}</div>
+        <div
+          className={cn(
+            "mx-4 md:mx-12 py-3 flex items-center gap-4",
+            className,
+          )}
+        >
+          {children}
+        </div>
       </NavigationMenu.Root>
     </NavbarProvider>
   );

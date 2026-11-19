@@ -11,13 +11,13 @@ import { cn } from "@/lib/utils";
 /**
  * The navigation bar for the FTM2J Terminal site.
  */
-export function Navbar() {
+export function Navbar({ className }: { className?: string }) {
   const links = [
     { href: "/about", label: "About" },
     { href: "/downloads", label: "Downloads" },
   ];
   return (
-    <NavbarBlock>
+    <NavbarBlock className={className}>
       <NavbarBlock.Brand>
         <SiteLogo />
       </NavbarBlock.Brand>

@@ -44,7 +44,12 @@ export function TerminalShell({
   return (
     <div className="flex min-h-dvh flex-col md:h-dvh md:overflow-hidden">
       <div className="shrink-0">
-        <Navbar />
+        {/* The bar's default margins match the standard page's content. Here
+            the brand lines up with the sidebar's content edge instead, and
+            the links with the pane's right padding. Only from `lg`, where
+            the full bar shows: below it the phone menu repeats the default
+            margins, and the brand would jump when the menu opens. */}
+        <Navbar className="lg:ml-3 lg:mr-4" />
       </div>
       <div className="flex flex-1 md:min-h-0">
         {sidebar ? <div className="shrink-0">{sidebar}</div> : null}
