@@ -1420,6 +1420,17 @@ def debt_pointer_row_count_mismatch_fails_the_build() -> None:
     _expect_cdt_refusal(result, "holds 1 rows but its publisher recorded 2")
 
 
+def debt_pointer_without_row_count_fails_the_build() -> None:
+    """A table entry with no `rows` cannot be checked, so it is refused."""
+
+    def uncounted(pointer: dict) -> dict:
+        del pointer["tables"]["debt-instrument-mentions"]["rows"]
+        return pointer
+
+    result = run_debt_build(cdt_pointer=uncounted, expect_failure=True)
+    _expect_cdt_refusal(result, "no row count")
+
+
 def debt_unknown_contract_version_fails_the_build() -> None:
     """A CDT contract bump must be read deliberately, not rendered as empty.
 
@@ -1626,6 +1637,27 @@ def debt_repaid_event_closes_the_instrument() -> None:
     result = run_debt_build(mentions=mentions, edges=edges)
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert debt == [], f"a repaid instrument rendered: {debt}"
+
+
+def debt_non_member_edges_attach_no_mentions() -> None:
+    """Only a `member` edge ties a mention's events to an instrument.
+
+    `related` and `ambiguous_candidate` edges link a mention to an instrument
+    it merely resembles, such as a neighbouring facility. If either attached
+    the mention, that neighbour's "repaid" would close this instrument, and
+    the terminal would stop matching the CDT dashboard.
+    """
+    for edge_type in ("related", "ambiguous_candidate"):
+        mentions, edges = _second_mention(
+            date="2018-03-01", status="repaid", status_date="2018-03-01"
+        )
+        later = edges["debt_instrument_mention_id"] != CDT_MENTION_ID
+        edges.loc[later, "edge_type"] = edge_type
+        result = run_debt_build(mentions=mentions, edges=edges)
+        debt = result.by_permid("5000000001")["currentCommercialDebt"]
+        assert len(debt) == 1, (
+            f"a repaid mention on a {edge_type!r} edge closed the instrument: {debt}"
+        )
 
 
 def debt_retirement_still_ahead_keeps_the_instrument() -> None:
@@ -2113,6 +2145,7 @@ CASES = [
     debt_ambiguous_amendment_is_excluded,
     debt_commitment_end_dates_a_revolver,
     debt_repaid_event_closes_the_instrument,
+    debt_non_member_edges_attach_no_mentions,
     debt_retirement_still_ahead_keeps_the_instrument,
     debt_statuses_read_as_on_the_dashboard,
     debt_reads_only_the_generation_the_pointer_names,
@@ -2122,6 +2155,7 @@ CASES = [
     debt_pointer_to_a_missing_file_fails_the_build,
     debt_pointer_outside_the_root_fails_the_build,
     debt_pointer_row_count_mismatch_fails_the_build,
+    debt_pointer_without_row_count_fails_the_build,
     debt_unknown_contract_version_fails_the_build,
     debt_collective_lenders_are_dropped,
     debt_complete_lenders_are_not_flagged,

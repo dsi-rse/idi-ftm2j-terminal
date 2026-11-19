@@ -170,12 +170,12 @@ class SnapshotTable:
 
     Attributes:
         path: Absolute path to the table's parquet file.
-        rows: The row count the publisher recorded, or `None` if it recorded
-            none. `load_parquet` checks the file against it.
+        rows: The row count the publisher recorded. `load_parquet` checks the
+            file against it.
     """
 
     path: Path
-    rows: int | None
+    rows: int
 
 
 def read_snapshot_pointer(root: str | Path, file_name: str, label: str) -> dict:
@@ -265,9 +265,12 @@ def resolve_snapshot_tables(
                 f"is outside the database root {root_path}."
             )
         rows = entry.get("rows")
-        if rows is not None and (
-            isinstance(rows, bool) or not isinstance(rows, int) or rows < 0
-        ):
+        if rows is None:
+            raise RuntimeError(
+                f'The {label} generation pointer gives the "{name}" table no row '
+                "count, so the file cannot be checked against it."
+            )
+        if isinstance(rows, bool) or not isinstance(rows, int) or rows < 0:
             raise RuntimeError(
                 f'The {label} generation pointer gives the "{name}" table an '
                 f"invalid row count: {rows!r}."
