@@ -242,10 +242,13 @@ function ShareholdersTable({
           placeholder="Search holders by name, type, or country…"
         />
       </Table.Toolbar>
-      <Table>
+      {/* Widths are set here so sorting cannot reflow the columns (see
+          `Table`); Holder takes the rest. The # column fits five digits, as a
+          mega-cap runs to thousands of holdings. */}
+      <Table className={cn("min-w-2xl")}>
         <Table.Head>
           <tr>
-            <Table.HeaderCell className="w-10">#</Table.HeaderCell>
+            <Table.HeaderCell className={cn("w-16")}>#</Table.HeaderCell>
             <Table.HeaderCell
               sortable
               sortDirection={sort.key === "holder" ? sort.direction : null}
@@ -254,6 +257,7 @@ function ShareholdersTable({
               Holder
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-32")}
               sortable
               sortDirection={sort.key === "country" ? sort.direction : null}
               onSort={() => toggleSort("country")}
@@ -261,6 +265,7 @@ function ShareholdersTable({
               Country
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-24")}
               sortable
               sortDirection={sort.key === "security" ? sort.direction : null}
               onSort={() => toggleSort("security")}
@@ -268,6 +273,7 @@ function ShareholdersTable({
               Security
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-36")}
               sortable
               sortDirection={sort.key === "reported" ? sort.direction : null}
               onSort={() => toggleSort("reported")}
@@ -275,6 +281,7 @@ function ShareholdersTable({
               Reported
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-28")}
               align="right"
               sortable
               sortDirection={sort.key === "shares" ? sort.direction : null}
@@ -283,6 +290,7 @@ function ShareholdersTable({
               Shares
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-28")}
               align="right"
               sortable
               sortDirection={sort.key === "value" ? sort.direction : null}

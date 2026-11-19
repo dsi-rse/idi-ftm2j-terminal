@@ -219,13 +219,16 @@ function DebtTable({
           placeholder="Search debt by instrument or lender…"
         />
       </Table.Toolbar>
-      <Table>
+      {/* Widths are set here so sorting cannot reflow the columns (see
+          `Table`); Instrument and Lender share the rest. */}
+      <Table className={cn("min-w-xl")}>
         <Table.Head>
           <tr>
-            <Table.HeaderCell className="w-10">#</Table.HeaderCell>
+            <Table.HeaderCell className={cn("w-16")}>#</Table.HeaderCell>
             <Table.HeaderCell>Instrument</Table.HeaderCell>
             <Table.HeaderCell>Lender</Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-32")}
               sortable
               sortDirection={sort.key === "filedOn" ? sort.direction : undefined}
               onSort={() => toggle("filedOn")}
@@ -233,6 +236,7 @@ function DebtTable({
               Filed on
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-32")}
               align="right"
               sortable
               sortDirection={sort.key === "amount" ? sort.direction : undefined}

@@ -36,13 +36,18 @@ TabsHeader.displayName = "Tabs.Header";
 
 type TabsTriggerProps = ComponentPropsWithoutRef<typeof BaseTabs.Tab>;
 
-/** A single tab button. The selected tab is underlined in the primary color. */
+/**
+ * A single tab button. The selected tab is underlined in the primary color.
+ * Tabs split the strip into equal columns with the label centred in each, so
+ * the strip reads as one full-width control rather than three labels bunched
+ * at the left of their columns.
+ */
 function TabsTrigger({ className, ...props }: TabsTriggerProps) {
   return (
     <BaseTabs.Tab
       {...props}
       className={cn(
-        "flex-1 text-left cursor-pointer",
+        "flex-1 text-center cursor-pointer",
         "px-3 py-2 type-caption",
         "border-b-2 border-transparent -mb-px",
         "data-[active]:text-primary data-[active]:border-primary",

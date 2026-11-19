@@ -5,7 +5,7 @@ import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
-import type { Company, CurrentCorporateRelationship } from "@/types/domain";
+import type { Company } from "@/types/domain";
 
 type CompanyOverviewSectionProps = {
   company: Company;
@@ -15,6 +15,11 @@ type CompanyOverviewSectionProps = {
  * One headline stat, linking to the section that carries the detail. `value` is
  * null when the fact has no processor yet — those render an explicit unavailable
  * state rather than a fabricated figure.
+ *
+ * A count, its unit, and the link, and nothing else. Each box used to carry a
+ * detail line too (jurisdictions, citation, latest filing date), which is
+ * exactly what the section it links to opens with; the box is the way in, not
+ * a second copy of the section's header.
  */
 type Gateway = {
   /** Target section id, without the `#`. */
@@ -22,74 +27,21 @@ type Gateway = {
   kicker: string;
   value: string | null;
   unit: string;
-  meta: string;
   link: string;
 };
 
-function plural(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? "" : "s"}`;
-}
-
 /**
- * How many distinct jurisdictions a company's subsidiaries are incorporated in.
- *
- * Case-folded, because the source is inconsistent about it — "Delaware" and
- * "DELAWARE" are one jurisdiction, not two. Blanks are excluded rather than
- * counted as an unknown jurisdiction. This is still an overcount: "DE" and
- * "Delaware" remain separate values, and merging those needs a state
- * abbreviation crosswalk that does not exist here. Hence "jurisdictions" rather
- * than "countries" — the looser word is the true one, and `location` genuinely
- * mixes states with countries.
- */
-function countJurisdictions(
-  relationships: CurrentCorporateRelationship[],
-): number {
-  const seen = new Set<string>();
-  for (const relationship of relationships) {
-    const jurisdiction = relationship.childJurisdiction?.trim();
-    if (jurisdiction) seen.add(jurisdiction.toLowerCase());
-  }
-  return seen.size;
-}
-
-/**
- * The Corporate Tree stat. This is the only gateway with real data behind it.
- *
- * The count is subsidiaries, excluding the registrant — deliberately one less
- * than the Corporate Tree section's own "N entities" subtitle, which includes
- * it. The two numbers sit a few inches apart on the page and look like they
- * should match; they should not.
+ * The Corporate Tree stat: subsidiaries, excluding the registrant, the same
+ * count the Corporate Tree section's subtitle gives.
  */
 function treeGateway(company: Company): Gateway {
   const relationships = company.currentCorporateRelationships;
-  const base = {
+  return {
     section: "tree",
     kicker: "Corporate Tree",
     unit: "Subsidiaries traced",
     link: "View corporate tree",
-  };
-
-  if (relationships.length === 0) {
-    return {
-      ...base,
-      value: "0",
-      meta: "No Exhibit 21 or Exhibit 8 subsidiary list in scope",
-    };
-  }
-
-  // A multi-registrant company unions each registrant's most recent filing, so
-  // the list can span several filing dates and documents. This caption is a
-  // one-line summary, not the tree subtitle's full range, so it reports the
-  // most recent filing — its date and its citation together — rather than
-  // whichever subsidiary happens to sort first alphabetically. ISO-8601 dates
-  // compare lexicographically, which is why `asOf` can be `max`'d as a string.
-  const latest = relationships.reduce((a, b) => (b.asOf > a.asOf ? b : a));
-  const jurisdictions = countJurisdictions(relationships);
-  const citation = latest.sources[0]?.name ?? "SEC filing";
-  return {
-    ...base,
     value: relationships.length.toLocaleString("en-US"),
-    meta: `${plural(jurisdictions, "jurisdiction")} · ${citation} · filed on ${latest.asOf}`,
   };
 }
 
@@ -104,36 +56,12 @@ function treeGateway(company: Company): Gateway {
  */
 function debtGateway(company: Company): Gateway {
   const debt = company.currentCommercialDebt;
-  const base = {
+  return {
     section: "debt",
     kicker: "Commercial Debt",
     unit: debt.length === 1 ? "Instrument disclosed" : "Instruments disclosed",
     link: "View commercial debt",
-  };
-
-  if (debt.length === 0) {
-    return {
-      ...base,
-      value: "0",
-      meta: "No 8-K debt disclosure in scope for this company",
-    };
-  }
-
-  const withLender = debt.filter(
-    (instrument) => instrument.lenders.length,
-  ).length;
-  // ISO-8601 dates compare lexicographically. A company's debt is assembled from
-  // every 8-K that disclosed an instrument, so unlike the tree there is no single
-  // filing date for the section — the most recent is what dates the card.
-  const latest = debt.reduce(
-    (newest, instrument) =>
-      instrument.asOf > newest ? instrument.asOf : newest,
-    "",
-  );
-  return {
-    ...base,
     value: debt.length.toLocaleString("en-US"),
-    meta: `${withLender} with a disclosed lender · SEC 8-K · latest filed on ${latest}`,
   };
 }
 
@@ -148,33 +76,14 @@ function debtGateway(company: Company): Gateway {
  */
 function shareholdersGateway(company: Company): Gateway {
   const holdings = company.currentShareholders;
-  const base = {
+  return {
     section: "holders",
     kicker: "Shareholders",
     // Holdings, not holders: share classes are not collapsed, so one investor
     // can be several rows. Counting them "holders" would overstate the roster.
     unit: holdings.length === 1 ? "Holding disclosed" : "Holdings disclosed",
     link: "View shareholders",
-  };
-
-  if (holdings.length === 0) {
-    return {
-      ...base,
-      value: "0",
-      meta: "No holdings resolved to this company",
-    };
-  }
-
-  // ISO-8601 dates compare lexicographically. Holdings come from many filings,
-  // so the most recent report date is what dates the card.
-  const latest = holdings.reduce(
-    (newest, holding) => (holding.asOf > newest ? holding.asOf : newest),
-    "",
-  );
-  return {
-    ...base,
     value: holdings.length.toLocaleString("en-US"),
-    meta: `SEC 13-F & pension disclosures · reported ${latest}`,
   };
 }
 
@@ -300,9 +209,6 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
         {unavailable ? "Not available" : gateway.value}
       </span>
       <span className="type-value">{gateway.unit}</span>
-      <span className="type-caption">
-        {gateway.meta}
-      </span>
       <span className="mt-2 type-caption text-primary">
         {gateway.link} →
       </span>
@@ -327,14 +233,11 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
  * All three stats — Corporate Tree, Shareholders, and Commercial Debt — now have
  * processors behind them and carry real counts.
  *
- * There is no section-level date: the three stats draw on datasets with
- * genuinely different vintages — corporate structure is 2016–2018, commercial
- * debt runs to the present, company info is current — so each card carries its
- * own instead of one date that would be wrong for at least one of them. Nor a
- * section-level source: none of the three counts draws on the LSEG record
- * (they are Exhibit 21, 13-F, and 8-K data), so each card names its own SEC
- * source in its meta line and the LSEG citation sits under the header, with
- * the fields it actually covers.
+ * There is no section-level date or source: the three stats draw on datasets
+ * with genuinely different vintages and sources (Exhibit 21, 13-F, and 8-K
+ * data, none of it the LSEG record), so each is dated and cited in the section
+ * it links to, and the LSEG citation sits under the header with the fields it
+ * actually covers.
  */
 export function CompanyOverviewSection({
   company,

@@ -2,7 +2,11 @@
 
 import { Dialog } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
-import type { ComponentPropsWithoutRef, PropsWithChildren } from "react";
+import type {
+  ComponentPropsWithoutRef,
+  PropsWithChildren,
+  ReactNode,
+} from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -62,6 +66,12 @@ ModalContent.displayName = "Modal.Content";
 type ModalHeadingProps = {
   title: string;
   subtitle?: string;
+  /**
+   * Inline controls that belong to the title, set on its line just after it --
+   * a section card's (i) info button. Actions on the whole card or modal (expand,
+   * close) stay on the far side of the header instead.
+   */
+  titleAddon?: ReactNode;
   className?: string;
 };
 
@@ -70,12 +80,22 @@ type ModalHeadingProps = {
  * opens both a modal and a {@link SectionCard}, so the two cannot drift apart.
  * Size is set by the caller; the modal runs one step larger than a card.
  */
-function ModalHeading({ title, subtitle, className }: ModalHeadingProps) {
+function ModalHeading({
+  title,
+  subtitle,
+  titleAddon,
+  className,
+}: ModalHeadingProps) {
   return (
     <div className={cn("flex flex-col gap-1 min-w-0", className)}>
-      <h2 className={cn("type-display text-lg md:text-xl truncate")}>
-        {title}
-      </h2>
+      <div className={cn("flex items-center gap-2 min-w-0")}>
+        <h2 className={cn("type-display text-lg md:text-xl truncate")}>
+          {title}
+        </h2>
+        {titleAddon ? (
+          <span className={cn("inline-flex shrink-0")}>{titleAddon}</span>
+        ) : null}
+      </div>
       {subtitle ? <p className={cn("type-caption")}>{subtitle}</p> : null}
     </div>
   );
@@ -101,7 +121,7 @@ function ModalHeader({ title, subtitle, className }: ModalHeaderProps) {
         className,
       )}
     >
-      <ModalHeading title={title} subtitle={subtitle} className="[&>h2]:text-xl" />
+      <ModalHeading title={title} subtitle={subtitle} className="[&_h2]:text-xl" />
       <Dialog.Close
         aria-label="Close"
         className="p-2 rounded-control bg-transparent border-0 cursor-pointer text-muted hover:bg-overlay hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
