@@ -70,7 +70,7 @@ export default function DownloadsPage() {
       {/** ARTICLE */}
       <Article id="downloads">
         {/** HEADER */}
-        <Article.Header accentBar>
+        <Article.Header>
           <Article.Header.Eyebrow>Downloads</Article.Header.Eyebrow>
           <Article.Header.Title>
             Every reconciliation, in a box.

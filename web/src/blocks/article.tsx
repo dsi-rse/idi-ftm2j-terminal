@@ -19,32 +19,22 @@ function ArticleRoot({
   );
 }
 
-type ArticleHeaderRootProps = ComponentPropsWithoutRef<"header"> & {
-  accentBar?: boolean;
-};
+type ArticleHeaderRootProps = ComponentPropsWithoutRef<"header">;
 
 /**
  * The root of the article header compound component.
- * Contains the article title, eyebrow, and/or lead. Renders as a `header` tag,
- * with the option to add a gold accent bar in the left gutter.
+ * Contains the article title, eyebrow, and/or lead. Renders as a `header` tag.
+ *
+ * No gold rule in the gutter, and no gold left edge on the boxes below (quote,
+ * callout, bulk download). Those rules were the loudest thing on the page; the
+ * gold eyebrow, quote mark, and icons already carry the accent (#63).
  */
 function ArticleHeaderRoot({
   children,
-  accentBar = false,
-  className = "",
+  className,
 }: PropsWithChildren<ArticleHeaderRootProps>) {
   return (
-    <header
-      className={`flex flex-col gap-2${accentBar ? " relative w-full" : ""} ${className}`}
-    >
-      {accentBar && (
-        <div
-          aria-hidden
-          className="absolute inset-y-0 -left-8 md:-left-10 w-1 md:w-1.5 bg-primary rounded-full"
-        />
-      )}
-      {children}
-    </header>
+    <header className={cn("flex flex-col gap-2", className)}>{children}</header>
   );
 }
 ArticleHeaderRoot.displayName = "Article.Header";
@@ -140,7 +130,11 @@ function ArticleBulkDownload({
   href,
 }: ArticleBulkDownloadProps) {
   return (
-    <div className="flex flex-col md:flex-row md:items-center gap-6 border border-muted/25 border-l-2 border-l-primary rounded-card p-6 bg-overlay">
+    <div
+      className={cn(
+        "flex flex-col md:flex-row md:items-center gap-6 border border-muted/25 rounded-card p-6 bg-overlay",
+      )}
+    >
       <div className="flex-1 space-y-2">
         <p className="type-label text-primary">
           {label}
@@ -243,7 +237,7 @@ function ArticleCallout({ children }: PropsWithChildren) {
   return (
     <div
       className={cn(
-        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 border-l-2 border-l-primary pl-4 py-4",
+        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 pl-4 py-4",
       )}
     >
       <CircleAlertIcon className="size-4 text-primary" />
@@ -371,7 +365,11 @@ type ArticleBlockQuoteProps = {
  */
 function ArticleBlockQuote({ quote }: ArticleBlockQuoteProps) {
   return (
-    <figure className="md:float-right md:w-2/5 md:ml-8 md:mt-2 md:mb-4 mb-6 flex flex-col gap-4 border border-muted/25 border-l-2 border-l-primary rounded-card p-6 bg-overlay">
+    <figure
+      className={cn(
+        "md:float-right md:w-2/5 md:ml-8 md:mt-2 md:mb-4 mb-6 flex flex-col gap-4 border border-muted/25 rounded-card p-6 bg-overlay",
+      )}
+    >
       <div
         aria-hidden
         className="type-display tracking-tight text-primary text-5xl leading-none"

@@ -21,7 +21,7 @@ export default function AboutPage() {
       {/** ARTICLE */}
       <Article id="about">
         {/** HEADER */}
-        <Article.Header accentBar>
+        <Article.Header>
           <Article.Header.Eyebrow>About</Article.Header.Eyebrow>
           <Article.Header.Title>
             A public record of who owns what.
