@@ -114,6 +114,20 @@ DEBT_STATUS_LABELS = {
 }
 DEBT_STATUS_UNKNOWN = "Unknown"
 
+# Every finished label, subtype included -- exactly the `status` union in
+# `web/src/types/domain.ts`. `debt_status_label` checks its output against it,
+# so a subtype a newer `lifecycle.py` adds fails the build instead of shipping
+# a label the frontend type does not know.
+DEBT_STATUS_RENDERED_LABELS = frozenset(
+    {
+        "Announced",
+        "Active",
+        "Active - likely",
+        "Active - expected",
+        DEBT_STATUS_UNKNOWN,
+    }
+)
+
 # The columns of `items` that a citation needs, plus the join key. Most of the
 # file is its unread `text` column -- the full section body the extraction ran
 # over -- so it is read narrow.

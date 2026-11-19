@@ -16,6 +16,7 @@ from constants import (
     CIK_WIDTH,
     DEBT_CLOSED_STATUSES,
     DEBT_STATUS_LABELS,
+    DEBT_STATUS_RENDERED_LABELS,
     DEBT_STATUS_UNKNOWN,
 )
 from helpers import (
@@ -169,9 +170,9 @@ def debt_status_label(status: InstrumentStatus) -> str:
         `"Active"`, `"Active - likely"`, or `"Unknown"`.
 
     Raises:
-        `RuntimeError` if `lifecycle.py` returned a status this build has no
-            label for -- a newer copy of it added one, and the frontend type
-            needs the new member before it can ship.
+        `RuntimeError` if `lifecycle.py` returned a status, or a status and
+            subtype, this build has no label for -- a newer copy of it added
+            one, and the frontend type needs the new member before it can ship.
     """
     if status.status is None:
         return DEBT_STATUS_UNKNOWN
@@ -182,7 +183,15 @@ def debt_status_label(status: InstrumentStatus) -> str:
             "has no label in `DEBT_STATUS_LABELS`. Add it there and to the "
             "`status` union in `web/src/types/domain.ts`."
         )
-    return f"{label} - {status.subtype}" if status.subtype else label
+    rendered = f"{label} - {status.subtype}" if status.subtype else label
+    if rendered not in DEBT_STATUS_RENDERED_LABELS:
+        raise RuntimeError(
+            f"lifecycle.py returned the debt status {status.status!r} with the "
+            f"subtype {status.subtype!r}, which reads {rendered!r} -- not a "
+            "label in `DEBT_STATUS_RENDERED_LABELS`. Add it there and to the "
+            "`status` union in `web/src/types/domain.ts`."
+        )
+    return rendered
 
 
 def resolve_debt_documents(
