@@ -30,9 +30,7 @@ type ArticleHeaderRootProps = ComponentPropsWithoutRef<"header"> & {
  * with the option to add a gold accent bar in the left gutter.
  *
  * The bar is 3px at 80% gold. It was 6px solid, the loudest thing on the page;
- * with none at all the page read flat (#63). The boxes below (callout, bulk
- * download) carry no gold left edge: on a rounded box that edge curls around
- * the corners at any weight.
+ * with none at all the page read flat (#63).
  */
 function ArticleHeaderRoot({
   children,
@@ -261,7 +259,7 @@ function ArticleCallout({ children }: PropsWithChildren) {
   return (
     <div
       className={cn(
-        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 pl-4 py-4",
+        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 border-l-2 border-l-primary pl-4 py-4",
       )}
     >
       <CircleAlertIcon className="size-4 text-primary" />
