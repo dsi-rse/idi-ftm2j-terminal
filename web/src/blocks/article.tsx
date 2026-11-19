@@ -259,7 +259,8 @@ function ArticleCallout({ children }: PropsWithChildren) {
   return (
     <div
       className={cn(
-        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 border-l-2 border-l-primary pl-4 py-4",
+        // A 70% gold left edge: solid read too strong, none too weak (#63).
+        "flex flex-row items-start gap-2 rounded-card border-1 border-muted/25 border-l-2 border-l-primary/70 pl-4 py-4",
       )}
     >
       <CircleAlertIcon className="size-4 text-primary" />
