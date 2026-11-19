@@ -70,7 +70,7 @@ export default function DownloadsPage() {
       {/** ARTICLE */}
       <Article id="downloads">
         {/** HEADER */}
-        <Article.Header>
+        <Article.Header accentBar>
           <Article.Header.Eyebrow>Downloads</Article.Header.Eyebrow>
           <Article.Header.Title>Download the data behind FTM2J</Article.Header.Title>
           <Article.Header.Lead>

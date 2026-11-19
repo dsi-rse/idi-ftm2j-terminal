@@ -19,22 +19,40 @@ function ArticleRoot({
   );
 }
 
-type ArticleHeaderRootProps = ComponentPropsWithoutRef<"header">;
+type ArticleHeaderRootProps = ComponentPropsWithoutRef<"header"> & {
+  /** Draw a thin gold rule in the left gutter, beside the header. */
+  accentBar?: boolean;
+};
 
 /**
  * The root of the article header compound component.
- * Contains the article title, eyebrow, and/or lead. Renders as a `header` tag.
+ * Contains the article title, eyebrow, and/or lead. Renders as a `header` tag,
+ * with the option to add a gold accent bar in the left gutter.
  *
- * No gold rule in the gutter, and no gold left edge on the boxes below (quote,
- * callout, bulk download). Those rules were the loudest thing on the page; the
- * gold eyebrow, quote mark, and icons already carry the accent (#63).
+ * The bar is 3px at 80% gold. It was 6px solid, the loudest thing on the page;
+ * with none at all the page read flat (#63). The boxes below (callout, bulk
+ * download) carry no gold left edge: on a rounded box that edge curls around
+ * the corners at any weight.
  */
 function ArticleHeaderRoot({
   children,
+  accentBar = false,
   className,
 }: PropsWithChildren<ArticleHeaderRootProps>) {
   return (
-    <header className={cn("flex flex-col gap-2", className)}>{children}</header>
+    <header
+      className={cn("flex flex-col gap-2", accentBar && "relative w-full", className)}
+    >
+      {accentBar && (
+        <div
+          aria-hidden
+          className={cn(
+            "absolute inset-y-0 -left-8 md:-left-10 w-0.75 bg-primary/80 rounded-full",
+          )}
+        />
+      )}
+      {children}
+    </header>
   );
 }
 ArticleHeaderRoot.displayName = "Article.Header";

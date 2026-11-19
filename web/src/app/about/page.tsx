@@ -21,7 +21,7 @@ export default function AboutPage() {
       {/** ARTICLE */}
       <Article id="about">
         {/** HEADER */}
-        <Article.Header>
+        <Article.Header accentBar>
           <Article.Header.Eyebrow>About</Article.Header.Eyebrow>
           <Article.Header.Title>Follow the money to justice</Article.Header.Title>
           <Article.Header.Lead>
