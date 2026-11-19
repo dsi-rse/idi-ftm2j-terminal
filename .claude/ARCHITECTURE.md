@@ -239,10 +239,11 @@ a card's padding, a tile's padding, the gap between cards, and the space on
 each side of a rule. A box that bleeds to its card's edge uses the same
 number as a negative margin (`-mx-4`), so the two must change together.
 
-Text inside a card starts and ends on the card's content edge. A table's outer
-cells drop their outer padding (`first:pl-0 last:pr-0`) so its text lines up
-with the title above it and the source line below it. Lines of text that
-belong together, such as a label over its value or a name over its second
+A card's title, search box, table rules and source line share the card's
+content edge. Rows that highlight on hover, in a table or the tree, keep 8px
+of padding at each end (`first:pl-2 last:pr-2` on a table's outer cells), so
+the highlight does not start and end at the text. Lines of text that belong
+together, such as a label over its value or a name over its second
 line, sit 4px apart (`gap-1`). A caption keeps the role's line height, so
 `type-caption` is never paired with a `leading-*` class.
 

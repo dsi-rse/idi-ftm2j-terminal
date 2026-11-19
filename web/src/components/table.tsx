@@ -100,9 +100,9 @@ function TableHeaderCell({
     <th
       {...props}
       className={cn(
-        // The outer cells drop their outer padding so table text lines up
-        // with the text above and below the table.
-        "px-3 py-2 type-label first:pl-0 last:pr-0",
+        // The outer cells keep a little padding so a row's hover highlight
+        // does not start and end at its text.
+        "px-3 py-2 type-label first:pl-2 last:pr-2",
         alignmentClass,
         className,
       )}
@@ -235,7 +235,7 @@ function TableCell({
   return (
     <td
       {...props}
-      className={cn("px-3 py-3 first:pl-0 last:pr-0", alignmentClass, className)}
+      className={cn("px-3 py-3 first:pl-2 last:pr-2", alignmentClass, className)}
     >
       {content}
     </td>

@@ -57,7 +57,7 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
         {rows.map((row, i) => (
           <li
             key={`${row.name}-${i}`}
-            className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-0.5 hover:bg-overlay"
+            className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-2 py-0.5 hover:bg-overlay"
           >
             {/* The branch does not shrink, so a long name wraps under itself.
                 ponytail: deeper levels are only indented. Draw ancestor guide
