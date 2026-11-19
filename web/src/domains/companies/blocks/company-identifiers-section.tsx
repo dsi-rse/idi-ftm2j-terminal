@@ -4,7 +4,8 @@ import { SectionCard } from "@/blocks/section-card";
 import { cn } from "@/lib/utils";
 import type { Company } from "@/types/domain";
 
-const NOT_REPORTED = "Not reported";
+/** Shown when the company has no SEC registrant CIK in our data. */
+const NOT_AVAILABLE = "Not available";
 
 const identifierLinkClassName =
   "type-figure underline decoration-dotted underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
@@ -58,7 +59,7 @@ function IdentifiersRow({ company }: { company: Company }) {
       </Identifier>
       <Identifier label={several ? "CIKs" : "CIK"}>
         {company.registrants.length === 0 ? (
-          <span className={cn("text-muted")}>{NOT_REPORTED}</span>
+          <span className={cn("text-muted")}>{NOT_AVAILABLE}</span>
         ) : (
           company.registrants.map((registrant) => (
             <span key={registrant.cik} className={cn("whitespace-nowrap")}>
