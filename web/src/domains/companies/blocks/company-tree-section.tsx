@@ -59,9 +59,7 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
             key={`${row.name}-${i}`}
             className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-2 py-0.5 hover:bg-overlay"
           >
-            {/* The branch does not shrink, so a long name wraps under itself.
-                ponytail: deeper levels are only indented. Draw ancestor guide
-                lines once a source has real nesting. */}
+            {/* The branch does not shrink, so a long name wraps under itself. */}
             <span className="flex min-w-0 items-start">
               {row.depth > 0 ? (
                 <TreeBranchIcon
@@ -69,7 +67,7 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
                   style={{ marginLeft: `${(row.depth - 1) * 1.5}rem` }}
                 />
               ) : null}
-              <span className="min-w-0">{row.name}</span>
+              <span className="min-w-0 type-display">{row.name}</span>
             </span>
             <span className="type-caption whitespace-nowrap">
               {row.jurisdiction ?? ""}

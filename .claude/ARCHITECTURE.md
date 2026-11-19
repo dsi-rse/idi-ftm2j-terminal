@@ -358,6 +358,11 @@ grep -rnE "font-(thin|extralight|light|medium|bold|extrabold|black)\b|\bitalic\b
 grep -rnE "type-caption[^\"]*leading-|leading-[a-z]+[^\"]*type-caption" web/src --include='*.tsx'
 ```
 
+```bash
+# Scrollbars are styled only in globals.css. Should return nothing.
+grep -rnE "scrollbar-(width|color)|scrollbar-(none|thin|hide)" web/src --include='*.tsx'
+```
+
 Each of the first two commands should return nothing. The last two should only
 show non-block sibling imports (types, local helpers), never another
 `components/` or `blocks/` file.

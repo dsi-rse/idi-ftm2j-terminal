@@ -190,7 +190,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
             })}
           </ul>
         </div>
-        <div className="hidden md:flex items-center gap-2 pb-1">
+        <div className="hidden md:flex shrink-0 items-center gap-2 pb-1">
           {/* Presentation only — these remain unwired on purpose. `disabled`
               rather than styled-to-look-active, so they do not promise a
               behaviour that does not exist yet. */}
@@ -200,7 +200,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
               type="button"
               disabled
               title="Not available yet"
-              className="rounded-control border border-muted/40 px-3 py-1 type-caption disabled:cursor-not-allowed"
+              className="rounded-control border border-muted/40 px-3 py-1 type-caption whitespace-nowrap disabled:cursor-not-allowed"
             >
               {action}
             </button>

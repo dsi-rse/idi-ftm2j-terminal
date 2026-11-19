@@ -10,11 +10,18 @@ those paths.
 
 # Standard library imports
 import datetime
+import json
 import logging
+from decimal import Decimal
+
+# Third-party imports
+import pandas as pd
 
 # Local imports
 from .harness import (
+    CDT_MENTION_ID,
     CDT_URL,
+    cdt_edge_rows,
     cdt_item_rows,
     cdt_mention_rows,
     cdt_rows,
@@ -24,6 +31,11 @@ from .harness import (
     shareholder_rows,
     structure_rows,
 )
+
+def pd_concat(*frames):
+    """Stacks fixture frames of one table into one."""
+    return pd.concat(frames, ignore_index=True)
+
 
 # A second, ordinary company whose CIK matches a structure row. Multi-CIK cases
 # need it: `attach_relationships` raises when the join matches nothing at all,
@@ -1212,7 +1224,9 @@ def run_debt_build(
     debt=None,
     mentions=None,
     items=None,
+    edges=None,
     expect_failure: bool = False,
+    **publish,
 ):
     """Runs a build with a complete, self-consistent CDT dataset.
 
@@ -1221,6 +1235,10 @@ def run_debt_build(
     default, and want to replace one frame while the other two stay consistent
     with it -- an instrument whose mention is missing tests the citation guard,
     not whatever the case was about.
+
+    Extra keyword arguments (`cdt_pointer`, `cdt_snapshot_file`, `stale_cdt`)
+    pass through to `run_build`, for cases about how the CDT generation is
+    published rather than what it holds.
     """
     return run_build(
         company_rows({}),
@@ -1228,7 +1246,9 @@ def run_debt_build(
         debt=cdt_rows({}) if debt is None else debt,
         mentions=cdt_mention_rows({}) if mentions is None else mentions,
         items=cdt_item_rows({}) if items is None else items,
+        edges=edges,
         expect_failure=expect_failure,
+        **publish,
     )
 
 
@@ -1245,11 +1265,24 @@ def debt_smoke_one_instrument() -> None:
     assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
     instrument = debt[0]
     assert instrument["instrumentName"] == "revolving credit facility", instrument
-    assert instrument["status"] == "Undated", instrument["status"]
+    # Started in 2016 with no end date and nothing recorded since: the CDT
+    # dashboard's lifecycle calls that active, and the terminal agrees.
+    assert instrument["status"] == "Active", instrument["status"]
+    assert instrument["commitmentEndDate"] is None, instrument["commitmentEndDate"]
+    assert instrument["unnamedLenders"] is False, instrument
     assert instrument["asOf"] == "2016-01-04", instrument["asOf"]
     assert instrument["amount"] == 10000000, instrument["amount"]
     assert isinstance(instrument["amount"], int), type(instrument["amount"])
     assert instrument["currency"] == "USD", instrument["currency"]
+    # The default parties include the borrower, which is never listed.
+    assert instrument["parties"] == [
+        {"name": "Fixture National Bank", "role": "lender"}
+    ], instrument["parties"]
+    # The id is percent-encoded whole, as the dashboard's own links are.
+    assert instrument["cdtUrl"] == (
+        "https://cdt-demo.uchicago-dsi.org/debt-instrument/"
+        + CDT_MENTION_ID.replace(":", "%3A")
+    ), instrument["cdtUrl"]
 
     assert len(instrument["sources"]) == 1, instrument["sources"]
     source = instrument["sources"][0]
@@ -1297,10 +1330,134 @@ def debt_unresolvable_document_fails_the_build() -> None:
     assert result.records == [], "build should not have produced records"
 
 
+def _expect_cdt_refusal(result, *needles: str) -> None:
+    """Asserts the build failed, with an error naming every one of `needles`."""
+    assert result.records == [], "build should not have produced records"
+    assert result.error is not None, "build should have raised"
+    for needle in needles:
+        assert needle in result.error, f"{needle!r} not in error: {result.error}"
+
+
+def debt_reads_only_the_generation_the_pointer_names() -> None:
+    """An older CDT generation on disk is ignored; the pointer's is read.
+
+    CDT keeps the previous snapshot so a reader of the old pointer can finish,
+    and refreshes the per-table `latest.parquet` copies only after the pointer,
+    so both can disagree with the current generation. Reading either would mix
+    generations -- the bug the pointer exists to prevent.
+    """
+    stale = {
+        "debt-instruments": cdt_rows({"name": "stale facility"}),
+        "debt-instrument-mentions": cdt_mention_rows({"name": "stale facility"}),
+        "items": cdt_item_rows({}),
+    }
+    result = run_debt_build(stale_cdt=stale)
+
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    names = [d["instrumentName"] for d in debt]
+    assert names == ["revolving credit facility"], names
+
+
+def debt_reader_follows_pointer_paths() -> None:
+    """The build follows the pointer's paths, whatever the file naming.
+
+    The layout inside a snapshot is CDT's to choose -- `<table>.parquet` today,
+    possibly the idi-style `<table>/latest.parquet` later -- so the build must
+    not construct file names itself.
+    """
+    result = run_debt_build(cdt_snapshot_file=lambda name: f"{name}/latest.parquet")
+
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+
+
+def debt_missing_pointer_fails_the_build() -> None:
+    """No `latest.json` means no way to know which tables belong together."""
+    result = run_debt_build(cdt_pointer=lambda pointer: None, expect_failure=True)
+    _expect_cdt_refusal(result, "generation pointer was not found")
+
+
+def debt_pointer_missing_a_table_fails_the_build() -> None:
+    """A pointer that names no `items` table cannot cite any instrument."""
+
+    def drop_items(pointer: dict) -> dict:
+        del pointer["tables"]["items"]
+        return pointer
+
+    result = run_debt_build(cdt_pointer=drop_items, expect_failure=True)
+    _expect_cdt_refusal(result, 'names no "items" table')
+
+
+def debt_pointer_to_a_missing_file_fails_the_build() -> None:
+    """A pointer whose snapshot file is gone fails rather than reading another.
+
+    This is what a CI sync that raced a CDT publish looks like: the new pointer
+    arrived, its snapshot did not. A rerun fixes it; a silent fallback would not.
+    """
+
+    def point_elsewhere(pointer: dict) -> dict:
+        pointer["tables"]["debt-instruments"]["path"] = (
+            "snapshots/snapshot=20991231T000000000000Z/debt-instruments.parquet"
+        )
+        return pointer
+
+    result = run_debt_build(cdt_pointer=point_elsewhere, expect_failure=True)
+    _expect_cdt_refusal(result, "parquet file was not found")
+
+
+def debt_pointer_outside_the_root_fails_the_build() -> None:
+    """A pointer path may not climb out of CDT's own database root."""
+
+    def escape(pointer: dict) -> dict:
+        pointer["tables"]["items"]["path"] = "../shareholders.parquet"
+        return pointer
+
+    result = run_debt_build(cdt_pointer=escape, expect_failure=True)
+    _expect_cdt_refusal(result, "outside the database root")
+
+
+def debt_pointer_row_count_mismatch_fails_the_build() -> None:
+    """A file holding other than the rows CDT recorded is not that generation."""
+
+    def miscount(pointer: dict) -> dict:
+        pointer["tables"]["debt-instrument-mentions"]["rows"] += 1
+        return pointer
+
+    result = run_debt_build(cdt_pointer=miscount, expect_failure=True)
+    _expect_cdt_refusal(result, "holds 1 rows but its publisher recorded 2")
+
+
+def debt_pointer_without_row_count_fails_the_build() -> None:
+    """A table entry with no `rows` cannot be checked, so it is refused."""
+
+    def uncounted(pointer: dict) -> dict:
+        del pointer["tables"]["debt-instrument-mentions"]["rows"]
+        return pointer
+
+    result = run_debt_build(cdt_pointer=uncounted, expect_failure=True)
+    _expect_cdt_refusal(result, "no row count")
+
+
+def debt_unknown_contract_version_fails_the_build() -> None:
+    """A CDT contract bump must be read deliberately, not rendered as empty.
+
+    Renamed columns and reshaped payloads have already shipped as silently
+    empty debt sections twice; a version this build was not written for stops
+    the deploy instead.
+    """
+
+    def bump(pointer: dict) -> dict:
+        pointer["contract_version"] = 2
+        return pointer
+
+    result = run_debt_build(cdt_pointer=bump, expect_failure=True)
+    _expect_cdt_refusal(result, "contract version 2")
+
+
 def debt_matured_instrument_is_excluded() -> None:
     """An instrument whose end date has passed does not reach the frontend."""
     result = run_debt_build(
-        debt=cdt_rows({"end_date": "2017-06-30"}),
+        debt=cdt_rows({"maturity_date": "2017-06-30"}),
     )
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert debt == [], f"matured instrument should have been excluded, got {debt}"
@@ -1315,7 +1472,7 @@ def debt_future_instrument_is_active() -> None:
     """
     future = (datetime.date.today() + datetime.timedelta(days=365)).isoformat()
     result = run_debt_build(
-        debt=cdt_rows({"end_date": future}),
+        debt=cdt_rows({"maturity_date": future}),
     )
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
@@ -1323,33 +1480,41 @@ def debt_future_instrument_is_active() -> None:
     assert debt[0]["endDate"] == future, debt[0]["endDate"]
 
 
-def debt_unparseable_end_date_is_undated() -> None:
-    """An end date that will not parse is Undated, not silently matured.
+def debt_unparseable_maturity_date_is_ignored() -> None:
+    """A maturity that will not parse is read as absent, not as a date.
 
-    Coercion turns both a blank and a garbage date into NaT, and treating NaT as
-    "expired" would drop the instrument on the strength of a parse failure.
+    `lifecycle.py` compares dates as strings, and "as soon as practicable"
+    sorts after every real date -- so read raw, it would be a maturity still
+    ahead, holding open an instrument whose commitment ended in 2017. Read as
+    absent, the commitment end governs and the instrument is closed.
     """
     result = run_debt_build(
-        debt=cdt_rows({"end_date": "as soon as practicable"}),
+        debt=cdt_rows(
+            {
+                "maturity_date": "as soon as practicable",
+                "commitment_termination_date": "2017-06-30",
+            }
+        ),
     )
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
-    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
-    assert debt[0]["status"] == "Undated", debt[0]["status"]
-    assert debt[0]["endDate"] is None, debt[0]["endDate"]
+    assert debt == [], f"a garbage maturity held the instrument open: {debt}"
 
 
 def debt_superseded_instrument_is_excluded() -> None:
     """An amended instrument drops out and its replacement stays.
 
-    Lineage points from the newer instrument back at the older one, so the row
-    naming a predecessor is the survivor -- the reverse of what the column name
-    reads like.
+    Lineage points from the newer instrument back at the older one, and CDT
+    marks the older one as no longer the lineage head -- which is what the build
+    reads.
     """
     original = "dim::fixture000000000000000001"
     replacement = "dim::fixture000000000000000002"
     result = run_debt_build(
         debt=cdt_rows(
-            {},
+            {
+                "is_lineage_head": False,
+                "superseded_by_debt_instrument_id": replacement,
+            },
             {
                 "debt_instrument_id": replacement,
                 "seed_debt_instrument_mention_id": replacement,
@@ -1369,46 +1534,355 @@ def debt_superseded_instrument_is_excluded() -> None:
     )
 
 
-def debt_generic_lender_labels_survive() -> None:
-    """Role words reach the frontend as lender labels, on purpose.
+def debt_retired_instrument_is_excluded() -> None:
+    """An instrument another one retired is not a live obligation.
 
-    A filing that names no counterparty says "the lenders party thereto", and the
-    extraction records that phrase. Filtering it here is the first step of the
-    lender-normalization work, which is deliberately not done yet -- so this case
-    fails if someone adds a stopword set without also revisiting that decision.
+    CDT records retirement on the retired instrument's own row, as a JSON array
+    of the instruments that retired it.
+    """
+    retirer = "dim::fixture000000000000000002"
+    result = run_debt_build(
+        debt=cdt_rows(
+            {"retired_by_debt_instrument_ids": f'["{retirer}"]'},
+            {
+                "debt_instrument_id": retirer,
+                "seed_debt_instrument_mention_id": retirer,
+                "name": "new term loan",
+            },
+        ),
+        mentions=cdt_mention_rows({}, {"debt_instrument_mention_id": retirer}),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    names = [i["instrumentName"] for i in debt]
+    assert names == ["new term loan"], f"expected only the retirer, got {names}"
+
+
+def debt_split_parent_stays_as_on_the_dashboard() -> None:
+    """A split does not close the instrument it was split from.
+
+    `lifecycle.py` closes an instrument for an amendment, a retirement, or a
+    decisive event, never for a split, and CDT leaves a split parent as its own
+    lineage head. So the CDT dashboard lists both, and the terminal does too.
+    """
+    piece = "dim::fixture000000000000000002"
+    result = run_debt_build(
+        debt=cdt_rows(
+            {},
+            {
+                "debt_instrument_id": piece,
+                "seed_debt_instrument_mention_id": piece,
+                "split_of_debt_instrument_id": CDT_MENTION_ID,
+                "name": "tranche A term loan",
+            },
+        ),
+        mentions=cdt_mention_rows({}, {"debt_instrument_mention_id": piece}),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    names = sorted(i["instrumentName"] for i in debt)
+    assert names == ["revolving credit facility", "tranche A term loan"], names
+
+
+def debt_ambiguous_amendment_is_excluded() -> None:
+    """A prior state CDT marks as no longer the lineage head is closed.
+
+    When an amendment has two children CDT publishes no
+    `superseded_by_debt_instrument_id`, so `is_lineage_head` is the only
+    signal. It must survive the parquet round trip as a plain `False`:
+    `lifecycle.py` tests `is False`, which a numpy bool would fail.
+    """
+    result = run_debt_build(debt=cdt_rows({"is_lineage_head": False}))
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert debt == [], f"a superseded state rendered: {debt}"
+
+
+def debt_commitment_end_dates_a_revolver() -> None:
+    """A revolver whose filing gives only a commitment end is dated by it.
+
+    Passed, the instrument is closed; ahead, it is Active, and the row carries
+    the date so the frontend can show it in place of a maturity.
+    """
+    future = (datetime.date.today() + datetime.timedelta(days=365)).isoformat()
+    lapsed = run_debt_build(
+        debt=cdt_rows({"commitment_termination_date": "2017-06-30"}),
+    )
+    debt = lapsed.by_permid("5000000001")["currentCommercialDebt"]
+    assert debt == [], f"a lapsed commitment rendered: {debt}"
+
+    live = run_debt_build(
+        debt=cdt_rows({"commitment_termination_date": future}),
+    )
+    debt = live.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+    assert debt[0]["status"] == "Active", debt[0]["status"]
+    assert debt[0]["endDate"] is None, debt[0]["endDate"]
+    assert debt[0]["commitmentEndDate"] == future, debt[0]["commitmentEndDate"]
+
+
+def _second_mention(**columns) -> tuple:
+    """A later mention of the default instrument, and the edge assigning it.
+
+    Returns `mentions` and `edges` frames for `run_debt_build`: the default seed
+    mention plus one more, both members of the default instrument.
+    """
+    later = "dim::fixture-mention-2"
+    mentions = cdt_mention_rows(
+        {}, {"debt_instrument_mention_id": later, "raw_id": "i-2", **columns}
+    )
+    edges = cdt_edge_rows({}, {"debt_instrument_mention_id": later})
+    return mentions, edges
+
+
+def debt_repaid_event_closes_the_instrument() -> None:
+    """A later filing recording the instrument repaid closes it.
+
+    No date on the instrument row changes: the event lives on a mention, which
+    only a `member` edge ties to the instrument.
+    """
+    mentions, edges = _second_mention(
+        date="2018-03-01", status="repaid", status_date="2018-03-01"
+    )
+    result = run_debt_build(mentions=mentions, edges=edges)
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert debt == [], f"a repaid instrument rendered: {debt}"
+
+
+def debt_non_member_edges_attach_no_mentions() -> None:
+    """Only a `member` edge ties a mention's events to an instrument.
+
+    `related` and `ambiguous_candidate` edges link a mention to an instrument
+    it merely resembles, such as a neighbouring facility. If either attached
+    the mention, that neighbour's "repaid" would close this instrument, and
+    the terminal would stop matching the CDT dashboard.
+    """
+    for edge_type in ("related", "ambiguous_candidate"):
+        mentions, edges = _second_mention(
+            date="2018-03-01", status="repaid", status_date="2018-03-01"
+        )
+        later = edges["debt_instrument_mention_id"] != CDT_MENTION_ID
+        edges.loc[later, "edge_type"] = edge_type
+        result = run_debt_build(mentions=mentions, edges=edges)
+        debt = result.by_permid("5000000001")["currentCommercialDebt"]
+        assert len(debt) == 1, (
+            f"a repaid mention on a {edge_type!r} edge closed the instrument: {debt}"
+        )
+
+
+def debt_retirement_still_ahead_keeps_the_instrument() -> None:
+    """A retirement pointer does not close an instrument whose retirement is dated ahead.
+
+    The filing that names the retiring instrument says the old one will be
+    redeemed on a future date -- a notice, not a record. Until that date passes
+    the old instrument is still owed, so it stays, as on the dashboard.
+    """
+    retirer = "dim::fixture000000000000000002"
+    future = (datetime.date.today() + datetime.timedelta(days=90)).isoformat()
+    mentions, edges = _second_mention(
+        date="2026-01-05", status="repaid", status_date=future
+    )
+    result = run_debt_build(
+        debt=cdt_rows(
+            {"retired_by_debt_instrument_ids": f'["{retirer}"]'},
+            {
+                "debt_instrument_id": retirer,
+                "seed_debt_instrument_mention_id": retirer,
+                "name": "new term loan",
+            },
+        ),
+        mentions=pd_concat(
+            mentions, cdt_mention_rows({"debt_instrument_mention_id": retirer})
+        ),
+        edges=pd_concat(
+            edges,
+            cdt_edge_rows(
+                {"debt_instrument_mention_id": retirer, "debt_instrument_id": retirer}
+            ),
+        ),
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    names = sorted(i["instrumentName"] for i in debt)
+    assert names == ["new term loan", "revolving credit facility"], names
+
+
+def debt_statuses_read_as_on_the_dashboard() -> None:
+    """Each rendered status carries the CDT dashboard's own label.
+
+    - Announced: an announcement and nothing since, the start still ahead.
+    - Active - likely: announced over 30 days ago, nothing since, its end ahead.
+    - Active - expected: a planned closing date has passed, unconfirmed.
+    - Unknown: nothing dated and no decisive event.
+    """
+    today = datetime.date.today()
+    future = (today + datetime.timedelta(days=365)).isoformat()
+    recent = (today - datetime.timedelta(days=5)).isoformat()
+    long_ago = (today - datetime.timedelta(days=60)).isoformat()
+    closing = json.dumps(
+        [
+            {
+                "derived_from": "stated",
+                "expected": True,
+                "kind": "closing",
+                "normalized_date": long_ago,
+                "precision": "day",
+                "prior": False,
+                "spans": [],
+            }
+        ]
+    )
+    cases = {
+        "Announced": (
+            {"start_date": None},
+            {"date": recent, "status": "announced", "status_date": recent},
+        ),
+        "Active - likely": (
+            {"start_date": None, "maturity_date": future},
+            {"date": long_ago, "status": "announced", "status_date": long_ago},
+        ),
+        "Active - expected": (
+            {"start_date": None},
+            {"dates_json": closing},
+        ),
+        "Unknown": ({"start_date": None}, {}),
+    }
+    for expected, (instrument, mention) in cases.items():
+        result = run_debt_build(
+            debt=cdt_rows(instrument), mentions=cdt_mention_rows(mention)
+        )
+        debt = result.by_permid("5000000001")["currentCommercialDebt"]
+        assert len(debt) == 1, f"{expected}: expected 1 instrument, got {debt}"
+        assert debt[0]["status"] == expected, (expected, debt[0]["status"])
+
+
+def debt_parties_carry_their_roles() -> None:
+    """Every named party but the borrower is listed with its role, lenders first.
+
+    A filing that names no counterparty says "the lenders party thereto", and
+    CDT records it as a `collective` party. That phrase is not a party anyone
+    can look up, so only `named` parties render, and the unnamed lenders are
+    kept as a flag instead. The borrower is the company itself and is left out.
+    """
+    parties = json.dumps(
+        [
+            {
+                "role": "underwriter",
+                "canonical_name": "Fixture Securities LLC",
+                "kind": "named",
+                "spans": [],
+            },
+            {
+                "role": "lender",
+                "canonical_name": "lenders party thereto",
+                "kind": "collective",
+                "spans": [],
+            },
+            {
+                "role": "borrower",
+                "canonical_name": "Fixture Co",
+                "kind": "named",
+                "spans": [],
+            },
+            {
+                "role": "lender",
+                "canonical_name": "Fixture National Bank",
+                "kind": "named",
+                "spans": [],
+            },
+            {
+                "role": "agent",
+                "canonical_name": "Fixture National Bank",
+                "kind": "named",
+                "spans": [],
+            },
+            {
+                "role": "trustee",
+                "canonical_name": "the Trustee",
+                "kind": "collective",
+                "spans": [],
+            },
+        ]
+    )
+    result = run_debt_build(
+        debt=cdt_rows(
+            {"parties_json": parties, "lender_disclosure": "collective_present"}
+        )
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+    assert debt[0]["parties"] == [
+        {"name": "Fixture National Bank", "role": "lender"},
+        {"name": "Fixture Securities LLC", "role": "underwriter"},
+        {"name": "Fixture National Bank", "role": "agent"},
+    ], debt[0]["parties"]
+    # The dropped collective lender is not forgotten: as on the CDT dashboard,
+    # the list is marked as having unnamed lenders.
+    assert debt[0]["unnamedLenders"] is True, debt[0]
+
+
+def debt_complete_lenders_are_not_flagged() -> None:
+    """A lender list CDT calls complete carries no "lenders not named" note."""
+    result = run_debt_build(debt=cdt_rows({"lender_disclosure": "complete"}))
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert debt[0]["unnamedLenders"] is False, debt[0]
+
+
+def debt_only_collective_parties_means_none() -> None:
+    """An instrument whose parties are all collective lists none, but keeps the note.
+
+    The frontend reads an empty list with the flag set as "lenders not named":
+    the filings say lenders exist, just not who.
+    """
+    parties = json.dumps(
+        [
+            {
+                "role": "lender",
+                "canonical_name": "Holders",
+                "kind": "collective",
+                "spans": [],
+            }
+        ]
+    )
+    result = run_debt_build(
+        debt=cdt_rows(
+            {"parties_json": parties, "lender_disclosure": "collective_present"}
+        )
+    )
+    debt = result.by_permid("5000000001")["currentCommercialDebt"]
+    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
+    assert debt[0]["parties"] == [], debt[0]["parties"]
+    assert debt[0]["unnamedLenders"] is True, debt[0]
+
+
+def debt_currency_travels_with_its_amount() -> None:
+    """A non-USD amount keeps its own code and is not converted.
+
+    CDT takes the amount and its currency from one mention together, so both
+    are read off the instrument row. No CDT output supplies an FX rate, so
+    nothing is converted.
     """
     result = run_debt_build(
         debt=cdt_rows(
             {
-                "lenders_json": (
-                    '[{"mentions": [{"char_end": 21, "char_start": 0,'
-                    ' "tag_id": "tag-1", "text": "lenders party thereto",'
-                    ' "type": "organization"}], "tag_ids": ["tag-1"]}]'
-                )
+                "principal_amount": Decimal("500000000.00"),
+                "principal_currency": "EUR",
             }
-        ),
-    )
-    debt = result.by_permid("5000000001")["currentCommercialDebt"]
-    assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
-    assert debt[0]["lenders"] == ["lenders party thereto"], debt[0]["lenders"]
-
-
-def debt_currency_comes_from_the_mentions_file() -> None:
-    """A non-USD amount keeps its own code and is not converted.
-
-    `debt-instruments.amount` is a bare number; the currency lives only in
-    `mentions.amount_json`, which is why the mentions join carries more than
-    provenance. No CDT output supplies an FX rate, so nothing is converted.
-    """
-    result = run_debt_build(
-        debt=cdt_rows({"amount": "500000000"}),
-        mentions=cdt_mention_rows(
-            {"amount_json": '{"currency": "EUR", "mentions": []}'}
         ),
     )
     instrument = result.by_permid("5000000001")["currentCommercialDebt"][0]
     assert instrument["currency"] == "EUR", instrument["currency"]
     assert instrument["amount"] == 500000000, instrument["amount"]
+    assert isinstance(instrument["amount"], int), type(instrument["amount"])
+
+
+def debt_six_k_cites_the_form_alone() -> None:
+    """A 6-K citation names the form, not CDT's internal window id.
+
+    A 6-K has no items; CDT's `items.item` for one is a window id such as
+    `000110465916089282:0:1`, which means nothing to a reader.
+    """
+    result = run_debt_build(
+        items=cdt_item_rows({"form_type": "6-K", "item": "000000000116000001:0:1"}),
+    )
+    source = result.by_permid("5000000001")["currentCommercialDebt"][0]["sources"][0]
+    assert source["name"] == "SEC 6-K", source["name"]
 
 
 def debt_duplicate_items_do_not_multiply_instruments() -> None:
@@ -1720,10 +2194,30 @@ CASES = [
     debt_unresolvable_document_fails_the_build,
     debt_matured_instrument_is_excluded,
     debt_future_instrument_is_active,
-    debt_unparseable_end_date_is_undated,
+    debt_unparseable_maturity_date_is_ignored,
     debt_superseded_instrument_is_excluded,
-    debt_generic_lender_labels_survive,
-    debt_currency_comes_from_the_mentions_file,
+    debt_retired_instrument_is_excluded,
+    debt_split_parent_stays_as_on_the_dashboard,
+    debt_ambiguous_amendment_is_excluded,
+    debt_commitment_end_dates_a_revolver,
+    debt_repaid_event_closes_the_instrument,
+    debt_non_member_edges_attach_no_mentions,
+    debt_retirement_still_ahead_keeps_the_instrument,
+    debt_statuses_read_as_on_the_dashboard,
+    debt_reads_only_the_generation_the_pointer_names,
+    debt_reader_follows_pointer_paths,
+    debt_missing_pointer_fails_the_build,
+    debt_pointer_missing_a_table_fails_the_build,
+    debt_pointer_to_a_missing_file_fails_the_build,
+    debt_pointer_outside_the_root_fails_the_build,
+    debt_pointer_row_count_mismatch_fails_the_build,
+    debt_pointer_without_row_count_fails_the_build,
+    debt_unknown_contract_version_fails_the_build,
+    debt_parties_carry_their_roles,
+    debt_complete_lenders_are_not_flagged,
+    debt_only_collective_parties_means_none,
+    debt_currency_travels_with_its_amount,
+    debt_six_k_cites_the_form_alone,
     debt_duplicate_items_do_not_multiply_instruments,
     debt_undated_document_fails_the_build,
     debt_unparseable_document_date_fails_the_build,

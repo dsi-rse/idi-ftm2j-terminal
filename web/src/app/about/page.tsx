@@ -85,7 +85,7 @@ export default function AboutPage() {
               dataset rather than being uniform across them. Roughly a third
               have a corporate tree traced from their subsidiary disclosures; a
               smaller share have commercial-debt instruments extracted from
-              their 8-K filings; and institutional and pension-fund
+              their 8-K and 6-K filings; and institutional and pension-fund
               shareholdings are attached wherever a holder&rsquo;s disclosures
               resolve to the company. Every company page states what it does and
               does not have, and coverage expands as new filings are reconciled
@@ -119,7 +119,8 @@ export default function AboutPage() {
               shareholders come from SEC Form&nbsp;13-F filings and
               pension-fund disclosures, attached to a company by resolving the
               security they report to its issuer; and commercial debt is
-              extracted from SEC 8-K material-event filings using a custom NLP
+              extracted from SEC 8-K material-event filings, and the 6-Ks
+              foreign private issuers file instead, using a custom NLP
               model.
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Paragraph>
@@ -182,10 +183,13 @@ export default function AboutPage() {
               reproduced as the filing reported them and are not converted
               between currencies, so figures denominated differently are not
               comparable and are never totalled; interest rates are not
-              extracted; and a lender appears as the filing describes it, which
-              is sometimes a role rather than a name. Most disclosed instruments
-              state no end date, and those are shown as undated rather than
-              assumed current.
+              extracted; and a lender, agent, trustee, underwriter, or other
+              party appears only where the filing names it, with a note when
+              the filings mention lenders they do not name.
+              Whether an instrument is announced, active, or of unknown status
+              follows the Commercial Debt Tracker&rsquo;s own definitions, and
+              instruments the filings show matured, repaid, or otherwise closed
+              are not listed.
             </Article.Body.Section.Paragraph>
             <Article.Body.Section.Callout>
               Found an error or a missing link? Corrections from researchers

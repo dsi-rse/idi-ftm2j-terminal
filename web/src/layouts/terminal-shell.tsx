@@ -6,7 +6,8 @@ import { Navbar } from "@/views/navbar";
 /**
  * Marks the element that scrolls in this shell. Read by consumers that need to
  * observe scroll position — see `company-tabs.tsx`, which uses it as its
- * IntersectionObserver root.
+ * IntersectionObserver root. `globals.css` also spells out `data-scroll-pane`
+ * to drop the document's scrollbar gutter; rename both together.
  */
 export const SCROLL_PANE_ATTR = "data-scroll-pane";
 
@@ -46,10 +47,12 @@ export function TerminalShell({
       <div className="shrink-0">
         {/* The bar's default margins match the standard page's content. Here
             the brand lines up with the sidebar's content edge instead, and
-            the links with the pane's right padding. Only from `lg`, where
-            the full bar shows: below it the phone menu repeats the default
-            margins, and the brand would jump when the menu opens. */}
-        <Navbar className="lg:ml-3 lg:mr-4" />
+            the links with the cards' right edge: the pane's 16px padding
+            plus its 9px scrollbar, whose width is set in `globals.css`.
+            Only from `lg`, where the full bar shows: below it the phone menu
+            repeats the default margins, and the brand would jump when the
+            menu opens. */}
+        <Navbar className="lg:ml-3 lg:mr-[calc(1rem+9px)]" />
       </div>
       <div className="flex flex-1 md:min-h-0">
         {sidebar ? <div className="shrink-0">{sidebar}</div> : null}

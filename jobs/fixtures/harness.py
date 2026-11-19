@@ -22,8 +22,9 @@ import json
 import logging
 import os
 import tempfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
@@ -31,6 +32,14 @@ from typing import Any
 import pandas as pd
 
 JOBS_DIR = Path(__file__).resolve().parent.parent
+
+# The CDT generation `run_build` publishes, and the contract it stamps. Mirrors
+# what `cdt.publish.write_final_output_tables` writes; kept literal rather than
+# imported from `constants`, so a fixture notices if the build's expectation
+# drifts from what CDT actually publishes.
+FIXTURE_CDT_RUN_ID = "20261101T000000000000Z"
+FIXTURE_CDT_STALE_RUN_ID = "20261001T000000000000Z"
+FIXTURE_CDT_CONTRACT_VERSION = 1
 
 # Every column `build_dataset` reads off a company-info row, plus the ones that
 # define the grain. Values mirror the shape of production data -- `hq_address`
@@ -113,34 +122,91 @@ CDT_URL = (
     "0000000001-16-000001.txt"
 )
 
-# Every column of the three CDT outputs, so an override naming a real column is
-# accepted and a typo still raises. `cik` is unpadded here because production
-# reports it that way -- that is the whole point of the padding guard.
+# Every column of the three CDT outputs, in the order CDT's
+# `publish_contract.json` (contract version 1) lists them, so an override naming
+# a real column is accepted and a typo still raises. `cik` is unpadded here
+# because production reports it that way -- that is the whole point of the
+# padding guard. Amounts are decimals, as CDT publishes them.
 #
-# `end_date` defaults to None, which makes the default instrument Undated. A
-# far-future date would have made it Active without a case having to say so, and
-# any hardcoded future date silently becomes a past date eventually; the active
-# case computes its own instead.
+# `maturity_date` defaults to None, which makes the default instrument Undated.
+# A far-future date would have made it Active without a case having to say so,
+# and any hardcoded future date silently becomes a past date eventually; the
+# active case computes its own instead.
+#
+# The default parties name the borrower as well as the lender, so every debt
+# case also checks that the borrower is never listed among the parties.
+CDT_PARTIES_JSON = json.dumps(
+    [
+        {
+            "role": "lender",
+            "canonical_name": "Fixture National Bank",
+            "kind": "named",
+            "spans": [
+                {
+                    "tag_id": "tag-1",
+                    "char_start": 0,
+                    "char_end": 21,
+                    "text": "Fixture National Bank",
+                },
+            ],
+        },
+        {
+            "role": "borrower",
+            "canonical_name": "Fixture Co",
+            "kind": "named",
+            "spans": [
+                {
+                    "tag_id": "tag-2",
+                    "char_start": 40,
+                    "char_end": 50,
+                    "text": "Fixture Co",
+                },
+            ],
+        },
+    ]
+)
+
 DEFAULT_CDT_ROW: dict[str, Any] = {
     "debt_instrument_id": CDT_MENTION_ID,
     "cik": "1",
     "company_name": "FIXTURE CO",
     "seed_debt_instrument_mention_id": CDT_MENTION_ID,
     "amendment_of_debt_instrument_id": None,
-    "retired_of_debt_instrument_id": None,
+    "retired_by_debt_instrument_ids": None,
     "split_of_debt_instrument_id": None,
+    "superseded_by_debt_instrument_id": None,
+    "lineage_family_id": CDT_MENTION_ID,
+    "is_lineage_head": True,
+    "first_seen_filing_date": "2016-01-04",
+    "last_seen_filing_date": "2016-01-04",
+    "mention_count": 1,
+    "document_count": 1,
     "name": "revolving credit facility",
+    "name_source_mention_id": CDT_MENTION_ID,
+    "instrument_type": None,
+    "instrument_type_source_mention_id": None,
     "start_date": "2016-01-04",
-    "end_date": None,
-    "amount": "10000000",
-    "lenders_json": (
-        '[{"mentions": [{"char_end": 21, "char_start": 0, "tag_id": "tag-1",'
-        ' "text": "Fixture National Bank", "type": "organization"},'
-        ' {"char_end": 30, "char_start": 26, "tag_id": "tag-2",'
-        ' "text": "Bank", "type": "organization"}],'
-        ' "tag_ids": ["tag-1", "tag-2"]}]'
-    ),
-    "other_interested_parties_json": "[]",
+    "start_date_source_mention_id": CDT_MENTION_ID,
+    "maturity_date": None,
+    "maturity_source_mention_id": None,
+    "commitment_termination_date": None,
+    "commitment_termination_source_mention_id": None,
+    "principal_amount": Decimal("10000000.00"),
+    "principal_currency": "USD",
+    "principal_amount_kind": "commitment",
+    "principal_source_mention_id": CDT_MENTION_ID,
+    "outstanding_balance": None,
+    "outstanding_balance_currency": None,
+    "outstanding_balance_as_of": None,
+    "outstanding_balance_as_of_is_filing_date": None,
+    "outstanding_balance_source_mention_id": None,
+    "interest_rate_kind": None,
+    "interest_rate_pct": None,
+    "interest_rate_source_mention_id": None,
+    "parties_json": CDT_PARTIES_JSON,
+    "lender_disclosure": "complete",
+    "amendment_inferred_by": None,
+    "synthesized_only": False,
 }
 
 DEFAULT_CDT_MENTION_ROW: dict[str, Any] = {
@@ -152,18 +218,32 @@ DEFAULT_CDT_MENTION_ROW: dict[str, Any] = {
     "date": "2016-01-04",
     "raw_id": "i-1",
     "name": "revolving credit facility",
+    "instrument_type": None,
     "start_date": "2016-01-04",
-    "end_date": None,
-    "amount": "10000000",
+    "maturity_date": None,
+    "commitment_termination_date": None,
+    "principal_amount": Decimal("10000000.00"),
+    "principal_currency": "USD",
+    "principal_amount_kind": "commitment",
+    "status": None,
+    "status_date": None,
+    "interest_rate_kind": None,
+    "interest_rate_pct": None,
     "amendment_of": None,
-    "retired_of": None,
+    "retired_by_json": None,
     "split_of": None,
-    "lenders_json": "[]",
-    "other_interested_parties_json": "[]",
-    "name_json": '{"mentions": []}',
-    "start_date_json": '{"mentions": []}',
-    "end_date_json": '{"mentions": []}',
-    "amount_json": '{"currency": "USD", "mentions": []}',
+    "parties_json": CDT_PARTIES_JSON,
+    "name_json": None,
+    "start_date_json": None,
+    "maturity_date_json": None,
+    "commitment_termination_date_json": None,
+    "amounts_json": None,
+    "status_json": None,
+    "interest_rate_json": None,
+    "dates_json": None,
+    "lender_disclosure": "complete",
+    "synthesized_by": None,
+    "synthesized_from_mention_id": None,
 }
 
 DEFAULT_CDT_ITEM_ROW: dict[str, Any] = {
@@ -183,6 +263,23 @@ DEFAULT_CDT_ITEM_ROW: dict[str, Any] = {
     "start_line": 1,
     "end_line": 2,
     "section_char_count": 67,
+    "form_type": "8-K",
+}
+
+# Every column of `mention-cluster-edges`. A `member` edge assigns a mention to
+# its instrument, which is how the build finds the mentions an instrument's
+# status is read off. `run_build` derives one from each instrument's seed
+# mention when a case passes no edges, as CDT does for a single-mention
+# instrument.
+DEFAULT_CDT_EDGE_ROW: dict[str, Any] = {
+    "debt_instrument_mention_id": CDT_MENTION_ID,
+    "debt_instrument_id": CDT_MENTION_ID,
+    "cik": "1",
+    "item_id": CDT_ITEM_ID,
+    "edge_type": "member",
+    "match_score": 1.0,
+    "candidate_rank": 1,
+    "match_via": "seed",
 }
 
 # The columns of the shareholder-tracker output that `attach_shareholders`
@@ -303,6 +400,25 @@ def cdt_item_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
     return rows(DEFAULT_CDT_ITEM_ROW, overrides)
 
 
+def cdt_edge_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
+    """Builds a CDT mention-cluster-edges fixture frame from partial rows."""
+    return rows(DEFAULT_CDT_EDGE_ROW, overrides)
+
+
+def seed_member_edges(debt: pd.DataFrame) -> pd.DataFrame:
+    """One `member` edge per instrument, from its seed mention to it."""
+    return cdt_edge_rows(
+        *(
+            {"debt_instrument_mention_id": seed, "debt_instrument_id": instrument}
+            for seed, instrument in zip(
+                debt["seed_debt_instrument_mention_id"],
+                debt["debt_instrument_id"],
+                strict=True,
+            )
+        )
+    )
+
+
 def shareholder_rows(*overrides: dict[str, Any]) -> pd.DataFrame:
     """Builds a shareholder-tracker fixture frame from partial rows."""
     return rows(DEFAULT_SHAREHOLDER_ROW, overrides)
@@ -319,6 +435,7 @@ class FixtureResult:
 
     records: list[dict]
     log: list[logging.LogRecord] = field(default_factory=list)
+    error: str | None = None
 
     def by_permid(self, perm_id: str) -> dict:
         """Returns the single record for a PermID.
@@ -357,6 +474,62 @@ class _Capture(logging.Handler):
         self.records.append(record)
 
 
+def _publish_cdt(
+    root: Path,
+    frames: dict[str, pd.DataFrame],
+    *,
+    pointer_hook: Callable[[dict], dict | None] | None,
+    snapshot_file: Callable[[str], str] | None,
+    stale: dict[str, pd.DataFrame] | None,
+) -> None:
+    """Lays CDT's tables out under `root` the way a CDT publish does.
+
+    Each generation goes under `snapshots/snapshot=<run_id>/`, behind a
+    `latest.json` naming every table's path and row count.
+
+    Args:
+        root: The CDT database root to create.
+        frames: The current generation's frames, keyed by table name.
+        pointer_hook: Rewrites the pointer before it is written; `None` from it
+            means publish no pointer.
+        snapshot_file: Maps a table name to its file inside a snapshot.
+        stale: An older generation's frames, keyed by table name, or `None`.
+    """
+    file_in_snapshot = snapshot_file or (lambda name: f"{name}.parquet")
+
+    def write_generation(run_id: str, generation: dict[str, pd.DataFrame]) -> dict:
+        tables = {}
+        for name, frame in generation.items():
+            relative = f"snapshots/snapshot={run_id}/{file_in_snapshot(name)}"
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            frame.to_parquet(path, index=False)
+            tables[name] = {"path": relative, "rows": len(frame)}
+        return tables
+
+    if stale is not None:
+        write_generation(FIXTURE_CDT_STALE_RUN_ID, stale)
+        # The per-table copies a reader must not use: a publish refreshes them
+        # one at a time after the pointer, so they can lag it.
+        for name, frame in stale.items():
+            copy = root / name / "latest.parquet"
+            copy.parent.mkdir(parents=True, exist_ok=True)
+            frame.to_parquet(copy, index=False)
+
+    pointer = {
+        "run_id": FIXTURE_CDT_RUN_ID,
+        "written_at": "2026-11-01T00:00:00+00:00",
+        "schema_version": 1,
+        "contract_version": FIXTURE_CDT_CONTRACT_VERSION,
+        "publish_format_version": 1,
+        "tables": write_generation(FIXTURE_CDT_RUN_ID, frames),
+    }
+    if pointer_hook is not None:
+        pointer = pointer_hook(pointer)
+    if pointer is not None:
+        (root / "latest.json").write_text(json.dumps(pointer), encoding="utf-8")
+
+
 def run_build(
     companies: pd.DataFrame,
     structure: pd.DataFrame,
@@ -364,13 +537,17 @@ def run_build(
     debt: pd.DataFrame | None = None,
     mentions: pd.DataFrame | None = None,
     items: pd.DataFrame | None = None,
+    edges: pd.DataFrame | None = None,
     shareholders: pd.DataFrame | None = None,
     facts: pd.DataFrame | None = None,
+    cdt_pointer: Callable[[dict], dict | None] | None = None,
+    cdt_snapshot_file: Callable[[str], str] | None = None,
+    stale_cdt: dict[str, pd.DataFrame] | None = None,
     expect_failure: bool = False,
 ) -> FixtureResult:
     """Runs the whole `build_dataset` pipeline against in-memory frames.
 
-    The three CDT frames default to empty, so a case about corporate structure or
+    The CDT frames default to empty, so a case about corporate structure or
     registrants says nothing about debt. They cannot default to one instrument:
     a case that overrides the company CIK -- every multi-CIK case does -- would
     then trip the CDT join guard on a dataset it never meant to describe.
@@ -381,12 +558,23 @@ def run_build(
         debt: A CDT debt-instruments frame, from `cdt_rows`.
         mentions: A CDT debt-instrument-mentions frame, from `cdt_mention_rows`.
         items: A CDT items frame, from `cdt_item_rows`.
+        edges: A CDT mention-cluster-edges frame, from `cdt_edge_rows`.
+            Defaults to `seed_member_edges(debt)`, so each instrument's seed
+            mention is its one member mention.
         shareholders: A shareholder-tracker frame, from `shareholder_rows`.
             Defaults to empty, so a case about another section says nothing about
             shareholders.
         facts: A company-facts frame, from `company_facts_rows`. Defaults to
             empty, so a case about another section leaves every registrant's
             `facts` None.
+        cdt_pointer: Rewrites CDT's `latest.json` before it is written; return
+            `None` to publish no pointer at all. For cases about a bad pointer.
+        cdt_snapshot_file: Maps a CDT table name to its file inside the
+            snapshot. Defaults to CDT's `<table>.parquet`.
+        stale_cdt: CDT frames, keyed by table name, published as an older
+            generation beside the current one -- both as a prior snapshot and
+            as the per-table `<table>/latest.parquet` copies -- so a case can
+            prove the build reads only what the pointer names.
         expect_failure: When true, a `RuntimeError` from the build is caught and
             recorded rather than raised -- for cases asserting the build refuses
             bad input.
@@ -404,6 +592,7 @@ def run_build(
     debt = cdt_rows() if debt is None else debt
     mentions = cdt_mention_rows() if mentions is None else mentions
     items = cdt_item_rows() if items is None else items
+    edges = seed_member_edges(debt) if edges is None else edges
     shareholders = shareholder_rows() if shareholders is None else shareholders
     facts = (
         pd.DataFrame(columns=list(COMPANY_FACTS_COLUMNS)) if facts is None else facts
@@ -413,17 +602,24 @@ def run_build(
         tmpdir = Path(tmp)
         company_path = tmpdir / "company_info.parquet"
         structure_path = tmpdir / "corporate_structure.parquet"
-        debt_path = tmpdir / "cdt_debt_instruments.parquet"
-        mentions_path = tmpdir / "cdt_mentions.parquet"
-        items_path = tmpdir / "cdt_items.parquet"
+        cdt_root = tmpdir / "cdt"
         shareholders_path = tmpdir / "shareholders.parquet"
         facts_path = tmpdir / "company_facts.parquet"
         output_dir = tmpdir / "output"
         companies.to_parquet(company_path, index=False)
         structure.to_parquet(structure_path, index=False)
-        debt.to_parquet(debt_path, index=False)
-        mentions.to_parquet(mentions_path, index=False)
-        items.to_parquet(items_path, index=False)
+        _publish_cdt(
+            cdt_root,
+            {
+                "debt-instruments": debt,
+                "debt-instrument-mentions": mentions,
+                "items": items,
+                "mention-cluster-edges": edges,
+            },
+            pointer_hook=cdt_pointer,
+            snapshot_file=cdt_snapshot_file,
+            stale=stale_cdt,
+        )
         shareholders.to_parquet(shareholders_path, index=False)
         facts.to_parquet(facts_path, index=False)
 
@@ -432,9 +628,7 @@ def run_build(
             for key in (
                 "COMPANY_INFO_FILE_PATH",
                 "CORPORATE_STRUCTURE_FILE_PATH",
-                "CDT_DEBT_INSTRUMENTS_FILE_PATH",
-                "CDT_MENTIONS_FILE_PATH",
-                "CDT_ITEMS_FILE_PATH",
+                "CDT_DATABASE_DIR",
                 "COMPANY_FACTS_FILE_PATH",
                 "SHAREHOLDERS_FILE_PATH",
                 "OUTPUT_DIR",
@@ -442,9 +636,7 @@ def run_build(
         }
         os.environ["COMPANY_INFO_FILE_PATH"] = str(company_path)
         os.environ["CORPORATE_STRUCTURE_FILE_PATH"] = str(structure_path)
-        os.environ["CDT_DEBT_INSTRUMENTS_FILE_PATH"] = str(debt_path)
-        os.environ["CDT_MENTIONS_FILE_PATH"] = str(mentions_path)
-        os.environ["CDT_ITEMS_FILE_PATH"] = str(items_path)
+        os.environ["CDT_DATABASE_DIR"] = str(cdt_root)
         os.environ["COMPANY_FACTS_FILE_PATH"] = str(facts_path)
         os.environ["SHAREHOLDERS_FILE_PATH"] = str(shareholders_path)
         os.environ["OUTPUT_DIR"] = str(output_dir)
@@ -453,10 +645,10 @@ def run_build(
             # swallow it so the runner's own output stays readable.
             with contextlib.redirect_stdout(io.StringIO()):
                 build_dataset.main(logger)
-        except RuntimeError:
+        except RuntimeError as e:
             if not expect_failure:
                 raise
-            return FixtureResult(records=[], log=capture.records)
+            return FixtureResult(records=[], log=capture.records, error=str(e))
         finally:
             for key, value in previous.items():
                 if value is None:

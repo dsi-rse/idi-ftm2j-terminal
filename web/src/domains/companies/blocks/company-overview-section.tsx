@@ -16,10 +16,10 @@ type CompanyOverviewSectionProps = {
  * null when the fact has no processor yet — those render an explicit unavailable
  * state rather than a fabricated figure.
  *
- * A count, its unit, and a "View all" link, and nothing else. Each box used to carry a
- * detail line too (jurisdictions, citation, latest filing date), which is
- * exactly what the section it links to opens with; the box is the way in, not
- * a second copy of the section's header.
+ * A count, its unit, and a "View all" link, and nothing else. Each box used
+ * to carry a detail line too (jurisdictions, citation, latest filing date),
+ * which is exactly what the section it links to opens with; the box is the way
+ * in, not a second copy of the section's header.
  */
 type Gateway = {
   /** Target section id, without the `#`. */
@@ -48,9 +48,9 @@ function treeGateway(company: Company): Gateway {
  *
  * The count is instruments, not money. This slot was labelled "Outstanding debt"
  * while the section was mocked, and it cannot be: no CDT output supplies an FX
- * rate, in-scope instruments span five currencies, and 385 of 1,132 report no
- * amount at all, so any total would both mix currencies and understate by a
- * third. A count is a number the data actually supports.
+ * rate, in-scope instruments span several currencies, and many report no amount
+ * at all, so any total would both mix currencies and understate. A count is a
+ * number the data actually supports.
  */
 function debtGateway(company: Company): Gateway {
   const debt = company.currentCommercialDebt;
@@ -109,7 +109,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       <span
         className={cn(
           unavailable
-            ? "type-display tracking-tight text-lg md:text-xl font-normal text-muted"
+            ? "type-display text-lg md:text-xl font-normal text-muted"
             : "type-stat text-3xl md:text-4xl",
         )}
       >

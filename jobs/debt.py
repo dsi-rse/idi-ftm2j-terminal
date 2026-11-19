@@ -1,110 +1,199 @@
 """Commercial-debt attach: resolves CDT debt-instrument extractions to instruments and holdings on the built company records."""
 
 # Standard library imports
-import json
 import logging
+from collections import Counter
+from urllib.parse import quote
 
 # Third-party imports
 import pandas as pd
 
 # Local imports
 from constants import (
-    CDT_FORM_TYPE,
+    CDT_DASHBOARD_URL,
+    CDT_FORM_TYPE_8K,
     CDT_ITEM_COLUMNS,
+    CDT_LENDER_DISCLOSURE_COLLECTIVE_PRESENT,
+    CDT_MEMBER_EDGE_TYPE,
     CIK_WIDTH,
-    DEBT_STATUS_ACTIVE,
-    DEBT_STATUS_UNDATED,
+    DEBT_CLOSED_STATUSES,
+    DEBT_STATUS_LABELS,
+    DEBT_STATUS_RENDERED_LABELS,
+    DEBT_STATUS_UNKNOWN,
 )
 from helpers import (
     _clean,
-    extract_lender_labels,
+    extract_parties,
     parse_amount,
     parse_iso_date,
 )
+from lifecycle import InstrumentStatus, derive_statuses
 from output import normalize_cik
 
 
-def build_debt_source_name(item: str | None) -> str:
-    """Names the citation after the 8-K item the instrument was disclosed under.
+def build_debt_source_name(form_type: str | None, item: str | None) -> str:
+    """Names the citation after the filing the instrument was disclosed in.
 
     Parallel to `build_source_name` for corporate structure: the citation says
-    which part of which form it came from. Six items appear -- 1.01 and 1.02
-    (entering and terminating a material definitive agreement), 2.03 and 2.04
-    (creating and accelerating a financial obligation), 7.01 (Regulation FD) and
-    8.01 (other events) -- and the number is how EDGAR itself labels them.
+    which part of which form it came from. An 8-K citation carries its item --
+    1.01 and 1.02 (entering and terminating a material definitive agreement),
+    2.03 and 2.04 (creating and accelerating a financial obligation), 7.01
+    (Regulation FD), 8.01 (other events) -- the number EDGAR itself labels them
+    with. A 6-K has no items; its `item` is CDT's internal window id, which means
+    nothing to a reader, so the citation names the form alone.
 
     Args:
-        item: The 8-K item number, e.g. `"1.01"`.
+        form_type: `items.form_type`, `"8-K"` or `"6-K"`. Defaults to 8-K when
+            blank.
+        item: `items.item`.
 
     Returns:
-        A source name such as `"SEC 8-K Item 1.01"`.
+        A source name such as `"SEC 8-K Item 1.01"` or `"SEC 6-K"`.
     """
-    if not item:
-        return f"SEC {CDT_FORM_TYPE}"
-    return f"SEC {CDT_FORM_TYPE} Item {item}"
+    form = form_type or CDT_FORM_TYPE_8K
+    if form != CDT_FORM_TYPE_8K or not item:
+        return f"SEC {form}"
+    return f"SEC {form} Item {item}"
 
 
-def parse_amount_currency(value: object, logger: logging.Logger) -> str | None:
-    """Reads the ISO 4217 currency out of the CDT `amount_json` blob.
+# The `debt-instruments` columns `lifecycle.derive_status` reads, and the
+# `debt-instrument-mentions` columns it reads (`decisive_event`,
+# `planned_retirement_date`, `expected_start`, `recency_key`).
+_LIFECYCLE_INSTRUMENT_COLUMNS: tuple[str, ...] = (
+    "debt_instrument_id",
+    "superseded_by_debt_instrument_id",
+    "is_lineage_head",
+    "retired_by_debt_instrument_ids",
+    "maturity_date",
+    "commitment_termination_date",
+    "start_date",
+)
+_LIFECYCLE_DATE_COLUMNS: tuple[str, ...] = (
+    "maturity_date",
+    "commitment_termination_date",
+    "start_date",
+)
+_LIFECYCLE_MENTION_COLUMNS: tuple[str, ...] = (
+    "debt_instrument_mention_id",
+    "date",
+    "accession_number",
+    "item_id",
+    "status",
+    "status_date",
+    "dates_json",
+)
 
-    The currency lives only in the mentions file -- `debt-instruments.amount` is
-    a bare number with no currency column -- so this is the reason the mentions
-    join carries anything beyond provenance.
 
-    There is no conversion, here or anywhere: no CDT output supplies an FX rate,
-    so the spec's "Amount USD" field cannot be produced. Amounts are reported in
-    whatever the filing said, and the code travels with the number so the UI can
-    show it.
+def _lifecycle_records(df: pd.DataFrame, columns: tuple[str, ...]) -> list[dict]:
+    """Turns frame rows into the plain dicts `lifecycle.py` was written against.
 
-    Args:
-        value: A raw `amount_json` cell.
-        logger: A standard logger instance.
-
-    Returns:
-        The currency code, or `None` if the blob names none.
+    The CDT dashboard hands `lifecycle.py` rows read with pyarrow, where a
+    missing value is `None`. A pandas frame holds `NaN` instead, and `NaN` is
+    truthy: `if not status` would let a blank status through as a decisive
+    event, and `retired_by_ids` would parse the string "nan". So every missing
+    cell becomes `None` here, and the vendored module stays untouched.
     """
-    text = _clean(value)
-    if not text:
-        return None
-    try:
-        payload = json.loads(text)
-    except ValueError:
-        logger.warning(
-            "Could not parse an amount_json cell as JSON; leaving the currency "
-            "unset. Cell begins: %.80s",
-            text,
-        )
-        return None
-    if not isinstance(payload, dict):
-        return None
-    return _clean(payload.get("currency"))
+    subset = df[list(columns)].astype(object)
+    return subset.where(subset.notna(), None).to_dict("records")
 
 
-def collect_superseded_instrument_ids(instruments_df: pd.DataFrame) -> set[str]:
-    """Collects the instruments that a later filing replaced.
+def derive_debt_statuses(
+    instruments_df: pd.DataFrame,
+    mentions_df: pd.DataFrame,
+    edges_df: pd.DataFrame,
+    run_date: str,
+) -> dict[str, InstrumentStatus]:
+    """Every instrument's status, decided exactly as the CDT dashboard decides it.
 
-    An instrument names its predecessor through one of three columns:
-    `amendment_of_debt_instrument_id`, `retired_of_debt_instrument_id`, or
-    `split_of_debt_instrument_id`. Every id they name is itself a row in the same
-    table, so this is a membership test rather than a graph walk -- there is no
-    chain to follow, and 65 of 1,640 instruments are named.
+    The inputs are assembled the way the dashboard's publisher assembles them
+    (`build_snapshot` in its `snapshot.py`): an instrument's mentions are those
+    a `member` edge in `mention-cluster-edges` assigns to it, and the reference
+    date is the build date. `lifecycle.derive_statuses` then decides. It reads
+    the maturity and the commitment termination date (the later governs, so a
+    revolver whose filing gives only a commitment end is dated by it), the
+    newest decisive event among the mentions (repaid, terminated, exchanged,
+    defaulted, announced), planned retirements and closings, amendment
+    lineage, and retirement pointers.
+
+    One input is normalized first: an instrument date that does not parse is
+    read as absent. CDT's contract makes these ISO dates, so on contract data
+    this changes nothing; off it, `lifecycle.py` compares dates as strings, and
+    "as soon as practicable" would sort after every real date and read as a
+    maturity still ahead.
 
     Args:
         instruments_df: The debt-instruments dataset.
+        mentions_df: The debt-instrument-mentions dataset.
+        edges_df: The mention-cluster-edges dataset, read narrow per
+            `CDT_EDGE_COLUMNS`.
+        run_date: ISO-8601 date this build ran.
 
     Returns:
-        The `debt_instrument_id` values that have been superseded.
+        Each `debt_instrument_id` mapped to its `InstrumentStatus`.
     """
-    superseded: set[str] = set()
-    for column in (
-        "amendment_of_debt_instrument_id",
-        "retired_of_debt_instrument_id",
-        "split_of_debt_instrument_id",
+    instruments = _lifecycle_records(instruments_df, _LIFECYCLE_INSTRUMENT_COLUMNS)
+    for instrument in instruments:
+        for column in _LIFECYCLE_DATE_COLUMNS:
+            instrument[column] = parse_iso_date(instrument[column])
+        # `derive_status` tests `is_lineage_head is False`, which a numpy bool
+        # would fail.
+        head = instrument["is_lineage_head"]
+        instrument["is_lineage_head"] = None if head is None else bool(head)
+
+    mention_by_id = {
+        str(mention["debt_instrument_mention_id"]): mention
+        for mention in _lifecycle_records(mentions_df, _LIFECYCLE_MENTION_COLUMNS)
+        if mention["debt_instrument_mention_id"] is not None
+    }
+    members = edges_df[edges_df["edge_type"] == CDT_MEMBER_EDGE_TYPE]
+    mentions_by_instrument: dict[str, list[dict]] = {}
+    for mention_id, instrument_id in zip(
+        members["debt_instrument_mention_id"],
+        members["debt_instrument_id"],
+        strict=True,
     ):
-        superseded |= {
-            text for text in (_clean(value) for value in instruments_df[column]) if text
-        }
-    return superseded
+        mention = mention_by_id.get(str(mention_id))
+        if mention is not None:
+            mentions_by_instrument.setdefault(str(instrument_id), []).append(mention)
+
+    return derive_statuses(
+        instruments, mentions_by_instrument, reference_date=run_date
+    )
+
+
+def debt_status_label(status: InstrumentStatus) -> str:
+    """How a rendered status reads -- the CDT dashboard's `formatStatus`.
+
+    Args:
+        status: A status outside `DEBT_CLOSED_STATUSES`.
+
+    Returns:
+        A member of the `status` union in `web/src/types/domain.ts`, such as
+        `"Active"`, `"Active - likely"`, or `"Unknown"`.
+
+    Raises:
+        `RuntimeError` if `lifecycle.py` returned a status, or a status and
+            subtype, this build has no label for -- a newer copy of it added
+            one, and the frontend type needs the new member before it can ship.
+    """
+    if status.status is None:
+        return DEBT_STATUS_UNKNOWN
+    label = DEBT_STATUS_LABELS.get(status.status)
+    if label is None:
+        raise RuntimeError(
+            f"lifecycle.py returned the debt status {status.status!r}, which "
+            "has no label in `DEBT_STATUS_LABELS`. Add it there and to the "
+            "`status` union in `web/src/types/domain.ts`."
+        )
+    rendered = f"{label} - {status.subtype}" if status.subtype else label
+    if rendered not in DEBT_STATUS_RENDERED_LABELS:
+        raise RuntimeError(
+            f"lifecycle.py returned the debt status {status.status!r} with the "
+            f"subtype {status.subtype!r}, which reads {rendered!r} -- not a "
+            "label in `DEBT_STATUS_RENDERED_LABELS`. Add it there and to the "
+            "`status` union in `web/src/types/domain.ts`."
+        )
+    return rendered
 
 
 def resolve_debt_documents(
@@ -115,14 +204,14 @@ def resolve_debt_documents(
 ) -> pd.DataFrame:
     """Joins each debt instrument to the 8-K it was extracted from.
 
-    `debt-instruments/latest.parquet` carries no provenance at all -- no document
-    link, filing date, accession number, or access date -- so a citation is only
-    possible through the two sibling CDT outputs:
+    `debt-instruments` carries no provenance at all -- no document link, filing
+    date, accession number, or access date -- so a citation is only possible
+    through the two sibling CDT outputs:
 
         debt-instruments.seed_debt_instrument_mention_id
-          -> debt-instrument-mentions.debt_instrument_mention_id  (amount_json)
+          -> debt-instrument-mentions.debt_instrument_mention_id
           -> debt-instrument-mentions.item_id
-          -> items.item_id                                        (url, date, item)
+          -> items.item_id                      (url, date, item, form_type)
 
     Both sides are de-duplicated first, and neither drop is cosmetic. `mentions`
     carries 23 duplicate ids -- exact repeats within one item -- and `items`
@@ -137,7 +226,7 @@ def resolve_debt_documents(
         logger: A standard logger instance.
 
     Returns:
-        `instruments_df` with `url`, `date`, `item`, and `amount_json` attached.
+        `instruments_df` with `url`, `date`, `item`, and `form_type` attached.
         A row that resolved no document keeps those columns as nulls rather than
         failing here -- whether that matters depends on whether the row renders,
         which this function cannot know. `require_renderable_citations` decides.
@@ -159,7 +248,7 @@ def resolve_debt_documents(
     )
 
     resolved = instruments_df.merge(
-        mentions[["debt_instrument_mention_id", "item_id", "amount_json"]],
+        mentions[["debt_instrument_mention_id", "item_id"]],
         left_on="seed_debt_instrument_mention_id",
         right_on="debt_instrument_mention_id",
         how="left",
@@ -205,8 +294,9 @@ def require_renderable_citations(
     resolved to a PermID renders nowhere -- 14 of them today across 9 CIKs, a
     bucket that grows whenever CDT covers a company the PermID mapping does not
     yet -- and failing the whole build over a row no reader can reach trades the
-    site for a rule about invisible data. Matured and superseded instruments are
-    outside the mask for the same reason.
+    site for a rule about invisible data. Closed instruments -- matured, repaid,
+    superseded, and the rest of `DEBT_CLOSED_STATUSES` -- are outside the mask
+    for the same reason.
 
     Those rows still get reported. A processor-run mismatch that lands only on
     unrenderable instruments is worth knowing about before it lands on a
@@ -247,7 +337,7 @@ def require_renderable_citations(
         logger.warning(
             "%d debt instruments resolved no 8-K url or no parseable filing "
             "date, but none of them renders -- their CIK has no company page, or "
-            "they are matured or superseded -- so the build continues. This is "
+            "they are closed -- so the build continues. This is "
             "still a sign the three CDT files are not from one processor run. "
             "Sample debt_instrument_id: %s",
             int(hidden.sum()),
@@ -262,7 +352,7 @@ def build_debt_instrument(
 
     Args:
         row: One row of `resolve_debt_documents` output.
-        status: `DEBT_STATUS_ACTIVE` or `DEBT_STATUS_UNDATED`.
+        status: The instrument's status label, from `debt_status_label`.
         run_date: ISO-8601 date this build ran, used as `lastAccessed`.
         logger: A standard logger instance.
 
@@ -278,7 +368,9 @@ def build_debt_instrument(
         # instead of the address is how a citation quietly starts 404ing.
         "sources": [
             {
-                "name": build_debt_source_name(_clean(row["item"])),
+                "name": build_debt_source_name(
+                    _clean(row["form_type"]), _clean(row["item"])
+                ),
                 "url": _clean(row["url"]),
                 # Not the filing date -- that is `asOf` below. Nothing in the
                 # three CDT files records when the document was retrieved, so
@@ -294,11 +386,28 @@ def build_debt_instrument(
         # carries the latter when the filing states it.
         "asOf": parse_iso_date(row["date"]),
         "instrumentName": _clean(row["name"]),
-        "lenders": extract_lender_labels(row["lenders_json"], logger),
-        "amount": parse_amount(row["amount"]),
-        "currency": parse_amount_currency(row["amount_json"], logger),
+        # The instrument's page on the CDT dashboard. The id is percent-encoded
+        # whole (`di::` becomes `di%3A%3A`), as the dashboard's own links do.
+        "cdtUrl": f"{CDT_DASHBOARD_URL}/debt-instrument/"
+        f"{quote(str(row['debt_instrument_id']), safe='')}",
+        "parties": extract_parties(row["parties_json"], logger),
+        # The filings also describe lenders they never name. The CDT dashboard
+        # ends such an instrument's lender list with "other lenders not
+        # named"; the frontend notes it the same way, saying "lenders not
+        # named" when no lender is named at all.
+        "unnamedLenders": _clean(row["lender_disclosure"])
+        == CDT_LENDER_DISCLOSURE_COLLECTIVE_PRESENT,
+        # Amount and currency come from one CDT mention together, so the code
+        # cannot detach from its figure. Nothing is converted: no CDT output
+        # supplies an FX rate, so the spec's "Amount USD" cannot be produced, and
+        # the code travels with the number for the UI to show.
+        "amount": parse_amount(row["principal_amount"]),
+        "currency": _clean(row["principal_currency"]),
         "startDate": parse_iso_date(row["start_date"]),
-        "endDate": parse_iso_date(row["end_date"]),
+        "endDate": parse_iso_date(row["maturity_date"]),
+        # A revolver's filing often states when the commitment ends rather
+        # than a maturity. Status already reads it; this lets the row show it.
+        "commitmentEndDate": parse_iso_date(row["commitment_termination_date"]),
         "status": status,
     }
 
@@ -308,6 +417,7 @@ def attach_commercial_debt(
     instruments_df: pd.DataFrame,
     mentions_df: pd.DataFrame,
     items_df: pd.DataFrame,
+    edges_df: pd.DataFrame,
     run_date: str,
     logger: logging.Logger,
 ) -> None:
@@ -315,18 +425,21 @@ def attach_commercial_debt(
 
     Mutates `companies` in place, filling `currentCommercialDebt`.
 
-    Scope deliberately departs from the FTM2J tech spec. The spec admits an
-    instrument only when its end date is in the future, which on this data means
-    156 instruments across 55 of 4,832 companies -- and silently discards the 63%
-    of rows whose filing stated no end date at all. Undated instruments are kept
-    and labelled instead, which is 1,132 instruments across 186 companies.
-    Matured and superseded instruments are excluded, as the spec requires.
+    Scope is the CDT dashboard's lifecycle, not an end-date cutoff: every
+    instrument `derive_debt_statuses` does not call closed renders, labelled
+    with its status. That departs from the FTM2J tech spec, which admits an
+    instrument only when its end date is in the future and so would discard the
+    majority whose filings state none. Closed instruments -- matured, repaid,
+    terminated, exchanged, defaulted, or superseded -- are excluded, as the
+    spec requires; the terminal and the dashboard agree on which those are
+    because both run the same `lifecycle.py`.
 
     Args:
         companies: `Company` records, each carrying a `registrants` list.
         instruments_df: The debt-instruments dataset.
         mentions_df: The debt-instrument-mentions dataset.
         items_df: The items dataset.
+        edges_df: The mention-cluster-edges dataset.
         run_date: ISO-8601 date this build ran.
         logger: A standard logger instance.
 
@@ -353,7 +466,7 @@ def attach_commercial_debt(
     # corporate-structure join, and the same response.
     #
     # Deliberately not "no company ended up with debt": every instrument being
-    # filtered out as matured or superseded is a legitimate outcome for a small
+    # filtered out as closed is a legitimate outcome for a small
     # dataset, and conflating it with a padding bug makes the guard fire on
     # correct input.
     if len(resolved) and not known_cik.any():
@@ -364,35 +477,22 @@ def attach_commercial_debt(
             f"zero-padded to {CIK_WIDTH} digits."
         )
 
-    superseded = collect_superseded_instrument_ids(instruments_df)
-    is_superseded = resolved["debt_instrument_id"].map(
-        lambda value: _clean(value) in superseded
-    )
-
-    # NaT covers both a blank end date and one that will not parse, and both mean
-    # the same thing here: the filing gave us nothing to compare against, so the
-    # instrument is Undated rather than assumed expired. Comparing against the
-    # build date rather than a fresh `today()` per row keeps one run internally
-    # consistent.
-    end_dates = pd.to_datetime(resolved["end_date"], errors="coerce")
-    as_of_build = pd.Timestamp(run_date)
-    matured = end_dates <= as_of_build
+    statuses = derive_debt_statuses(instruments_df, mentions_df, edges_df, run_date)
+    status_of = resolved["debt_instrument_id"].map(lambda value: statuses[str(value)])
+    closed = status_of.map(lambda status: status.status in DEBT_CLOSED_STATUSES)
 
     # The set that reaches a page, and so the set that must be citable. Unknown
     # CIKs were previously built and then dropped by the loop below, which read
     # only its own registrants -- the output is the same, but the citation guard
     # now covers exactly what ships rather than the whole file.
-    renders = known_cik & ~is_superseded & ~matured
+    renders = known_cik & ~closed
     require_renderable_citations(resolved, renders, logger)
 
     in_scope = resolved[renders]
-    statuses = [
-        DEBT_STATUS_UNDATED if pd.isna(end) else DEBT_STATUS_ACTIVE
-        for end in end_dates[renders]
-    ]
+    labels = [debt_status_label(status) for status in status_of[renders]]
 
     by_cik: dict[str, list[dict]] = {}
-    for (_, row), status in zip(in_scope.iterrows(), statuses, strict=True):
+    for (_, row), status in zip(in_scope.iterrows(), labels, strict=True):
         by_cik.setdefault(row["cik"], []).append(
             build_debt_instrument(row, status, run_date, logger)
         )
@@ -414,38 +514,44 @@ def attach_commercial_debt(
         company["currentCommercialDebt"] = instruments
         matched += 1
 
-    # Counted off the records rather than off `statuses`, which also holds
+    # Counted off the records rather than off `labels`, which also holds
     # instruments belonging to a CIK that no company page covers. Reporting those
     # as attached would overstate coverage by exactly the rows that went nowhere.
-    attached = [
-        instrument
+    attached = Counter(
+        instrument["status"]
         for company in companies
         for instrument in company["currentCommercialDebt"]
-    ]
-    active = sum(1 for i in attached if i["status"] == DEBT_STATUS_ACTIVE)
+    )
     logger.info(
         "Attached %d debt instruments to %d of %d companies; %d have no "
-        "in-scope commercial debt. %d are active and %d undated.",
-        len(attached),
+        "in-scope commercial debt. By status: %s.",
+        attached.total(),
         matched,
         len(companies),
         len(companies) - matched,
-        active,
-        len(attached) - active,
+        _format_counts(attached),
     )
 
     # Exclusions are reported over the population that could have been rendered
     # -- instruments whose CIK has a company page -- so the numbers add up
     # against the attached count above rather than against the whole file.
+    excluded = Counter(
+        f"{status.status} - {status.subtype}" if status.subtype else status.status
+        for status in status_of[known_cik & closed]
+    )
     logger.info(
-        "Excluded %d superseded instruments (amended, retired, or split) and "
-        "%d that matured on or before %s, of those whose CIK has a company "
-        "page. A further %d in-scope instruments belong to %d CIKs that "
-        "company-info has not resolved to a PermID, so they are not rendered "
-        "anywhere.",
-        int((known_cik & is_superseded & ~matured).sum()),
-        int((known_cik & ~is_superseded & matured).sum()),
+        "Excluded %d closed instruments of those whose CIK has a company page, "
+        "as of %s: %s. A further %d in-scope instruments belong to %d CIKs "
+        "that company-info has not resolved to a PermID, so they are not "
+        "rendered anywhere.",
+        excluded.total(),
         run_date,
-        int((~known_cik & ~is_superseded & ~matured).sum()),
+        _format_counts(excluded) or "none",
+        int((~known_cik & ~closed).sum()),
         resolved.loc[~known_cik, "cik"].nunique(),
     )
+
+
+def _format_counts(counts: Counter) -> str:
+    """Renders a `Counter` as `"Active 3, Unknown 1"`, largest first."""
+    return ", ".join(f"{key} {count}" for key, count in counts.most_common())
