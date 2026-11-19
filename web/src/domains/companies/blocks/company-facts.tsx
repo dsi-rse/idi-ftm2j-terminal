@@ -231,13 +231,15 @@ function FactSources({
 }
 
 /**
- * The company's headline facts, opening the Overview card: industry,
- * headquarters and listing, then revenue and public float, in one row on
+ * The company's headline facts, opening the Overview card: listing,
+ * headquarters, revenue, public float and industry, in one row on
  * desktop, with one source line under the lot. These were the bordered cells
  * of the page header until #67.
  *
- * Identity first (industry, headquarters, listing), then size (revenue, public
- * float), in one row of equal columns with no group labels. Citations are a
+ * Listing first, as the fact that most tells one company from another
+ * (headquarters is "United States" for most of them), then headquarters,
+ * revenue and public float, then industry last, where its long names have room
+ * to wrap; one evenly spaced row, no group labels. Citations are a
  * footnote, not a divider, so the order follows what a reader asks rather than
  * which dataset answered.
  *
@@ -264,48 +266,64 @@ export function CompanyFacts({ company }: { company: Company }) {
 
   return (
     <div className={cn("flex flex-col gap-4")}>
-      {/* One list of five equal columns from md, so every fact starts an equal
-          step from the last, industry included; a long industry name wraps
-          inside its column. On a phone, two columns, industry on a line of its
-          own. A description list, so a screen reader announces each label with
-          its value. */}
-      <dl
-        className={cn("m-0 grid grid-cols-2 md:grid-cols-5 gap-x-8 gap-y-4")}
-        aria-label="Company facts"
-      >
-        <div className={cn("col-span-2 md:col-span-1 min-w-0")}>
+      {/* Industry goes last. The four short facts keep their natural width
+          with one fixed gap between each, and industry, the one long value,
+          takes whatever width is left (`minmax(0,1fr)`) and wraps inside it.
+          So every gap is the same and the row still fills the card, without
+          pinning the last fact to the card's right edge, which is what
+          sharing the leftover space between columns did.
+
+          Steps follow the card's own width (a container query), not the
+          window's, since the search rail takes a variable share of the
+          window: a wide card holds all five in one row, a medium one moves
+          industry to its own line under the other four, and a narrow one
+          falls back to two columns. A description list, so a screen reader
+          announces each label with its value. */}
+      <div className={cn("@container")}>
+        <dl
+          className={cn(
+            "m-0 grid grid-cols-2 gap-x-8 gap-y-4",
+            "@xl:grid-cols-[repeat(4,auto)] @xl:gap-x-12",
+            "@3xl:grid-cols-[repeat(4,auto)_minmax(0,1fr)]",
+          )}
+          aria-label="Company facts"
+        >
           <Fact
-            label="Industry"
-            value={industry ?? NOT_AVAILABLE}
-            muted={!industry}
+            label="Listing"
+            value={listing}
+            muted={!ticker && !exchange}
+            figure
           />
-        </div>
-        <Fact
-          label="Headquarters"
-          value={company.hqCountry ?? NOT_AVAILABLE}
-          muted={!company.hqCountry}
-        />
-        <Fact
-          label="Listing"
-          value={listing}
-          muted={!ticker && !exchange}
-          figure
-        />
-        <Fact
-          label="Revenue"
-          value={revenue.value}
-          muted={revenue.muted}
-          figure
-          info={REVENUE_INFO}
-        />
-        <Fact
-          label="Public Float"
-          value={publicFloat.value}
-          muted={publicFloat.muted}
-          figure
-          info={publicFloatInfo(facts?.publicFloat?.asOf ?? null)}
-        />
-      </dl>
+          <Fact
+            label="Headquarters"
+            value={company.hqCountry ?? NOT_AVAILABLE}
+            muted={!company.hqCountry}
+          />
+          <Fact
+            label="Revenue"
+            value={revenue.value}
+            muted={revenue.muted}
+            figure
+            info={REVENUE_INFO}
+          />
+          <Fact
+            label="Public Float"
+            value={publicFloat.value}
+            muted={publicFloat.muted}
+            figure
+            info={publicFloatInfo(facts?.publicFloat?.asOf ?? null)}
+          />
+          <div
+            className={cn("col-span-2 @xl:col-span-4 @3xl:col-span-1 min-w-0")}
+          >
+            <Fact
+              label="Industry"
+              value={industry ?? NOT_AVAILABLE}
+              muted={!industry}
+            />
+          </div>
+        </dl>
+      </div>
       <FactSources company={company} facts={facts} />
     </div>
   );

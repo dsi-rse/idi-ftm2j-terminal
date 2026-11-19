@@ -16,7 +16,7 @@ type CompanyOverviewSectionProps = {
  * null when the fact has no processor yet — those render an explicit unavailable
  * state rather than a fabricated figure.
  *
- * A count, its unit, and the link, and nothing else. Each box used to carry a
+ * A count, its unit, and a "View all" link, and nothing else. Each box used to carry a
  * detail line too (jurisdictions, citation, latest filing date), which is
  * exactly what the section it links to opens with; the box is the way in, not
  * a second copy of the section's header.
@@ -27,7 +27,6 @@ type Gateway = {
   kicker: string;
   value: string | null;
   unit: string;
-  link: string;
 };
 
 /**
@@ -40,7 +39,6 @@ function treeGateway(company: Company): Gateway {
     section: "tree",
     kicker: "Corporate Tree",
     unit: "Subsidiaries traced",
-    link: "View corporate tree",
     value: relationships.length.toLocaleString("en-US"),
   };
 }
@@ -60,7 +58,6 @@ function debtGateway(company: Company): Gateway {
     section: "debt",
     kicker: "Commercial Debt",
     unit: debt.length === 1 ? "Instrument disclosed" : "Instruments disclosed",
-    link: "View commercial debt",
     value: debt.length.toLocaleString("en-US"),
   };
 }
@@ -82,7 +79,6 @@ function shareholdersGateway(company: Company): Gateway {
     // Holdings, not holders: share classes are not collapsed, so one investor
     // can be several rows. Counting them "holders" would overstate the roster.
     unit: holdings.length === 1 ? "Holding disclosed" : "Holdings disclosed",
-    link: "View shareholders",
     value: holdings.length.toLocaleString("en-US"),
   };
 }
@@ -120,9 +116,10 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
         {unavailable ? "Not available" : gateway.value}
       </span>
       <span className="type-value">{gateway.unit}</span>
-      <span className="mt-2 type-caption text-primary">
-        {gateway.link} →
-      </span>
+      {/* "View all", not "View corporate tree": the kicker above already
+          names the section, and repeating it made the gold link the loudest
+          text on the card. The whole tile is the link, so this is the cue. */}
+      <span className="mt-2 type-caption text-primary">View all →</span>
     </a>
   );
 }
