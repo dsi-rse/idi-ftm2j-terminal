@@ -77,24 +77,30 @@ SHAREHOLDER_SOURCE_NAME_FALLBACK = "Shareholder disclosure"
 # names the form alone.
 CDT_FORM_TYPE_8K = "8-K"
 
-# The `parties_json` role whose parties are rendered as an instrument's lenders.
 # CDT labels every party cluster with one role (`lender`, `borrower`, `agent`,
-# `trustee`, `underwriter`, `guarantor`, `other`); before it did, the borrower
-# and the underwriters reached the frontend as "lenders".
+# `trustee`, `underwriter`, `guarantor`, `other`). Every role but the borrower
+# -- the company whose page this is, or its subsidiary -- renders as one of the
+# instrument's parties, with its role; lenders are listed first.
 CDT_LENDER_ROLE = "lender"
+CDT_BORROWER_ROLE = "borrower"
 
 # The `parties_json` kind of a party the filing actually names. The other kind,
 # `collective`, is a cluster whose every span is a role word or pronoun -- "the
-# lenders party thereto", "Holders" -- which says a lender exists but not who.
-# Only named lenders are rendered, matching the CDT dashboard's own party lists.
+# lenders party thereto", "Holders" -- which says a party exists but not who.
+# Only named parties are rendered, matching the CDT dashboard's own party lists.
 CDT_NAMED_PARTY_KIND = "named"
 
 # CDT's `lender_disclosure` when some filing describes lenders without naming
 # them ("the other lenders party thereto"). The other values are `complete`
 # (every lender cluster named) and `none_named` (no lender cluster at all). The
 # CDT dashboard appends "other lenders not named" to such an instrument's
-# lenders, and the terminal does the same -- see `otherLendersUnnamed`.
+# lenders, and the terminal does the same -- see `unnamedLenders`.
 CDT_LENDER_DISCLOSURE_COLLECTIVE_PRESENT = "collective_present"
+
+# The CDT dashboard's public address. Each instrument row links to its page
+# there, `/debt-instrument/<debt_instrument_id>`, where every mention, filing
+# and extracted field behind the row can be read.
+CDT_DASHBOARD_URL = "https://cdt-demo.uchicago-dsi.org"
 
 # The `lifecycle.py` statuses that mean an instrument is no longer a live
 # obligation. Those instruments never reach the frontend; every other status,

@@ -223,11 +223,12 @@ Populates `Company.currentCommercialDebt`:
 | `CurrentCommercialDebt` field | Source column |
 | --- | --- |
 | `instrumentName` | `debt-instruments.name`, verbatim |
-| `lenders` | `debt-instruments.parties_json`, the `canonical_name` of each `named` `lender` party |
+| `cdtUrl` | `CDT_DASHBOARD_URL` + `/debt-instrument/` + `debt-instruments.debt_instrument_id`, percent-encoded |
+| `parties` | `debt-instruments.parties_json`: the `canonical_name` and `role` of each `named` party other than the `borrower`, lenders first |
 | `amount` | `debt-instruments.principal_amount` (a decimal) |
 | `currency` | `debt-instruments.principal_currency` |
 | `startDate` | `debt-instruments.start_date` |
-| `lenders` note | `otherLendersUnnamed`: `debt-instruments.lender_disclosure` is `collective_present` and `lenders` is non-empty |
+| `unnamedLenders` | `debt-instruments.lender_disclosure` is `collective_present` |
 | `endDate` | `debt-instruments.maturity_date` |
 | `commitmentEndDate` | `debt-instruments.commitment_termination_date` |
 | `status` | the CDT dashboard's `lifecycle.py`, run against the build date (see below) |
@@ -403,18 +404,22 @@ currency from one mention together, so they cannot detach, but amounts still
 come in many currencies and many instruments have none, so any total both mixes
 currencies and understates.
 
-**Lenders are named `lender` parties only.** CDT labels every party cluster
-with a role and a kind. Only `lender` renders as a lender, so the borrower,
-agents, trustees, underwriters, and guarantors do not appear in that list. Only
-`named` lenders render: a `collective` one such as `lenders party thereto` or
-`Holders` is a role phrase standing in for a name, not a lender anyone can look
-up, and the CDT dashboard leaves those out of its party lists too. An
-instrument whose lenders are all collective shows "Lender not named". When
-CDT's `lender_disclosure` is `collective_present` — the filings mention lenders
-they never name — a non-empty list ends with "other lenders not named", as on
-the dashboard, so one named bank in a syndicate does not read as the only
-lender. Normalizing the names that remain is its own piece of work;
-`extract_lender_labels` is the single place any such cleanup belongs.
+**Parties are every named party but the borrower, with roles.** CDT labels
+every party cluster with a role and a kind. Every role except `borrower` (the
+company itself or a subsidiary) renders, as `Name (role)`: lenders first, then
+the other roles (agent, trustee, underwriter, guarantor, `other`) in document
+order. This
+matches the CDT dashboard's interested-party list, except that the dashboard
+lists lenders separately. Lenders alone would leave the column empty on most
+rows, because most filings name no lender. Only `named` parties render. A
+`collective` one such as `lenders party thereto`, `Holders`, or `the Trustee` is
+a role phrase standing in for a name, not a party anyone can look up, and the
+dashboard leaves those out too. An instrument with no named party shows "No
+party named". When CDT's `lender_disclosure` is `collective_present` (the
+filings mention lenders they never name), the list ends with "other lenders not
+named", or "lenders not named" if no lender is named, as on the dashboard.
+Normalizing the names that remain is its own piece of work; `extract_parties`
+is the single place any such cleanup belongs.
 
 **Misextracted amounts are passed through.** Six values dataset-wide are below
 1,000 and at least three are plainly interest-rate margins the extractor put in

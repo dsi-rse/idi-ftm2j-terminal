@@ -135,8 +135,8 @@ function debtGateway(company: Company): Gateway {
     };
   }
 
-  const withLender = debt.filter(
-    (instrument) => instrument.lenders.length,
+  const withLender = debt.filter((instrument) =>
+    instrument.parties.some((party) => party.role === "lender"),
   ).length;
   // ISO-8601 dates compare lexicographically. A company's debt is assembled from
   // every filing that disclosed an instrument, so unlike the tree there is no single

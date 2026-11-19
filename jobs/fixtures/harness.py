@@ -134,7 +134,7 @@ CDT_URL = (
 # active case computes its own instead.
 #
 # The default parties name the borrower as well as the lender, so every debt
-# case also checks that only `lender` parties render as lenders.
+# case also checks that the borrower is never listed among the parties.
 CDT_PARTIES_JSON = json.dumps(
     [
         {

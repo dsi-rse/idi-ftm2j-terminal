@@ -15,6 +15,7 @@ import pandas as pd
 
 # Local imports
 from constants import (
+    CDT_BORROWER_ROLE,
     CDT_LENDER_ROLE,
     CDT_NAMED_PARTY_KIND,
     IDENTIFIER_TYPE_CIK,
@@ -290,8 +291,8 @@ def cusip_rows(identifier_types: pd.Series) -> pd.Series:
     return identifier_types.str.strip().str.casefold() == IDENTIFIER_TYPE_CUSIP
 
 
-def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
-    """Reads lender names out of the CDT `parties_json` blob.
+def extract_parties(value: object, logger: logging.Logger) -> list[dict]:
+    """Reads an instrument's named parties, other than the borrower, out of the CDT `parties_json` blob.
 
     The blob lists every party cluster the extractor found in the filing, each
     with a `role`, a `canonical_name` (the longest span naming the party rather
@@ -302,24 +303,28 @@ def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
          {"role": "borrower", "canonical_name": "Fixture Co",
           "kind": "named", "spans": [...]}]
 
-    Only `CDT_LENDER_ROLE` parties are lenders. The borrower, agents, trustees,
-    underwriters and guarantors are parties to the instrument but not who holds
-    the debt.
+    Every role except `CDT_BORROWER_ROLE` is returned -- lenders, agents,
+    trustees, underwriters, guarantors, and `other` -- each with its role, as
+    the CDT dashboard lists an instrument's interested parties. The borrower is
+    left out because it is the company whose page this is, or one of its
+    subsidiaries.
 
-    Only `CDT_NAMED_PARTY_KIND` lenders are returned. A `collective` lender is
-    one the filing never names -- "the lenders party thereto", "Holders" -- and
-    its role phrase is not a lender anyone can look up or search for. An
-    instrument whose lenders are all collective therefore carries no labels and
-    renders as "Lender not named".
+    Only `CDT_NAMED_PARTY_KIND` parties are returned. A `collective` party is
+    one the filing never names -- "the lenders party thereto", "Holders", "the
+    Trustee" -- and its role phrase is not a party anyone can look up or search
+    for. An instrument whose parties are all collective therefore returns none.
+
+    Lenders come first, since they are who holds the debt; the rest follow in
+    document order. A name with two roles appears once per role, as on the
+    dashboard.
 
     Args:
         value: A raw `parties_json` cell.
         logger: A standard logger instance.
 
     Returns:
-        One name per named lender cluster, de-duplicated in document order.
-        Empty when the filing names no lender -- a public note series, a
-        redemption notice, a syndicate described only as "the lenders".
+        `{"name", "role"}` dicts, one per named non-borrower party,
+        de-duplicated on the pair. Empty when the filing names none.
     """
     text = _clean(value)
     if not text:
@@ -330,7 +335,7 @@ def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
     except ValueError:
         logger.warning(
             "Could not parse a parties_json cell as JSON; treating the "
-            "instrument as disclosing no lender. Cell begins: %.80s",
+            "instrument as naming no party. Cell begins: %.80s",
             text,
         )
         return []
@@ -338,23 +343,25 @@ def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
     if not isinstance(parties, list):
         logger.warning(
             "A parties_json cell parsed to %s rather than a list of parties; "
-            "treating the instrument as disclosing no lender.",
+            "treating the instrument as naming no party.",
             type(parties).__name__,
         )
         return []
 
-    labels: dict[str, None] = {}
+    seen: dict[tuple[str, str], None] = {}
     for party in parties:
         if not isinstance(party, dict):
             continue
-        if party.get("role") != CDT_LENDER_ROLE:
-            continue
         if party.get("kind") != CDT_NAMED_PARTY_KIND:
             continue
+        role = _clean(party.get("role"))
         name = _clean(party.get("canonical_name"))
-        if name:
-            labels.setdefault(name, None)
-    return list(labels)
+        if not role or not name or role == CDT_BORROWER_ROLE:
+            continue
+        seen.setdefault((name, role), None)
+    # `sorted` is stable, so document order holds within each group.
+    ordered = sorted(seen, key=lambda pair: pair[1] != CDT_LENDER_ROLE)
+    return [{"name": name, "role": role} for name, role in ordered]
 
 
 def parse_amount(value: object) -> int | float | None:

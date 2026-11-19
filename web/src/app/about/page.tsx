@@ -197,8 +197,9 @@ export default function AboutPage() {
               reproduced as the filing reported them and are not converted
               between currencies, so figures denominated differently are not
               comparable and are never totalled; interest rates are not
-              extracted; and a lender appears only where the filing names it,
-              with a note when the filings mention lenders they do not name.
+              extracted; and a lender, agent, trustee, underwriter, or other
+              party appears only where the filing names it, with a note when
+              the filings mention lenders they do not name.
               Whether an instrument is announced, active, or of unknown status
               follows the Commercial Debt Tracker&rsquo;s own definitions, and
               instruments the filings show matured, repaid, or otherwise closed

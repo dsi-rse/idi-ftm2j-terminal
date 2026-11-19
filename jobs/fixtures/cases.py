@@ -1269,13 +1269,20 @@ def debt_smoke_one_instrument() -> None:
     # dashboard's lifecycle calls that active, and the terminal agrees.
     assert instrument["status"] == "Active", instrument["status"]
     assert instrument["commitmentEndDate"] is None, instrument["commitmentEndDate"]
-    assert instrument["otherLendersUnnamed"] is False, instrument
+    assert instrument["unnamedLenders"] is False, instrument
     assert instrument["asOf"] == "2016-01-04", instrument["asOf"]
     assert instrument["amount"] == 10000000, instrument["amount"]
     assert isinstance(instrument["amount"], int), type(instrument["amount"])
     assert instrument["currency"] == "USD", instrument["currency"]
-    # The default parties include the borrower; only the lender is a lender.
-    assert instrument["lenders"] == ["Fixture National Bank"], instrument["lenders"]
+    # The default parties include the borrower, which is never listed.
+    assert instrument["parties"] == [
+        {"name": "Fixture National Bank", "role": "lender"}
+    ], instrument["parties"]
+    # The id is percent-encoded whole, as the dashboard's own links are.
+    assert instrument["cdtUrl"] == (
+        "https://cdt-demo.uchicago-dsi.org/debt-instrument/"
+        + CDT_MENTION_ID.replace(":", "%3A")
+    ), instrument["cdtUrl"]
 
     assert len(instrument["sources"]) == 1, instrument["sources"]
     source = instrument["sources"][0]
@@ -1745,21 +1752,32 @@ def debt_statuses_read_as_on_the_dashboard() -> None:
         assert debt[0]["status"] == expected, (expected, debt[0]["status"])
 
 
-def debt_collective_lenders_are_dropped() -> None:
-    """A lender the filing never names does not reach the frontend.
+def debt_parties_carry_their_roles() -> None:
+    """Every named party but the borrower is listed with its role, lenders first.
 
     A filing that names no counterparty says "the lenders party thereto", and
-    CDT records it as a `collective` lender. That phrase is not a lender anyone
-    can look up, so only `named` lenders render; an instrument left with none
-    shows as "Lender not named". Non-lender parties are dropped whatever
-    their kind.
+    CDT records it as a `collective` party. That phrase is not a party anyone
+    can look up, so only `named` parties render, and the unnamed lenders are
+    kept as a flag instead. The borrower is the company itself and is left out.
     """
     parties = json.dumps(
         [
             {
+                "role": "underwriter",
+                "canonical_name": "Fixture Securities LLC",
+                "kind": "named",
+                "spans": [],
+            },
+            {
                 "role": "lender",
                 "canonical_name": "lenders party thereto",
                 "kind": "collective",
+                "spans": [],
+            },
+            {
+                "role": "borrower",
+                "canonical_name": "Fixture Co",
+                "kind": "named",
                 "spans": [],
             },
             {
@@ -1769,9 +1787,15 @@ def debt_collective_lenders_are_dropped() -> None:
                 "spans": [],
             },
             {
-                "role": "underwriter",
-                "canonical_name": "Fixture Securities LLC",
+                "role": "agent",
+                "canonical_name": "Fixture National Bank",
                 "kind": "named",
+                "spans": [],
+            },
+            {
+                "role": "trustee",
+                "canonical_name": "the Trustee",
+                "kind": "collective",
                 "spans": [],
             },
         ]
@@ -1783,22 +1807,29 @@ def debt_collective_lenders_are_dropped() -> None:
     )
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
-    assert debt[0]["lenders"] == ["Fixture National Bank"], debt[0]["lenders"]
+    assert debt[0]["parties"] == [
+        {"name": "Fixture National Bank", "role": "lender"},
+        {"name": "Fixture Securities LLC", "role": "underwriter"},
+        {"name": "Fixture National Bank", "role": "agent"},
+    ], debt[0]["parties"]
     # The dropped collective lender is not forgotten: as on the CDT dashboard,
-    # the named list is marked as having unnamed company.
-    assert debt[0]["otherLendersUnnamed"] is True, debt[0]
+    # the list is marked as having unnamed lenders.
+    assert debt[0]["unnamedLenders"] is True, debt[0]
 
 
 def debt_complete_lenders_are_not_flagged() -> None:
-    """A lender list CDT calls complete carries no "others not named" note."""
+    """A lender list CDT calls complete carries no "lenders not named" note."""
     result = run_debt_build(debt=cdt_rows({"lender_disclosure": "complete"}))
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
-    assert debt[0]["lenders"] == ["Fixture National Bank"], debt[0]["lenders"]
-    assert debt[0]["otherLendersUnnamed"] is False, debt[0]
+    assert debt[0]["unnamedLenders"] is False, debt[0]
 
 
-def debt_only_collective_lenders_means_none() -> None:
-    """An instrument whose lenders are all collective carries no lender label."""
+def debt_only_collective_parties_means_none() -> None:
+    """An instrument whose parties are all collective lists none, but keeps the note.
+
+    The frontend reads an empty list with the flag set as "lenders not named":
+    the filings say lenders exist, just not who.
+    """
     parties = json.dumps(
         [
             {
@@ -1816,10 +1847,8 @@ def debt_only_collective_lenders_means_none() -> None:
     )
     debt = result.by_permid("5000000001")["currentCommercialDebt"]
     assert len(debt) == 1, f"expected 1 instrument, got {len(debt)}"
-    assert debt[0]["lenders"] == [], debt[0]["lenders"]
-    # Nothing named to qualify: the placeholder alone says it, as on the
-    # dashboard, which only appends its note to a non-empty list.
-    assert debt[0]["otherLendersUnnamed"] is False, debt[0]
+    assert debt[0]["parties"] == [], debt[0]["parties"]
+    assert debt[0]["unnamedLenders"] is True, debt[0]
 
 
 def debt_currency_travels_with_its_amount() -> None:
@@ -2157,9 +2186,9 @@ CASES = [
     debt_pointer_row_count_mismatch_fails_the_build,
     debt_pointer_without_row_count_fails_the_build,
     debt_unknown_contract_version_fails_the_build,
-    debt_collective_lenders_are_dropped,
+    debt_parties_carry_their_roles,
     debt_complete_lenders_are_not_flagged,
-    debt_only_collective_lenders_means_none,
+    debt_only_collective_parties_means_none,
     debt_currency_travels_with_its_amount,
     debt_six_k_cites_the_form_alone,
     debt_duplicate_items_do_not_multiply_instruments,

@@ -335,6 +335,18 @@ export type HistoricCommercialDebt = CitedEntity &
  * supplies none of those reliably and no rate at all, so forcing it into that
  * type would mean inventing a `from` — which this file forbids outright.
  */
+/** One named party to a debt instrument, and the role CDT gives it. */
+export type DebtParty = {
+  name: string;
+  /**
+   * CDT's role label, verbatim: `lender`, `agent`, `trustee`, `underwriter`,
+   * `guarantor`, or `other`. Never `borrower`, which is left out. A string
+   * rather than a union so a role CDT adds later renders as written instead of
+   * breaking the type.
+   */
+  role: string;
+};
+
 export type CurrentCommercialDebt = CitedEntity &
   SnapshotEntity & {
     /**
@@ -345,20 +357,27 @@ export type CurrentCommercialDebt = CitedEntity &
      */
     instrumentName: string;
     /**
-     * The lenders the filings name, one per named lender party, de-duplicated.
-     * Role phrases standing in for a name — "the lenders party thereto",
-     * "Holders" — are dropped in the pipeline. Empty when the filings name no
-     * lender.
+     * The instrument's page on the Commercial Debt Tracker dashboard, where
+     * every mention, filing, and extracted field behind this row can be read.
      */
-    lenders: string[];
+    cdtUrl: string;
     /**
-     * True when the filings also describe lenders without naming them, so
-     * `lenders` is not the whole syndicate. The CDT dashboard lists such an
-     * instrument's lenders followed by "other lenders not named", and the
-     * Lender cell does the same. Always false when `lenders` is empty: the
-     * placeholder already says no lender is named.
+     * Every party the filings name except the borrower (the company itself or
+     * a subsidiary), each with its CDT role, as the CDT dashboard lists an
+     * instrument's interested parties. Lenders come first, then the other
+     * roles in document order. Role phrases standing in for a name, such as
+     * "the lenders party thereto" or "the Trustee", are dropped in the
+     * pipeline. A name with two roles appears once per role. Empty when the
+     * filings name no party.
      */
-    otherLendersUnnamed: boolean;
+    parties: DebtParty[];
+    /**
+     * True when the filings also describe lenders without naming them. The CDT
+     * dashboard ends such an instrument's lender list with "other lenders not
+     * named", and the Parties cell does the same, saying "lenders not named"
+     * when no lender is named.
+     */
+    unnamedLenders: boolean;
     /** As reported, in `currency`. Null when the extraction found no amount. */
     amount: number | null;
     /**

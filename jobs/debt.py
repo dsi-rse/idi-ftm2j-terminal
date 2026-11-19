@@ -3,12 +3,14 @@
 # Standard library imports
 import logging
 from collections import Counter
+from urllib.parse import quote
 
 # Third-party imports
 import pandas as pd
 
 # Local imports
 from constants import (
+    CDT_DASHBOARD_URL,
     CDT_FORM_TYPE_8K,
     CDT_ITEM_COLUMNS,
     CDT_LENDER_DISCLOSURE_COLLECTIVE_PRESENT,
@@ -21,7 +23,7 @@ from constants import (
 )
 from helpers import (
     _clean,
-    extract_lender_labels,
+    extract_parties,
     parse_amount,
     parse_iso_date,
 )
@@ -358,7 +360,6 @@ def build_debt_instrument(
         A dict matching the serialized `CurrentCommercialDebt` type in
         `web/src/types/domain.ts`.
     """
-    lenders = extract_lender_labels(row["parties_json"], logger)
     return {
         # CitedEntity. The URL is `items.url` exactly as the processor emits it:
         # the complete-submission text file, which is the document the extraction
@@ -385,14 +386,16 @@ def build_debt_instrument(
         # carries the latter when the filing states it.
         "asOf": parse_iso_date(row["date"]),
         "instrumentName": _clean(row["name"]),
-        "lenders": lenders,
-        # The CDT dashboard lists such an instrument's named lenders and then
-        # "other lenders not named"; the frontend does the same off this flag.
-        # With no named lender at all there is nothing to qualify, and the
-        # placeholder already says none is named -- as on the dashboard, which
-        # only appends the note to a non-empty list.
-        "otherLendersUnnamed": bool(lenders)
-        and _clean(row["lender_disclosure"])
+        # The instrument's page on the CDT dashboard. The id is percent-encoded
+        # whole (`di::` becomes `di%3A%3A`), as the dashboard's own links do.
+        "cdtUrl": f"{CDT_DASHBOARD_URL}/debt-instrument/"
+        f"{quote(str(row['debt_instrument_id']), safe='')}",
+        "parties": extract_parties(row["parties_json"], logger),
+        # The filings also describe lenders they never name. The CDT dashboard
+        # ends such an instrument's lender list with "other lenders not
+        # named"; the frontend notes it the same way, saying "lenders not
+        # named" when no lender is named at all.
+        "unnamedLenders": _clean(row["lender_disclosure"])
         == CDT_LENDER_DISCLOSURE_COLLECTIVE_PRESENT,
         # Amount and currency come from one CDT mention together, so the code
         # cannot detach from its figure. Nothing is converted: no CDT output
