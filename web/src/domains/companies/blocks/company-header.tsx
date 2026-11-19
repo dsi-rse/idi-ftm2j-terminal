@@ -248,7 +248,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
   const [companyInfoSource] = company.sources;
 
   return (
-    <header className="w-full flex flex-col gap-3 pb-6 border-b border-muted/25">
+    <header className="w-full flex flex-col gap-3 pb-4 border-b border-muted/25">
       <h1 className="type-display tracking-tight text-3xl md:text-4xl leading-none">
         {company.name}
       </h1>

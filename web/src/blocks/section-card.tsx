@@ -60,7 +60,7 @@ export function SectionCard({
     <section
       id={id}
       className={cn(
-        "w-full rounded-card border border-muted/25 bg-overlay/40 p-4 md:p-6 scroll-mt-16",
+        "w-full rounded-card border border-muted/25 bg-overlay/40 p-4 scroll-mt-16",
         className,
       )}
     >
@@ -97,7 +97,7 @@ export function SectionCard({
       </header>
       <div>{children}</div>
       {source ? (
-        <footer className="mt-6 pt-4 border-t border-muted/15 type-caption">
+        <footer className="mt-4 pt-4 border-t border-muted/15 type-caption">
           <span className="type-label mr-2">
             Source.
           </span>

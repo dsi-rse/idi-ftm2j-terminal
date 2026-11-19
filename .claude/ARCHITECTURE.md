@@ -234,13 +234,18 @@ own. `font-mono` and `font-sans` never appear in a component: the mono is
 reached only through `type-figure`, `type-stat` and `type-chip`. The tree branch and the
 subsidiary-match arrow are SVG icons, not characters.
 
-**Spacing around text.** Text inside a card starts and ends on the card's
-content edge. A table's outer cells drop their outer padding (`first:pl-0
-last:pr-0`) so its text lines up with the title above it and the source line
-below it. Lines of text that belong together, such as a label over its value
-or a name over its second line, sit 4px apart (`gap-1`). A caption keeps the
-role's line height, so `type-caption` is never paired with a `leading-*`
-class.
+**Spacing.** On the company page, boxes use one step, 16px (`p-4`, `gap-4`):
+a card's padding, a tile's padding, the gap between cards, and the space on
+each side of a rule. A box that bleeds to its card's edge uses the same
+number as a negative margin (`-mx-4`), so the two must change together.
+
+A card's title, search box, table rules and source line share the card's
+content edge. Rows that highlight on hover, in a table or the tree, keep 8px
+of padding at each end (`first:pl-2 last:pr-2` on a table's outer cells), so
+the highlight does not start and end at the text. Lines of text that belong
+together, such as a label over its value or a name over its second
+line, sit 4px apart (`gap-1`). A caption keeps the role's line height, so
+`type-caption` is never paired with a `leading-*` class.
 
 **Radii.** Corners come from three named radii in `globals.css`, stepped by
 element size so a badge and a card look equally rounded: `rounded-chip` (2px —

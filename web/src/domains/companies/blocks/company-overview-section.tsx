@@ -217,7 +217,7 @@ function IdentifiersRow({ company }: { company: Company }) {
     // A description list, so a screen reader announces each label with its
     // value and the group's name. An aria-label on a plain div is inert.
     <dl
-      className={cn("m-0 flex flex-wrap gap-x-8 gap-y-3 pb-4 md:pb-6")}
+      className={cn("m-0 flex flex-wrap gap-x-8 gap-y-3 pb-4")}
       aria-label="Identifiers"
     >
       <Identifier label="PermID">
@@ -283,7 +283,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       // corners past the card's curved ones. Stacked on a phone, the last
       // tile holds both corners; in the three-column row, the outer two do.
       className={cn(
-        "group flex flex-col gap-1 p-4 md:p-6 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+        "group flex flex-col gap-1 p-4 hover:bg-overlay/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
         "last:rounded-b-card md:last:rounded-bl-none md:first:rounded-bl-card",
       )}
     >
@@ -312,7 +312,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
 
 function Gateways({ gateways }: { gateways: Gateway[] }) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-muted/15 border-t border-muted/15 -mx-4 md:-mx-6 -mb-4 md:-mb-6">
+    <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-muted/15 border-t border-muted/15 -mx-4 -mb-4">
       {gateways.map((gateway) => (
         <GatewayCard key={gateway.section} gateway={gateway} />
       ))}
