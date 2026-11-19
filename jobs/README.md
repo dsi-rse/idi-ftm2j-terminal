@@ -3,7 +3,7 @@
 Build-time data pipeline for the static web application.
 
 `build_dataset.py` reads the company info, corporate structure, and commercial
-debt processors' outputs — five parquet files, because CDT takes three — and
+debt processors' outputs — CDT alone takes four tables — and
 writes JSON records matching the serialized `Company` type in
 [`web/src/types/domain.ts`](../web/src/types/domain.ts). That TypeScript type is
 the contract; if you change the shape here, change it there in the same commit.
@@ -13,9 +13,7 @@ the contract; if you change the shape here, change it there in the same commit.
 ```bash
 COMPANY_INFO_FILE_PATH=../data/input/latest_company_info.parquet \
 CORPORATE_STRUCTURE_FILE_PATH=../data/input/latest_corporate_structure.parquet \
-CDT_DEBT_INSTRUMENTS_FILE_PATH=../data/input/latest_cdt.parquet \
-CDT_MENTIONS_FILE_PATH=../data/input/latest_cdt_mentions.parquet \
-CDT_ITEMS_FILE_PATH=../data/input/latest_cdt_items.parquet \
+CDT_DATABASE_DIR=../data/input/cdt-beta \
 COMPANY_FACTS_FILE_PATH=../data/input/latest_company_facts.parquet \
 SHAREHOLDERS_FILE_PATH=../data/input/latest_shareholders_raw.parquet \
 OUTPUT_DIR=../data/output \
@@ -26,19 +24,46 @@ uv run python build_dataset.py
 | --- | --- |
 | `COMPANY_INFO_FILE_PATH` | `company-info/latest.parquet` from the processed layer |
 | `CORPORATE_STRUCTURE_FILE_PATH` | `corporate-structure/latest.parquet` from the processed layer |
-| `CDT_DEBT_INSTRUMENTS_FILE_PATH` | `cdt/debt-instruments/latest.parquet` |
-| `CDT_MENTIONS_FILE_PATH` | `cdt/debt-instrument-mentions/latest.parquet` |
-| `CDT_ITEMS_FILE_PATH` | `cdt/items/latest.parquet` |
+| `CDT_DATABASE_DIR` | The `cdt-beta/` database root, holding `latest.json` and `snapshots/` (see *CDT generations*). Not `cdt/`: that prefix still holds only the old per-table copies, with no pointer |
 | `COMPANY_FACTS_FILE_PATH` | `company-facts/latest.parquet` from the processed layer |
 | `SHAREHOLDERS_FILE_PATH` | `shareholders/latest.parquet` from the processed layer |
 | `OUTPUT_DIR` | Directory to write the dataset into (see *Output layout*) |
 
-In CI all eight are set by [`deploy.yaml`](../.github/workflows/deploy.yaml),
+In CI all six are set by [`deploy.yaml`](../.github/workflows/deploy.yaml),
 which first syncs the processed layer out of S3. The web build then reads the
 output via `INPUT_DATA_DIR`.
 
 `data/` is gitignored, so the parquets and the output are local artifacts — not
 fixtures committed to the repo.
+
+### CDT generations
+
+CDT's four tables reference one another — edges assign mentions to
+instruments, and instruments cite items through their mentions — so they must
+come from the same run. CDT's per-table
+`<table>/latest.parquet` files cannot guarantee that: a publish replaces them
+one at a time, and a build that reads mid-publish gets mentions pointing at
+instruments that do not exist yet. So CDT publishes atomically:
+
+```text
+cdt-beta/
+  latest.json                                  # the generation pointer, replaced last
+  snapshots/snapshot=<run_id>/<table>.parquet  # the current and previous generation
+  <table>/latest.parquet                       # copies; not read by this build
+```
+
+The build reads `latest.json` and loads each table from the `path` it names.
+It does not construct file names. It checks each file against the pointer's
+`rows`, and it refuses a `contract_version` other than `CDT_CONTRACT_VERSION`
+in [`constants.py`](constants.py). Any problem with the pointer fails the
+build. Nothing falls back to the per-table copies.
+
+CDT keeps the previous snapshot, so a CI sync that races a publish still finds
+the generation its pointer names. In the rare case where the new pointer
+arrives without its files, the build fails loudly and a rerun fixes it.
+
+To get CDT's data locally, sync the whole root, pointer included:
+`aws s3 sync s3://<bucket>/database/cdt-beta ../data/input/cdt-beta`.
 
 ### Output layout
 
@@ -165,68 +190,99 @@ problem, not something to do implicitly here.
 
 ## Inputs 3, 4, 5 — commercial debt (CDT)
 
-Three files for one section, and that is not an accident of convenience.
+Three tables for one section, plus a fourth for status, and that is not an
+accident of convenience. All four are resolved from one CDT generation through `latest.json` (see *CDT
+generations*), and are read as CDT's publish contract version 1 describes them
+— `src/cdt/publish_contract.json` in the CDT repo is the source of truth for
+every column and payload shape named here. A new contract version fails the
+build until the readers below are ported and `CDT_CONTRACT_VERSION` is bumped.
 
-`s3://{bucket}/database/cdt/debt-instruments/latest.parquet` holds the
-instruments — one row per debt instrument, resolved across the filings that
-mention it — and **carries no provenance whatsoever**. Thirteen columns, none of
-them a document link, filing date, accession number, or access date. Since every
-fact rendered on a company page has to cite its source, that file alone cannot
-populate the section. The citation comes from two sibling outputs:
+`debt-instruments` holds the instruments — one row per debt instrument,
+resolved across the filings that mention it — and **carries no provenance**:
+none of its columns is a document link, filing date, or access date. Since every
+fact rendered on a company page has to cite its source, that table alone cannot
+populate the section. The citation comes from two sibling tables:
 
 ```
 debt-instruments.seed_debt_instrument_mention_id
-  → debt-instrument-mentions.debt_instrument_mention_id   (amount_json → currency)
+  → debt-instrument-mentions.debt_instrument_mention_id
   → debt-instrument-mentions.item_id
-  → items.item_id                                         (url, date, item)
+  → items.item_id                                  (url, date, item, form_type)
 ```
 
-Both hops are total on today's data: 1,640 of 1,640 instruments resolve a mention,
-and 1,891 of 1,891 mentions resolve an item. An instrument that fails to resolve
-**fails the build** — it would otherwise be rendered uncited, which is worse than
-not rendering it.
+An instrument that renders but fails to resolve **fails the build** — it would
+otherwise be rendered uncited, which is worse than not rendering it.
 
-`debt-instrument-mentions` is also the only place the **currency** lives, in
-`amount_json.currency`. `debt-instruments.amount` is a bare number.
-
-`items` is read narrow, four columns of sixteen. It is 26.5 MB mostly because of
-`text`, the full 8-K section body the extraction ran over, and only ~1,900 of its
-~26,000 rows are ever joined.
+`items` covers both 8-Ks and the 6-Ks foreign private issuers file instead
+(`form_type`; on 2026-11-14's beta, 1,437 and 1,395 rows). It is read narrow,
+five columns, because most of it is `text`, the full section body the
+extraction ran over.
 
 Populates `Company.currentCommercialDebt`:
 
 | `CurrentCommercialDebt` field | Source column |
 | --- | --- |
 | `instrumentName` | `debt-instruments.name`, verbatim |
-| `lenders` | `debt-instruments.lenders_json`, one label per coreference group |
-| `amount` | `debt-instruments.amount` |
-| `currency` | `mentions.amount_json` → `currency` |
+| `cdtUrl` | `CDT_DASHBOARD_URL` + `/debt-instrument/` + `debt-instruments.debt_instrument_id`, percent-encoded |
+| `parties` | `debt-instruments.parties_json`: the `canonical_name` and `role` of each `named` party other than the `borrower`, lenders first |
+| `amount` | `debt-instruments.principal_amount` (a decimal) |
+| `currency` | `debt-instruments.principal_currency` |
 | `startDate` | `debt-instruments.start_date` |
-| `endDate` | `debt-instruments.end_date` |
-| `status` | derived from `endDate` vs the build date |
+| `unnamedLenders` | `debt-instruments.lender_disclosure` is `collective_present` |
+| `endDate` | `debt-instruments.maturity_date` |
+| `commitmentEndDate` | `debt-instruments.commitment_termination_date` |
+| `status` | the CDT dashboard's `lifecycle.py`, run against the build date (see below) |
 | `asOf` | `items.date` (the filing date) |
-| `sources[].name` | `items.item`, e.g. `SEC 8-K Item 1.01` |
+| `sources[].name` | `items.form_type` + `items.item`: `SEC 8-K Item 1.01`, or `SEC 6-K` |
 | `sources[].url` | `items.url`, verbatim |
 | `sources[].lastAccessed` | the pipeline run date |
 | (join key) | `debt-instruments.cik`, zero-padded |
-| (scope filter) | the three `*_of_debt_instrument_id` lineage columns |
+| (scope filter) | `status`: closed and expected-closed instruments are excluded |
 
-Unused columns: `company_name` on all three files (company-info stays the single
-source for company identity, as with corporate structure),
-`other_interested_parties_json` (borrowers and guarantors — the same coreference
-problem as lenders, with less payoff), everything in `mentions` that
-`debt-instruments` already resolves (`name_json`, `start_date_json`,
-`end_date_json`, `raw_id`, and the per-mention lineage columns), and everything in
-`items` outside the four read — including `item_information`, the gloss for
-`item`, which is lowercase and runs to 135 characters and so makes a poor
-citation name.
+**Status is the CDT dashboard's, not the terminal's.** `lifecycle.py` is a
+verbatim copy of the dashboard publisher's module (the header names the
+commit), so the two sites cannot disagree about whether an instrument is still
+alive. `derive_debt_statuses` in `debt.py` feeds it what the dashboard feeds
+it: each instrument's row, the mentions a `member` edge in
+`mention-cluster-edges` assigns to it, and the build date. It decides from the
+later of the maturity and the commitment termination date, the newest decisive
+event among the mentions (repaid, terminated, exchanged, defaulted,
+announced), planned retirements and closings in `dates_json`, amendment
+lineage (`is_lineage_head`, `superseded_by_debt_instrument_id`), and retirement
+pointers (`retired_by_debt_instrument_ids`, which no longer close an instrument
+whose retirement is dated ahead). `closed` and `expected_closed` are excluded;
+the rest render, labelled as the dashboard labels them — `Announced`,
+`Active`, `Active - likely`, `Active - expected`, or `Unknown`. A split parent
+is not closed by its split, on either site.
 
-**Both auxiliary files must be de-duplicated before joining.** `mentions` carries
-23 duplicate ids (exact repeats within one item) and `items` carries 803 duplicate
-`item_id`s in which `company_name` is the only column that varies, because each
-co-registrant on one 8-K gets a row. The naive join turns 1,640 instruments into
-1,861. The merges also pass `validate="many_to_one"`, so removing the de-duplication
-raises rather than quietly inflating.
+Do not edit `lifecycle.py`. Two things about pandas would break it, and both
+are handled in `debt.py` instead: a missing cell is `NaN`, which is truthy, so
+every missing value becomes `None` first; and `is_lineage_head is False` fails
+on a numpy bool, so it becomes a Python bool. An instrument date that does not
+parse is read as absent, since `lifecycle.py` compares dates as strings.
+
+`mention-cluster-edges` is read narrow, three columns: the mention, the
+instrument, and the `edge_type`.
+
+A 6-K's `items.item` is CDT's internal window id (`000110465916089282:0:1`), not
+an item number, so a 6-K citation names the form alone.
+
+Unused columns: `company_name` on every table (company-info stays the single
+source for company identity, as with corporate structure); on
+`debt-instruments`, the outstanding balance, interest rate, `instrument_type`,
+and the per-field `*_source_mention_id` provenance; everything in `mentions`
+beyond the join keys and what status reads (`date`, `accession_number`,
+`status`, `status_date`, `dates_json`); `related` and `ambiguous_candidate`
+edges; and everything in `items` outside the five read — including `item_information`,
+the gloss for `item`, which is lowercase and runs to 135 characters and so makes
+a poor citation name.
+
+**Both auxiliary tables are de-duplicated before joining.** Older CDT output
+carried duplicate mention ids and duplicate `item_id`s (one row per
+co-registrant on an 8-K), which multiplied instruments when joined as-is. The
+contract now makes both primary keys, but the de-duplication stays and the
+merges pass `validate="many_to_one"`, so a regression raises rather than
+quietly inflating.
 
 ## Input 6 — shareholders
 
@@ -323,35 +379,47 @@ The registered-securities columns (`all_tickers`, …) are not consumed yet;
 
 ## Decisions worth knowing before you change this
 
-**The CDT scope filter deliberately departs from the tech spec.** The spec admits
-an instrument only when its end date is in the future and it has not been
-superseded. Superseding is honored. The end date is not, because 63% of rows have
-none: strict compliance yields 156 instruments across **55 of 4,832** companies
-and silently discards the undated majority. Instruments with no end date are kept
-and labelled `Undated`, giving 1,132 across 186 companies. Every row shows the
-date its 8-K was filed, so nothing undated is presented as current.
+**The CDT scope filter is the CDT dashboard's lifecycle, and deliberately
+departs from the tech spec.** The spec admits an instrument only when its end
+date is in the future and it has not been superseded. Superseding is honored,
+along with every other way the filings show an instrument closed. The end date
+alone is not the test, because most instruments state none: strict compliance
+would silently discard that majority. Instead the build runs the dashboard's
+`lifecycle.py` (see *Inputs 3, 4, 5*), which reads an instrument with no end
+date as active once it has started, and as `Unknown` when nothing is dated at
+all. Every row shows its status and the date its filing was made, so the
+reader can judge how current it is.
 
 **`lastAccessed` on a debt citation is the build date, and `asOf` is the filing
 date.** They are different facts and neither substitutes for the other. Nothing in
-the three CDT files records when the document was retrieved — corporate structure
+the CDT tables records when the document was retrieved — corporate structure
 has `date_added` for this and CDT has no equivalent — so the honest available
 answer is when the pipeline read it. This makes `lastAccessed` the only
 non-deterministic field in the output. Do not "fix" that by using the filing date:
 that would assert a 2016 retrieval of a document first read years later.
 
 **Debt amounts are never converted or summed.** No CDT output supplies an FX rate,
-so the spec's "Amount USD" cannot be produced. Twelve in-scope instruments are
-EUR, CHF, or GBP, and 385 have no amount at all, so any total both mixes
-currencies and understates by a third.
+so the spec's "Amount USD" cannot be produced. CDT takes each amount and its
+currency from one mention together, so they cannot detach, but amounts still
+come in many currencies and many instruments have none, so any total both mixes
+currencies and understates.
 
-**Lender labels ship unfiltered, role words included.** `lenders_json` is a
-coreference mention graph, and many groups contain no name anywhere — their
-longest span is `lenders`, `underwriters`, or `lenders party thereto`, which is
-what the filing said in place of a name. 494 of 1,132 instruments disclose no
-lender at all and 638 carry at least one label. Separating roles from names, and
-normalizing the names that remain, is its own piece of work; the labels here are
-the evidence it needs. `extract_lender_labels` is the single place any such
-cleanup belongs.
+**Parties are every named party but the borrower, with roles.** CDT labels
+every party cluster with a role and a kind. Every role except `borrower` (the
+company itself or a subsidiary) renders, as `Name (role)`: lenders first, then
+the other roles (agent, trustee, underwriter, guarantor, `other`) in document
+order. This
+matches the CDT dashboard's interested-party list, except that the dashboard
+lists lenders separately. Lenders alone would leave the column empty on most
+rows, because most filings name no lender. Only `named` parties render. A
+`collective` one such as `lenders party thereto`, `Holders`, or `the Trustee` is
+a role phrase standing in for a name, not a party anyone can look up, and the
+dashboard leaves those out too. An instrument with no named party shows "No
+party named". When CDT's `lender_disclosure` is `collective_present` (the
+filings mention lenders they never name), the list ends with "other lenders not
+named", or "lenders not named" if no lender is named, as on the dashboard.
+Normalizing the names that remain is its own piece of work; `extract_parties`
+is the single place any such cleanup belongs.
 
 **Misextracted amounts are passed through.** Six values dataset-wide are below
 1,000 and at least three are plainly interest-rate margins the extractor put in
@@ -563,9 +631,13 @@ inactive companies still get records.
 Corporate structure gives **4,482 of 18,631** companies a tree, carrying 231,684
 subsidiaries between them; the rest render an empty state.
 
-CDT gives **186 of 18,631** companies debt, carrying ~1,130 instruments (~154
-active, 976 undated) — the gap from the borrower CIKs is companies whose every
-instrument was filtered out as matured or superseded.
+CDT gives **61 companies** debt (on the 2026-11-14 CDT generation, built
+2026-11-18), carrying 1,914 instruments: 1,083 active (987 `Active`, 64
+`Active - expected`, 32 `Active - likely`), 44 `Announced`, and 787 `Unknown`.
+1,243 more were excluded as closed, most as `expected_closed` (609) or repaid
+(290). Another 615 belong to 21 CIKs that company-info has not resolved to a
+PermID. On that generation the terminal and the CDT dashboard's own
+`lifecycle.py` agree on the status of all 4,003 instruments.
 
 Shareholders is the highest-coverage section: **7,211 of 18,631** companies
 carry holdings, **1,701,003** in total, resolved from the ~1.7M of 2.2M raw rows

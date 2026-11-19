@@ -321,7 +321,7 @@ export type HistoricCommercialDebt = CitedEntity &
   };
 
 /**
- * A commercial debt instrument as disclosed in a single 8-K. The filing states
+ * A commercial debt instrument as disclosed in a single 8-K or 6-K. The filing states
  * when the instrument was *disclosed*, not a range over which the record stays
  * authoritative, so this is a {@link SnapshotEntity}. See
  * {@link HistoricCommercialDebt} for the date-ranged form, which needs a source
@@ -335,6 +335,18 @@ export type HistoricCommercialDebt = CitedEntity &
  * supplies none of those reliably and no rate at all, so forcing it into that
  * type would mean inventing a `from` — which this file forbids outright.
  */
+/** One named party to a debt instrument, and the role CDT gives it. */
+export type DebtParty = {
+  name: string;
+  /**
+   * CDT's role label, verbatim: `lender`, `agent`, `trustee`, `underwriter`,
+   * `guarantor`, or `other`. Never `borrower`, which is left out. A string
+   * rather than a union so a role CDT adds later renders as written instead of
+   * breaking the type.
+   */
+  role: string;
+};
+
 export type CurrentCommercialDebt = CitedEntity &
   SnapshotEntity & {
     /**
@@ -345,14 +357,27 @@ export type CurrentCommercialDebt = CitedEntity &
      */
     instrumentName: string;
     /**
-     * Lender labels as extracted, one per coreference group in the filing.
-     * Many are role words rather than names — "lenders", "the underwriters" —
-     * because that is what the filing says in place of a name. They are carried
-     * unfiltered; separating roles from names, and normalizing the names, is
-     * its own piece of work. Empty when the filing discloses no lender at all,
-     * which is 44% of instruments.
+     * The instrument's page on the Commercial Debt Tracker dashboard, where
+     * every mention, filing, and extracted field behind this row can be read.
      */
-    lenders: string[];
+    cdtUrl: string;
+    /**
+     * Every party the filings name except the borrower (the company itself or
+     * a subsidiary), each with its CDT role, as the CDT dashboard lists an
+     * instrument's interested parties. Lenders come first, then the other
+     * roles in document order. Role phrases standing in for a name, such as
+     * "the lenders party thereto" or "the Trustee", are dropped in the
+     * pipeline. A name with two roles appears once per role. Empty when the
+     * filings name no party.
+     */
+    parties: DebtParty[];
+    /**
+     * True when the filings also describe lenders without naming them. The CDT
+     * dashboard ends such an instrument's lender list with "other lenders not
+     * named", and the Parties cell does the same, saying "lenders not named"
+     * when no lender is named.
+     */
+    unnamedLenders: boolean;
     /** As reported, in `currency`. Null when the extraction found no amount. */
     amount: number | null;
     /**
@@ -363,20 +388,40 @@ export type CurrentCommercialDebt = CitedEntity &
     currency: string | null;
     /** ISO-8601 date. Null when the filing does not state one. */
     startDate: string | null;
-    /** ISO-8601 date. Null when the filing does not state one. */
+    /** The maturity, as an ISO-8601 date. Null when the filings state none. */
     endDate: string | null;
     /**
-     * `Active` when `endDate` is in the future as of the build, `Undated` when
-     * the filing states no end date. There is no matured or superseded variant:
-     * those are filtered out in the pipeline and never reach the frontend.
-     *
-     * Stored rather than derived in the view because the `endDate > today`
-     * comparison happens at build time, in the same place the filter is
-     * applied. Recomputing it in the browser would evaluate "today" at a
-     * different moment than the filter did, and the two could disagree on a
-     * page served the day an instrument matures.
+     * When the commitment ends, as an ISO-8601 date — the end date a
+     * revolver's filing often states in place of a maturity. Null when the
+     * filings state none.
      */
-    status: "Active" | "Undated";
+    commitmentEndDate: string | null;
+    /**
+     * The instrument's lifecycle status, worded exactly as the CDT dashboard
+     * words it, because both sites derive it with the same `lifecycle.py`:
+     *
+     * - `Announced` — announced, but the filings do not show it has started.
+     * - `Active` — started, and not past its maturity or other end date.
+     * - `Active - likely` — announced over 30 days ago with nothing since and
+     *   its expected end still ahead, so it most likely started.
+     * - `Active - expected` — a planned start date has passed, unconfirmed.
+     * - `Unknown` — nothing dated and no decisive event in the filings.
+     *
+     * There is no closed variant: closed instruments (matured, repaid,
+     * terminated, exchanged, defaulted, superseded) are filtered out in the
+     * pipeline and never reach the frontend.
+     *
+     * Stored rather than derived in the view because it is decided at build
+     * time against the build date, in the same place the filter is applied.
+     * Recomputing it in the browser would evaluate "today" at a different
+     * moment than the filter did.
+     */
+    status:
+      | "Announced"
+      | "Active"
+      | "Active - likely"
+      | "Active - expected"
+      | "Unknown";
   };
 
 // ---------------------------------------------------------------------------
@@ -571,8 +616,8 @@ export type Company = CitedEntity & {
    */
   currentCorporateRelationships: CurrentCorporateRelationship[];
   /**
-   * Commercial debt instruments disclosed in this company's 8-K filings,
-   * excluding those that have matured or been superseded. A snapshot rather
+   * Commercial debt instruments disclosed in this company's 8-K and 6-K filings,
+   * excluding those the filings show closed. A snapshot rather
    * than a date range — see {@link CurrentCommercialDebt}.
    */
   currentCommercialDebt: CurrentCommercialDebt[];

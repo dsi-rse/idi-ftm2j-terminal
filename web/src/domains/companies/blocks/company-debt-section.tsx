@@ -8,7 +8,11 @@ import { SearchInput } from "@/components/search-input";
 import { RowIndex, Table } from "@/components/table";
 import { formatAmountShort } from "@/lib/format-currency";
 import { cn } from "@/lib/utils";
-import type { Company, CurrentCommercialDebt } from "@/types/domain";
+import type {
+  Company,
+  CurrentCommercialDebt,
+  DebtParty,
+} from "@/types/domain";
 
 type CompanyDebtSectionProps = {
   company: Company;
@@ -45,7 +49,7 @@ function filterDebt(
   return debt.filter(
     (instrument) =>
       displayName(instrument).toLowerCase().includes(q) ||
-      instrument.lenders.some((lender) => lender.toLowerCase().includes(q)),
+      instrument.parties.some((party) => party.name.toLowerCase().includes(q)),
   );
 }
 
@@ -73,32 +77,64 @@ function sortDebt(
 }
 
 /**
- * The maturity line under an instrument's name. An instrument the filing gave no
- * end date for says so rather than showing an empty cell — 86% of what ships is
- * in that state, so silence would read as a rendering fault.
+ * The Ends cell: the maturity, or, for a revolver whose filing states only when
+ * the commitment ends, that date, with the second line saying which it is. An
+ * instrument the filings give no end date for says so rather than showing
+ * nothing. Most instruments are in that state, so a blank would read as a
+ * rendering fault.
  */
-function maturityLabel(instrument: CurrentCommercialDebt): string {
-  if (instrument.status === "Undated" || !instrument.endDate) {
-    return "No end date disclosed";
-  }
-  return `Matures ${instrument.endDate}`;
+function EndDateCell({ instrument }: { instrument: CurrentCommercialDebt }) {
+  if (instrument.endDate)
+    return <Table.Cell primary={instrument.endDate} secondary="Maturity" />;
+  if (instrument.commitmentEndDate)
+    return (
+      <Table.Cell
+        primary={instrument.commitmentEndDate}
+        secondary="Commitment end"
+      />
+    );
+  return (
+    <Table.Cell
+      primary={<span className={cn("text-muted")}>Not disclosed</span>}
+    />
+  );
+}
+
+/** A party as the CDT dashboard writes it: its name, then its role. */
+function partyLabel(party: DebtParty): string {
+  return `${party.name} (${party.role})`;
 }
 
 /**
- * The Lender cell: the first label, with the rest behind a toggle.
+ * The note for lenders the filings describe but never name, worded as the CDT
+ * dashboard words it: "other" only when some lender is named.
+ */
+function unnamedLendersNote(parties: DebtParty[]): string {
+  return parties.some((party) => party.role === "lender")
+    ? "other lenders not named"
+    : "lenders not named";
+}
+
+/**
+ * The Parties cell: the first party, with the rest behind a toggle.
  *
- * A label is whatever the filing called the counterparty, which is often a role
- * rather than a name — "lenders party thereto", "the underwriters". Those are
- * carried through deliberately; see the section's info copy.
+ * A party is anyone the filing names other than the borrower (lenders first,
+ * then agents, trustees, underwriters, guarantors), each followed by its role
+ * in parentheses, as on the CDT dashboard. Role phrases standing in for a name
+ * ("lenders party thereto", "the Trustee") are dropped in the pipeline, so an
+ * instrument whose filing names no party shows the placeholder. When the
+ * filings also describe lenders they never name, the list ends with a muted
+ * "other lenders not named", so a lone named bank in a syndicate does not read
+ * as the only lender.
  *
  * "+N more" is a button rather than a caption because this section is the only
- * place those labels exist. 178 of the 638 instruments that name a lender name
- * more than one, and one series of senior notes names 20, so the full list
- * cannot sit on a collapsed row — but leaving it unreachable also broke the
- * search above, which matches every lender: a reader could search a bank, see
- * the row match, and never see the name they searched for.
+ * place those names exist. A series of senior notes can name twenty
+ * underwriters, so the full list cannot sit on a collapsed row. Leaving it
+ * unreachable would also break the search above, which matches every party: a
+ * reader could search a bank, see the row match, and never see the name they
+ * searched for.
  */
-function LenderCell({
+function PartyCell({
   instrument,
   expanded,
   onToggle,
@@ -107,34 +143,54 @@ function LenderCell({
   expanded: boolean;
   onToggle: () => void;
 }) {
-  const [first, ...rest] = instrument.lenders;
-  // Every branch is semibold, the muted placeholder included, so the column
-  // does not change weight by row.
+  const { parties, unnamedLenders } = instrument;
+  const [first, ...others] = parties;
+  const note = unnamedLendersNote(parties);
+  // Every branch is semibold, the muted placeholder and note included, so the
+  // column does not change weight by row.
   const name = "type-display";
   if (!first)
     return (
       <Table.Cell
         primary={
-          <span className={cn(name, "text-muted")}>Lender not disclosed</span>
+          <span className={cn(name, "text-muted")}>
+            {unnamedLenders ? "Lenders not named" : "No party named"}
+          </span>
         }
       />
     );
-  if (rest.length === 0)
-    return <Table.Cell primary={<span className={cn(name)}>{first}</span>} />;
+  if (others.length === 0 && !unnamedLenders)
+    return (
+      <Table.Cell primary={<span className={cn(name)}>{partyLabel(first)}</span>} />
+    );
+
+  // The count is of named parties only: the note is not a party, so one named
+  // bank plus the note reads "+ other lenders not named", never "+1 more".
+  const moreLabel =
+    others.length === 0
+      ? `+ ${note}`
+      : unnamedLenders
+        ? `+${others.length} more, ${note}`
+        : `+${others.length} more`;
 
   return (
     <Table.Cell
       primary={
         expanded ? (
-          // Labels are de-duplicated per instrument in the pipeline, so a label
-          // is its own key.
+          // A name with two roles appears once per role, so name and role
+          // together are the key; the note gets a key no label can take.
           <span className={cn(name, "flex flex-col gap-0.5")}>
-            {instrument.lenders.map((lender) => (
-              <span key={lender}>{lender}</span>
+            {parties.map((party) => (
+              <span key={partyLabel(party)}>{partyLabel(party)}</span>
             ))}
+            {unnamedLenders ? (
+              <span key="__unnamed-lenders" className={cn("text-muted")}>
+                {note}
+              </span>
+            ) : null}
           </span>
         ) : (
-          <span className={cn(name)}>{first}</span>
+          <span className={cn(name)}>{partyLabel(first)}</span>
         )
       }
       secondary={
@@ -148,7 +204,7 @@ function LenderCell({
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
         >
-          {expanded ? "Show fewer" : `+${rest.length} more`}
+          {expanded ? "Show fewer" : moreLabel}
         </button>
       }
     />
@@ -169,14 +225,14 @@ function DebtTable({
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<SortState>(DEFAULT_SORT);
   /**
-   * Which rows have their lender list open, keyed by instrument identity rather
+   * Which rows have their party list open, keyed by instrument identity rather
    * than row position — sorting, searching, and paging all move rows around an
    * open cell, and a positional key would hand the open state to whichever
    * instrument landed in that slot. The domain type carries no id, but `debt`
    * comes off static props and both `filterDebt` and `sortDebt` preserve element
    * references, so the instrument itself is the stable key.
    */
-  const [openLenders, setOpenLenders] = useState<
+  const [openParties, setOpenParties] = useState<
     ReadonlySet<CurrentCommercialDebt>
   >(() => new Set());
 
@@ -187,8 +243,8 @@ function DebtTable({
   const start = (currentPage - 1) * pageSize;
   const visible = sorted.slice(start, start + pageSize);
 
-  const toggleLenders = (instrument: CurrentCommercialDebt) =>
-    setOpenLenders((prev) => {
+  const toggleParties = (instrument: CurrentCommercialDebt) =>
+    setOpenParties((prev) => {
       const next = new Set(prev);
       if (!next.delete(instrument)) next.add(instrument);
       return next;
@@ -216,15 +272,17 @@ function DebtTable({
             setQuery(next);
             setPage(1);
           }}
-          placeholder="Search debt by instrument or lender…"
+          placeholder="Search debt by instrument or party…"
         />
       </Table.Toolbar>
       <Table>
         <Table.Head>
           <tr>
-            <Table.HeaderCell className="w-10">#</Table.HeaderCell>
+            <Table.HeaderCell className={cn("w-10")}>#</Table.HeaderCell>
             <Table.HeaderCell>Instrument</Table.HeaderCell>
-            <Table.HeaderCell>Lender</Table.HeaderCell>
+            <Table.HeaderCell>Status</Table.HeaderCell>
+            <Table.HeaderCell>Ends</Table.HeaderCell>
+            <Table.HeaderCell>Parties</Table.HeaderCell>
             <Table.HeaderCell
               sortable
               sortDirection={sort.key === "filedOn" ? sort.direction : undefined}
@@ -244,7 +302,7 @@ function DebtTable({
         </Table.Head>
         <Table.Body>
           {visible.length === 0 ? (
-            <Table.Empty colSpan={5}>
+            <Table.Empty colSpan={7}>
               No debt instruments match your search.
             </Table.Empty>
           ) : (
@@ -256,13 +314,37 @@ function DebtTable({
                     <RowIndex index={start + i + 1} />
                   </Table.Cell>
                   <Table.Cell
-                    primary={displayName(instrument)}
-                    secondary={maturityLabel(instrument)}
+                    primary={
+                      // The instrument's CDT dashboard page, where every
+                      // filing and extracted field behind the row can be read.
+                      // Underlined like the filing link, so it reads as a link.
+                      <a
+                        href={instrument.cdtUrl}
+                        title="View this instrument on the Commercial Debt Tracker"
+                        target="_blank"
+                        rel="noreferrer"
+                        className={cn("underline hover:text-foreground")}
+                      >
+                        {displayName(instrument)}
+                      </a>
+                    }
                   />
-                  <LenderCell
+                  <Table.Cell
+                    primary={
+                      <span
+                        className={cn(
+                          instrument.status === "Unknown" && "text-muted",
+                        )}
+                      >
+                        {instrument.status}
+                      </span>
+                    }
+                  />
+                  <EndDateCell instrument={instrument} />
+                  <PartyCell
                     instrument={instrument}
-                    expanded={openLenders.has(instrument)}
-                    onToggle={() => toggleLenders(instrument)}
+                    expanded={openParties.has(instrument)}
+                    onToggle={() => toggleParties(instrument)}
                   />
                   <Table.Cell
                     primary={
@@ -270,14 +352,14 @@ function DebtTable({
                       // dozens of filings, so the row is where a citation
                       // belongs — a footer listing 38 links cites nothing
                       // usefully.
-                      <span className="type-figure">
+                      <span className={cn("type-figure")}>
                         {source ? (
                           <a
                             href={source.url}
                             title={`${source.name} — ${source.url}`}
                             target="_blank"
                             rel="noreferrer"
-                            className="underline hover:text-foreground"
+                            className={cn("underline hover:text-foreground")}
                           >
                             {instrument.asOf}
                           </a>
@@ -325,11 +407,12 @@ function DebtTable({
 }
 
 const INFO_COPY =
-  "Commercial debt instruments disclosed in this company's 8-K filings, one row per instrument, each linking to the filing it was extracted from. Matured and superseded instruments are excluded, and private debt never disclosed in an 8-K does not appear at all.";
+  "Commercial debt instruments disclosed in this company's 8-K and 6-K filings, one row per instrument. Each instrument name links to its page on the Commercial Debt Tracker, and each filing date to the filing it was extracted from. Parties are everyone the filings name other than the borrower, with their role. Statuses follow the Commercial Debt Tracker's own definitions. Instruments the filings show closed — matured, repaid, terminated, exchanged, defaulted, or superseded — are excluded, and private debt never disclosed in an 8-K or 6-K does not appear at all.";
 
 /**
- * The count line under the section title: how many instruments, how they split
- * between active and undated, and when the most recent of them was filed.
+ * The count line under the section title: how many instruments, and when the
+ * most recent of them was filed. The status split is left to the Status
+ * column; spelled out here it made the line too long to take in at a glance.
  *
  * The date is the latest of many. Unlike the corporate tree, whose rows all come
  * from one filing, a company's debt is assembled from every 8-K that disclosed an
@@ -337,21 +420,13 @@ const INFO_COPY =
  * and the per-row "Filed on" column carries the rest.
  */
 function subtitle(debt: CurrentCommercialDebt[]): string {
-  const active = debt.filter((i) => i.status === "Active").length;
-  const undated = debt.length - active;
-  const counts = [
-    active ? `${active} active` : null,
-    undated ? `${undated} undated` : null,
-  ]
-    .filter(Boolean)
-    .join(", ");
   const latest = debt.reduce(
     (newest, instrument) =>
       instrument.asOf > newest ? instrument.asOf : newest,
     "",
   );
   const instruments = `${debt.length} instrument${debt.length === 1 ? "" : "s"}`;
-  return `${instruments} · ${counts} · latest filed on ${latest}`;
+  return `${instruments} · latest filed on ${latest}`;
 }
 
 /**
@@ -360,8 +435,8 @@ function subtitle(debt: CurrentCommercialDebt[]): string {
  * 5-per-page; the fullscreen view paginates 15-per-page.
  *
  * Instrument name leads rather than lender, which is the reverse of the original
- * design. Every instrument has a name and only 56% name a lender, so leading with
- * the lender left the first column empty on nearly half the rows.
+ * design. Every instrument has a name and most name no lender, so leading with
+ * the lender left the first column empty on most rows.
  */
 export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
   const debt = company.currentCommercialDebt;
@@ -374,13 +449,13 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
         subtitle="No disclosed commercial debt"
         info={INFO_COPY}
       >
-        <p className="type-body m-0">
+        <p className={cn("type-body m-0")}>
           No commercial debt instrument is in scope for this company. Instruments
-          are extracted from 8-K filings, and only those that have neither
-          matured nor been superseded are shown — a company with no 8-K debt
-          disclosure, or whose disclosed instruments have all matured, appears
-          here. Debt raised privately or never disclosed in an 8-K is not
-          covered.
+          are extracted from 8-K and 6-K filings, and only those the filings do
+          not show closed are listed — a company with no such debt disclosure,
+          or whose disclosed instruments have all matured, been repaid, or been
+          superseded, appears here. Debt raised privately or never disclosed in
+          an 8-K or 6-K is not covered.
         </p>
       </SectionCard>
     );
@@ -399,7 +474,7 @@ export function CompanyDebtSection({ company }: CompanyDebtSectionProps) {
       info={INFO_COPY}
       source={
         <>
-          {documents} SEC 8-K filing{documents === 1 ? "" : "s"}
+          {documents} SEC filing{documents === 1 ? "" : "s"}
           {retrieved ? `, retrieved ${retrieved}` : null}.
         </>
       }

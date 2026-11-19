@@ -94,13 +94,29 @@ function treeGateway(company: Company): Gateway {
 }
 
 /**
+ * The SEC forms a company's debt was disclosed in, as the card names them. CDT
+ * reads 8-Ks and the 6-Ks foreign private issuers file instead, and each
+ * citation's name leads with its form ("SEC 8-K Item 1.01", "SEC 6-K").
+ */
+function debtForms(debt: Company["currentCommercialDebt"]): string {
+  const forms = new Set(
+    debt.flatMap((instrument) =>
+      instrument.sources.flatMap(
+        (source) => source.name.match(/^SEC (\S+)/)?.[1] ?? [],
+      ),
+    ),
+  );
+  return forms.size ? `SEC ${[...forms].sort().reverse().join(" / ")}` : "SEC";
+}
+
+/**
  * The Commercial Debt stat.
  *
  * The count is instruments, not money. This slot was labelled "Outstanding debt"
  * while the section was mocked, and it cannot be: no CDT output supplies an FX
- * rate, in-scope instruments span five currencies, and 385 of 1,132 report no
- * amount at all, so any total would both mix currencies and understate by a
- * third. A count is a number the data actually supports.
+ * rate, in-scope instruments span several currencies, and many report no amount
+ * at all, so any total would both mix currencies and understate. A count is a
+ * number the data actually supports.
  */
 function debtGateway(company: Company): Gateway {
   const debt = company.currentCommercialDebt;
@@ -115,15 +131,15 @@ function debtGateway(company: Company): Gateway {
     return {
       ...base,
       value: "0",
-      meta: "No 8-K debt disclosure in scope for this company",
+      meta: "No 8-K or 6-K debt disclosure in scope for this company",
     };
   }
 
-  const withLender = debt.filter(
-    (instrument) => instrument.lenders.length,
+  const withLender = debt.filter((instrument) =>
+    instrument.parties.some((party) => party.role === "lender"),
   ).length;
   // ISO-8601 dates compare lexicographically. A company's debt is assembled from
-  // every 8-K that disclosed an instrument, so unlike the tree there is no single
+  // every filing that disclosed an instrument, so unlike the tree there is no single
   // filing date for the section — the most recent is what dates the card.
   const latest = debt.reduce(
     (newest, instrument) =>
@@ -133,7 +149,7 @@ function debtGateway(company: Company): Gateway {
   return {
     ...base,
     value: debt.length.toLocaleString("en-US"),
-    meta: `${withLender} with a disclosed lender · SEC 8-K · latest filed on ${latest}`,
+    meta: `${withLender} with a disclosed lender · ${debtForms(debt)} · latest filed on ${latest}`,
   };
 }
 
