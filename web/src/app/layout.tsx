@@ -19,8 +19,8 @@ const dmSans = DM_Sans({
 // The file is variable, but its axes only drive the font's inline charts:
 // letters and digits have one weight and one width.
 // ponytail: Latin subset only. Add the latin-ext file if a currency sign
-// outside Latin-1 has to be set in the mono; until then it falls back to the
-// sans.
+// outside Latin-1 has to be set in the mono; until then it falls back to a
+// system font.
 const datatype = localFont({
   src: "./fonts/datatype-latin.woff2",
   variable: "--font-datatype",
