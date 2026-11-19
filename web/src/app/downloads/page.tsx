@@ -32,7 +32,7 @@ const DATASETS = [
   {
     name: "Commercial debt",
     description:
-      "Loan and bond obligations extracted from SEC 8-K material-event filings. Amounts as reported, not converted between currencies.",
+      "Loan and bond obligations extracted from SEC 8-K and 6-K filings. Amounts as reported, not converted between currencies.",
     size: "62 MB",
     rows: "340K",
     updated: "Jul 6, 2026",

@@ -15,6 +15,9 @@ import pandas as pd
 
 # Local imports
 from constants import (
+    CDT_BORROWER_ROLE,
+    CDT_LENDER_ROLE,
+    CDT_NAMED_PARTY_KIND,
     IDENTIFIER_TYPE_CIK,
     IDENTIFIER_TYPE_CUSIP,
     SECTOR_CODE,
@@ -288,96 +291,77 @@ def cusip_rows(identifier_types: pd.Series) -> pd.Series:
     return identifier_types.str.strip().str.casefold() == IDENTIFIER_TYPE_CUSIP
 
 
-def extract_lender_labels(value: object, logger: logging.Logger) -> list[str]:
-    """Reads lender labels out of the CDT `lenders_json` blob.
+def extract_parties(value: object, logger: logging.Logger) -> list[dict]:
+    """Reads an instrument's named parties, other than the borrower, out of the CDT `parties_json` blob.
 
-    The blob is a list of coreference groups, each holding character-offset
-    spans into the 8-K text::
+    The blob lists every party cluster the extractor found in the filing, each
+    with a `role`, a `canonical_name` (the longest span naming the party rather
+    than its role, else the longest span), a `kind`, and evidence spans::
 
-        [{"mentions": [{"char_start": 265, "char_end": 286, "tag_id": "tag-10",
-                        "text": "Western Alliance Bank", "type": "organization"},
-                       {"char_start": 304, "char_end": 308, "tag_id": "tag-11",
-                        "text": "Bank", "type": "organization"}],
-          "tag_ids": ["tag-10", "tag-11"]}]
+        [{"role": "lender", "canonical_name": "Western Alliance Bank",
+          "kind": "named", "spans": [...]},
+         {"role": "borrower", "canonical_name": "Fixture Co",
+          "kind": "named", "spans": [...]}]
 
-    One group is one entity's chain of references, so most of its spans are
-    anaphora -- "Bank" repeated five times -- rather than the name. Where the
-    chain contains a name, that name is its longest span, which is what this
-    returns.
+    Every role except `CDT_BORROWER_ROLE` is returned -- lenders, agents,
+    trustees, underwriters, guarantors, and `other` -- each with its role, as
+    the CDT dashboard lists an instrument's interested parties. The borrower is
+    left out because it is the company whose page this is, or one of its
+    subsidiaries.
 
-    Nothing is filtered, and that is the whole point. Many groups contain no name
-    anywhere: their longest span is a role word, and across the in-scope
-    instruments "lenders" is the label of 35 groups, "underwriters" 28, "lenders
-    party thereto" 24, "holders" 17. Those are returned as written.
+    Only `CDT_NAMED_PARTY_KIND` parties are returned. A `collective` party is
+    one the filing never names -- "the lenders party thereto", "Holders", "the
+    Trustee" -- and its role phrase is not a party anyone can look up or search
+    for. An instrument whose parties are all collective therefore returns none.
 
-    Two filters look obviously right here and are both wrong:
-
-    Restricting to `type == "organization"` does not separate names from roles.
-    "underwriters" and "Underwriters" are themselves tagged `organization`, so
-    the roles survive anyway -- while 304 groups lose their only span and the
-    instruments carrying a lender drop from 638 to 431.
-
-    A stopword set of role words would work, and is the first step of separating
-    roles from names. That is deferred, deliberately: it belongs with the rest of
-    the lender-normalization work, and the labels this returns are the evidence
-    that work needs. Filtering them here would hide the problem instead of
-    scoping it. Note the difference from `parse_address_country`, which screens
-    an open set and so must name what a country is *not*: the set of role words
-    is closed and small, which is exactly why deferring costs nothing.
+    Lenders come first, since they are who holds the debt; the rest follow in
+    document order. A name with two roles appears once per role, as on the
+    dashboard.
 
     Args:
-        value: A raw `lenders_json` cell.
+        value: A raw `parties_json` cell.
         logger: A standard logger instance.
 
     Returns:
-        One label per group, de-duplicated in document order. Empty when the
-        filing discloses no lender -- 494 of the 1,132 in-scope instruments.
+        `{"name", "role"}` dicts, one per named non-borrower party,
+        de-duplicated on the pair. Empty when the filing names none.
     """
     text = _clean(value)
     if not text:
         return []
 
     try:
-        groups = json.loads(text)
+        parties = json.loads(text)
     except ValueError:
         logger.warning(
-            "Could not parse a lenders_json cell as JSON; treating the "
-            "instrument as disclosing no lender. Cell begins: %.80s",
+            "Could not parse a parties_json cell as JSON; treating the "
+            "instrument as naming no party. Cell begins: %.80s",
             text,
         )
         return []
 
-    if not isinstance(groups, list):
+    if not isinstance(parties, list):
         logger.warning(
-            "A lenders_json cell parsed to %s rather than a list of groups; "
-            "treating the instrument as disclosing no lender.",
-            type(groups).__name__,
+            "A parties_json cell parsed to %s rather than a list of parties; "
+            "treating the instrument as naming no party.",
+            type(parties).__name__,
         )
         return []
 
-    labels: dict[str, None] = {}
-    for group in groups:
-        if not isinstance(group, dict):
+    seen: dict[tuple[str, str], None] = {}
+    for party in parties:
+        if not isinstance(party, dict):
             continue
-        mentions = group.get("mentions")
-        if not isinstance(mentions, list):
+        if party.get("kind") != CDT_NAMED_PARTY_KIND:
             continue
-        spans = [
-            span
-            for span in (
-                _clean(mention.get("text"))
-                for mention in mentions
-                if isinstance(mention, dict)
-            )
-            if span
-        ]
-        if not spans:
+        role = _clean(party.get("role"))
+        name = _clean(party.get("canonical_name"))
+        if not role or not name or role == CDT_BORROWER_ROLE:
             continue
-        # `max` keeps the first of equal-length spans, which is the earliest in
-        # the document, so the result does not depend on dict iteration luck.
-        labels.setdefault(max(spans, key=len), None)
-
-    return list(labels)
+        seen.setdefault((name, role), None)
+    # `sorted` is stable, so document order holds within each group.
+    ordered = sorted(seen, key=lambda pair: pair[1] != CDT_LENDER_ROLE)
+    return [{"name": name, "role": role} for name, role in ordered]
 
 
 def parse_amount(value: object) -> int | float | None:
@@ -395,7 +379,8 @@ def parse_amount(value: object) -> int | float | None:
     would silently drop real instruments. The fix belongs upstream.
 
     Args:
-        value: A raw numeric cell (a debt `amount`, or a company-facts figure).
+        value: A raw numeric cell (a debt `principal_amount`, which CDT
+            publishes as a decimal, or a company-facts figure).
 
     Returns:
         The number, or `None` if the cell was blank or not a number.
