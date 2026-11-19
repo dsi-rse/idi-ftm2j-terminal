@@ -293,7 +293,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
       <span
         className={cn(
           unavailable
-            ? "type-display tracking-tight text-lg md:text-xl font-normal text-muted"
+            ? "type-display text-lg md:text-xl font-normal text-muted"
             : "type-stat text-3xl md:text-4xl",
         )}
       >
