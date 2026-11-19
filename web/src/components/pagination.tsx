@@ -121,7 +121,7 @@ function PageJump({ currentPage, totalPages, onPageChange }: PageJumpProps) {
           }}
           style={{ width: `${digits + 1}ch` }}
           className={cn(
-            "h-6 rounded-control border border-primary bg-transparent px-1 text-center text-foreground font-semibold max-md:text-base",
+            "h-6 rounded-control border border-primary bg-transparent px-1 text-center text-foreground max-md:text-base",
             "outline-none",
           )}
         />
@@ -132,7 +132,7 @@ function PageJump({ currentPage, totalPages, onPageChange }: PageJumpProps) {
           title="Jump to page"
           onClick={() => setDraft(String(currentPage))}
           className={cn(
-            "h-6 cursor-text rounded-control px-1 text-foreground font-semibold",
+            "h-6 cursor-text rounded-control px-1 text-foreground",
             "underline decoration-dotted decoration-muted underline-offset-4 hover:bg-overlay hover:decoration-foreground",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary",
           )}
@@ -161,7 +161,7 @@ export function Pagination({
   const activeClass =
     variant === "subtle"
       ? "text-primary border-b border-primary rounded-none"
-      : "bg-primary text-primary-foreground font-semibold";
+      : "bg-primary text-primary-foreground";
   const inactiveClass =
     variant === "subtle"
       ? "text-muted hover:text-foreground"
