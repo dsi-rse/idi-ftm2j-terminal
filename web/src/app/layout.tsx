@@ -1,26 +1,27 @@
 import type { Metadata } from "next";
-import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
+import { DM_Sans } from "next/font/google";
+import localFont from "next/font/local";
 
 import "./globals.css";
 import { Providers } from "./providers";
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
+// The optical-size axis gives 12px and 13px text the letterforms drawn for
+// small sizes.
+const dmSans = DM_Sans({
+  variable: "--font-dm-sans",
   subsets: ["latin"],
+  axes: ["opsz"],
   display: "swap",
 });
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700"],
-  display: "swap",
-});
-
-const interTight = Inter_Tight({
-  variable: "--font-inter-tight",
-  subsets: ["latin"],
-  weight: ["100", "200", "300", "400", "500", "600", "700"],
+// Numbers and tickers. Self-hosted because this version of next/font/google
+// does not list Datatype. Its axes only affect its inline charts, so letters
+// and digits have one weight. The range is declared so the browser never
+// synthesizes a bold.
+const datatype = localFont({
+  src: "./fonts/datatype-latin.woff2",
+  variable: "--font-datatype",
+  weight: "100 900",
   display: "swap",
 });
 
@@ -44,7 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${interTight.variable} ${inter.variable} ${jetbrainsMono.variable}`}
+      className={`${dmSans.variable} ${datatype.variable}`}
       suppressHydrationWarning
     >
       <head>

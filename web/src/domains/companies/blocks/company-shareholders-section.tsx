@@ -121,19 +121,19 @@ function ShareholderRow({
       <Table.Cell
         primary={
           // Names are the display voice; the rest of the table is data.
-          <span className={cn("type-display text-name")}>
+          <span className={cn("type-display")}>
             {holding.investor.name ?? "Unnamed holder"}
           </span>
         }
         secondary={holding.investorType}
       />
       <Table.Cell>
-        <span className="type-label-sm">
+        <span className="type-caption">
           {holding.investorCountry ?? "—"}
         </span>
       </Table.Cell>
       <Table.Cell>
-        <span className="type-label-sm">
+        <span className="type-caption">
           {holding.securityType || "—"}
         </span>
       </Table.Cell>
@@ -142,36 +142,46 @@ function ShareholderRow({
           // Per-row click-through to the filing the holding was extracted from.
           // Holders draw on many filings, so the row is where the citation
           // belongs.
-          source ? (
-            <a
-              href={source.url}
-              title={`${source.name} — ${source.url}`}
-              target="_blank"
-              rel="noreferrer"
-              className="underline hover:text-foreground"
-            >
-              {holding.asOf}
-            </a>
-          ) : (
-            holding.asOf
-          )
+          <span className="type-figure">
+            {source ? (
+              <a
+                href={source.url}
+                title={`${source.name} — ${source.url}`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline hover:text-foreground"
+              >
+                {holding.asOf}
+              </a>
+            ) : (
+              holding.asOf
+            )}
+          </span>
         }
         secondary={source?.name}
       />
       <Table.Cell
         align="right"
         primary={
-          holding.sharesOwned === null
-            ? "Not reported"
-            : holding.sharesOwned.toLocaleString()
+          holding.sharesOwned === null ? (
+            "Not reported"
+          ) : (
+            <span className="type-figure">
+              {holding.sharesOwned.toLocaleString()}
+            </span>
+          )
         }
       />
       <Table.Cell
         align="right"
         primary={
-          holding.marketValueUsd === null
-            ? "Not reported"
-            : formatAmountShort(holding.marketValueUsd, "USD")
+          holding.marketValueUsd === null ? (
+            "Not reported"
+          ) : (
+            <span className="type-figure">
+              {formatAmountShort(holding.marketValueUsd, "USD")}
+            </span>
+          )
         }
       />
     </Table.Row>

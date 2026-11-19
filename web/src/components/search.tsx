@@ -2,7 +2,7 @@
 
 import { Autocomplete } from "@base-ui/react/autocomplete";
 import { useMediaQuery } from "@base-ui/react/unstable-use-media-query";
-import { ArrowRight, Dot, Search } from "lucide-react";
+import { ArrowRight, CornerDownRight, Dot, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   type Ref,
@@ -166,7 +166,7 @@ export function SearchBar({ placeholder, ref }: SearchBarProps) {
           }}
           className={cn(
             "shrink-0 inline-flex items-center gap-1.5 rounded-control px-4",
-            "bg-primary text-primary-foreground type-label-sm tracking-label-tight text-primary-foreground",
+            "bg-primary type-caption text-primary-foreground",
             "hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
         >
@@ -202,22 +202,21 @@ export function SearchBar({ placeholder, ref }: SearchBarProps) {
                     className="px-3 py-2 flex items-start justify-between gap-3 text-sm cursor-pointer data-[highlighted]:bg-overlay"
                   >
                     <div className="flex flex-col min-w-0 flex-1">
-                      <span className="type-display text-name truncate">
+                      <span className="type-display text-value truncate">
                         <Marked segments={field.name} />
                       </span>
                       {match ? (
                         <span
                           className={cn(
-                            "type-meta text-foreground flex items-baseline gap-1 mt-0.5 min-w-0",
+                            "type-caption text-foreground flex items-baseline gap-1 mt-0.5 min-w-0",
                           )}
                         >
-                          {/* Raw font-mono on purpose: a glyph, not a text role. */}
-                          <span
+                          <CornerDownRight
                             aria-hidden
-                            className={cn("shrink-0 font-mono text-primary")}
-                          >
-                            ↳
-                          </span>
+                            className={cn(
+                              "size-3 shrink-0 self-center text-primary",
+                            )}
+                          />
                           <span className={cn("sr-only")}>
                             Matched subsidiary: {match.name}
                           </span>
@@ -229,13 +228,13 @@ export function SearchBar({ placeholder, ref }: SearchBarProps) {
                           </span>
                         </span>
                       ) : field.permId.some((s) => s.matched) ? (
-                        <span className="type-meta mt-0.5">
+                        <span className="type-caption mt-0.5">
                           PermID: <Marked segments={field.permId} />
                         </span>
                       ) : (
                         <>
                           {(sector || country) && (
-                            <span className="type-meta flex items-center mt-0.5">
+                            <span className="type-caption flex items-center mt-0.5">
                               {sector && (
                                 <span className="truncate">
                                   <Marked segments={field.sector} />
@@ -252,7 +251,7 @@ export function SearchBar({ placeholder, ref }: SearchBarProps) {
                             </span>
                           )}
                           {field.hint && (
-                            <span className="type-meta italic mt-0.5">
+                            <span className="type-caption mt-0.5">
                               {field.hint}
                             </span>
                           )}

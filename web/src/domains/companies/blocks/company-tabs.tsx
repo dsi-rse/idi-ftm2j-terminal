@@ -153,17 +153,20 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
 
   return (
     <>
-      <div ref={sentinelRef} aria-hidden className="h-0" />
+      {/* The negative margin cancels the parent's gap. Without it the
+          sentinel counts as a flex item and doubles the space above the bar. */}
+      <div ref={sentinelRef} aria-hidden className="h-0 -mb-4" />
       <nav
         aria-label="Company sections"
         className="sticky top-0 z-10 flex items-end justify-between gap-4 border-b border-muted/25 bg-background/95 backdrop-blur"
       >
         <div className="flex min-w-0 items-end gap-4">
-          {/* Only while pinned — unpinned, the page header already shows it. */}
+          {/* Shown only while pinned, since the page header shows it otherwise.
+              Sized like the section headers because they are peers. */}
           <span
             aria-hidden={!isStuck}
             className={cn(
-              "type-display truncate pb-1.5 text-base transition-opacity",
+              "type-display truncate pb-1.5 text-lg md:text-xl transition-opacity",
               isStuck ? "opacity-100" : "sr-only opacity-0",
             )}
           >
@@ -178,7 +181,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
                     href={`#${tab.id}`}
                     onClick={handleClick(tab.id)}
                     className={cn(
-                      "inline-flex items-center px-3 py-2 font-sans text-name font-medium cursor-pointer",
+                      "inline-flex items-center px-3 py-2 text-value cursor-pointer",
                       "border-b-2 -mb-px transition-colors",
                       "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                       isActive
@@ -195,7 +198,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
             })}
           </ul>
         </div>
-        <div className="hidden md:flex items-center gap-2 pb-1">
+        <div className="hidden md:flex shrink-0 items-center gap-2 pb-1">
           {/* Presentation only — these remain unwired on purpose. `disabled`
               rather than styled-to-look-active, so they do not promise a
               behaviour that does not exist yet. */}
@@ -205,7 +208,7 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
               type="button"
               disabled
               title="Not available yet"
-              className="rounded-control border border-muted/40 px-3 py-1 type-label-sm normal-case tracking-label-tight disabled:cursor-not-allowed"
+              className="rounded-control border border-muted/40 px-3 py-1 type-caption whitespace-nowrap disabled:cursor-not-allowed"
             >
               {action}
             </button>

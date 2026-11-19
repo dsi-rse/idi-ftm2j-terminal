@@ -79,12 +79,10 @@
 	--color-primary: var(--primary);
 	--color-primary-hover: var(--primary-hover);
 	--color-primary-foreground: var(--primary-foreground);
-	--font-inter: var(--font-inter);
-	--font-inter-tight: var(--font-inter-tight);
-	--font-mono: var(--font-jetbrains-mono);
-	/* Tailwind's own `font-sans` would otherwise resolve to the system stack,
-	   silently dropping Inter. */
-	--font-sans: var(--font-inter);
+	/* Without these, Tailwind's `font-sans` and `font-mono` fall back to the
+	   system stacks. */
+	--font-sans: var(--font-dm-sans);
+	--font-mono: var(--font-datatype);
 
 	/* RADII — one scale, stepped by element size so corners read the same
 	   whether the box is a 16px badge or a full card. Components name the
@@ -96,69 +94,64 @@
 	--radius-control: 0.25rem; /* 4px */
 	--radius-card: 0.375rem; /* 6px */
 
-	/* TYPE SCALE — the design's small sizes, named so no component spells a
-	   pixel value. Body sizes keep Tailwind's `text-sm` / `text-base` / … */
-	--text-label: 0.59375rem; /* 9.5px — micro-label */
-	--text-label--line-height: 1.2;
-	--text-micro: 0.625rem; /* 10px — dense label, caption, meta */
+	/* TYPE SCALE. The two sizes below Tailwind's `text-sm`, named so no
+	   component spells a pixel value. Uppercase gets the smaller one because
+	   capitals read a size larger than mixed case. DM Sans has a low
+	   x-height, so both run a pixel larger than usual. */
+	--text-micro: 0.75rem; /* 12px, uppercase labels and chips */
 	--text-micro--line-height: 1.4;
-	--text-caption: 0.6875rem; /* 11px — subtitle, source text */
-	--text-caption--line-height: 1.4;
-	--text-value: 0.75rem; /* 12px — data value */
+	--text-value: 0.8125rem; /* 13px, everything else */
 	--text-value--line-height: 1.4;
-	--text-name: 0.8125rem; /* 13px — entity name in a row */
-	--text-name--line-height: 1.3;
-	--tracking-label: 0.14em;
-	--tracking-label-wide: 0.18em;
-	--tracking-label-tight: 0.06em;
 }
 
 /* TYPOGRAPHY ROLES
-   The design's rule: JetBrains Mono is the data and label voice, Inter Tight
-   the display voice, Inter the body voice. Each role below is one @utility so
-   a component names the role rather than the stack, and a call site can still
-   override a single property (`type-label text-primary`): Tailwind orders
-   multi-property utilities before single-property ones. */
+   DM Sans sets text in regular and semibold. Datatype sets numbers and
+   tickers, and has a single weight. Each role is one @utility so a component
+   names a role, not its properties. A call site can still override one
+   property (`type-label text-primary`) because Tailwind orders
+   multi-property utilities first. */
 @utility type-label {
-	/* Micro-label: cell and stat labels, table headers, section kickers. */
-	@apply font-mono text-label font-medium uppercase tracking-label text-muted;
-}
-@utility type-label-sm {
-	/* Dense label one step up: rail titles and tabs, row counts, secondary
-	   cell text, uppercase links. */
-	@apply font-mono text-micro uppercase tracking-wider text-muted;
+	/* Uppercase, for text that names the thing beside it. Not for content or
+	   controls. `font-normal` is stated because a `<th>` defaults to bold. */
+	@apply text-micro font-normal uppercase tracking-wider text-muted;
 }
 @utility type-caption {
-	/* Subtitles, citations, empty states. */
-	@apply font-mono text-caption text-muted;
-}
-@utility type-meta {
-	/* The muted line under a value or a name: dates, sources, result subtitles. */
-	@apply font-mono text-micro text-muted;
+	/* Secondary text and control text. Same size as data, so color alone
+	   sets it apart. */
+	@apply text-value text-muted;
 }
 @utility type-value {
 	/* A datum: header cell values, table cells, identifiers, inputs. */
-	@apply font-mono text-value tabular-nums text-foreground;
+	@apply text-value tabular-nums text-foreground;
+}
+@utility type-figure {
+	/* A number or a ticker on its own. Add it beside another role
+	   (`type-value type-figure`). Text with words in it stays in the sans. */
+	@apply font-mono;
+}
+@utility type-stat {
+	/* A headline number. Datatype has no bold, so a stroke supplies it. The
+	   stroke sits behind the fill and is sized in em to scale with the text. */
+	@apply font-mono text-foreground;
+	-webkit-text-stroke: 0.045em currentColor;
+	paint-order: stroke fill;
+}
+@utility type-wordmark {
+	/* The FTM2J wordmark, the only bold text. */
+	@apply font-bold text-foreground;
 }
 @utility type-display {
-	/* Names and headline numbers. Size is set at the call site, and so is any
-	   negative tracking: Inter Tight is already a tight cut, and pulling its
-	   letters closer at 13px crowds a name, and at 20px still reads cramped.
-	   Only elements of roughly 30px and up add `tracking-tight`: the company
-	   title, the article page titles, and the KPI numbers. */
-	@apply font-inter-tight tracking-normal font-semibold text-foreground;
+	/* Names and headings. Size comes from the call site or the surrounding
+	   text. Add `tracking-tight` only from about 30px up. */
+	@apply font-semibold text-foreground;
 }
 @utility type-body {
 	/* Prose. */
-	@apply font-sans text-sm leading-relaxed text-muted;
+	@apply text-sm leading-relaxed text-muted;
 }
 @utility type-chip {
-	/* Ticker badge: bordered, mono, on the chip radius. */
-	@apply font-mono text-micro tracking-label-tight px-1.5 py-0.5 border border-muted/25 bg-muted/25 text-foreground rounded-chip;
-}
-@utility type-source-kicker {
-	/* The "SOURCE." lead-in before a citation. */
-	@apply font-mono text-micro font-semibold uppercase tracking-label-tight text-foreground mr-2;
+	/* Ticker badge. */
+	@apply font-mono text-micro px-1.5 py-0.5 border border-muted/25 bg-muted/25 text-foreground rounded-chip;
 }
 
 html {
@@ -170,10 +163,53 @@ html {
 	scrollbar-gutter: stable;
 }
 
+/* SCROLLBARS. Drawn like a text-mode scrollbar: a dotted track and a solid
+   square block for the thumb, which takes the accent color while pointed at. */
+::-webkit-scrollbar {
+	width: 9px;
+	height: 9px;
+}
+::-webkit-scrollbar-track {
+	/* One dot in each 2px tile, the light-shade character a terminal draws.
+	   At 9px, with the tiles shifted down a pixel, the dots fill the middle
+	   7px and leave one pixel clear on every side. */
+	background: conic-gradient(color-mix(in srgb, var(--muted) 70%, transparent) 25%, transparent 0) 0 1px / 2px 2px;
+}
+::-webkit-scrollbar-thumb {
+	/* The clear border insets the block a pixel, so it is exactly as wide as
+	   the dots it covers. */
+	background-color: var(--muted);
+	background-clip: padding-box;
+	border: 1px solid transparent;
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+	background-color: var(--primary);
+}
+::-webkit-scrollbar-corner {
+	background: transparent;
+}
+/* Firefox has no scrollbar pseudo-elements, so it gets the width and colors
+   only. These stay inside the @supports because in Chromium they switch the
+   rules above off. */
+@supports not selector(::-webkit-scrollbar) {
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--muted) transparent;
+	}
+}
+/* On the terminal shell the pane scrolls and the document never does, so the
+   gutter reserved above would be an empty strip beside the pane's scrollbar. */
+@media (min-width: 48rem) {
+	html:has([data-scroll-pane]) {
+		scrollbar-gutter: auto;
+	}
+}
+
 body {
 	background: var(--background);
 	color: var(--foreground);
-	font-family: var(--font-inter);
+	font-family: var(--font-dm-sans);
 }
 
 a:hover, button:hover {

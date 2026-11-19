@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { SectionCard } from "@/blocks/section-card";
 import { SourceCitation } from "@/blocks/source-citation";
+import { TreeBranchIcon } from "@/components/icon";
 import { Pagination } from "@/components/pagination";
 import { SearchInput } from "@/components/search-input";
 import { foldDiacritics } from "@/lib/fold-diacritics";
@@ -34,17 +35,6 @@ type TreeRow = {
 };
 
 /**
- * Guide prefix for a row at `depth`, matching the design's tree: one
- * `│` channel per ancestor level, then the `└──` branch for
- * this one. Rendered as monospaced preformatted text so the columns line up by
- * character, independent of the proportional font used for entity names.
- */
-function guidePrefix(depth: number): string {
-  if (depth === 0) return "";
-  return "   │  ".repeat(depth - 1) + "└── ";
-}
-
-/**
  * Subsidiary rows matching `query` on name or jurisdiction. Diacritics are
  * folded on both sides, as the site search does: 751 subsidiary names carry
  * them, and a filter that made "Farmaceutica" miss "Farmacéutica" would be
@@ -62,27 +52,24 @@ function filterRows(rows: TreeRow[], query: string): TreeRow[] {
 
 function TreeLines({ rows }: { rows: TreeRow[] }) {
   return (
-    <div className="type-display font-medium text-name">
+    <div className="text-value text-foreground">
       <ul className="list-none m-0 p-0">
         {rows.map((row, i) => (
           <li
             key={`${row.name}-${i}`}
-            className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-0.5 hover:bg-overlay"
+            className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 px-2 py-0.5 hover:bg-overlay"
           >
-            {/* Guides are a fixed-width prefix that does not shrink, so a name
-                long enough to wrap flows under itself rather than under the
-                guide column. Raw font-mono on purpose: box-drawing glyphs, not
-                a text role. */}
+            {/* The branch does not shrink, so a long name wraps under itself. */}
             <span className="flex min-w-0 items-start">
-              <span
-                aria-hidden
-                className="shrink-0 whitespace-pre font-mono font-normal tracking-normal text-muted"
-              >
-                {guidePrefix(row.depth)}
-              </span>
-              <span className="min-w-0">{row.name}</span>
+              {row.depth > 0 ? (
+                <TreeBranchIcon
+                  className="mr-2 h-4 w-6 shrink-0 text-muted"
+                  style={{ marginLeft: `${(row.depth - 1) * 1.5}rem` }}
+                />
+              ) : null}
+              <span className="min-w-0 type-display">{row.name}</span>
             </span>
-            <span className="type-label-sm font-normal tracking-widest whitespace-nowrap">
+            <span className="type-caption whitespace-nowrap">
               {row.jurisdiction ?? ""}
             </span>
           </li>
@@ -306,8 +293,8 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
           ) : null}
           <TreeLines rows={[registrant, ...filtered]} />
           {noMatches}
-          <p className="mt-8 type-caption leading-relaxed">
-            <span className="type-source-kicker">
+          <p className="mt-4 type-caption">
+            <span className="type-label mr-2">
               Source.
             </span>
             <TreeSources company={company} relationships={relationships} />
@@ -321,8 +308,8 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
       {totalPages > 1 || filtering ? (
         // Wraps so the pager drops to its own line on a phone: the count and a
         // six-page list side by side are wider than the card there.
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-          <p className="type-label-sm m-0">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
+          <p className="type-caption m-0">
             {filtering
               ? `${filtered.length} of ${subsidiaryCount} subsidiaries`
               : `${subsidiaryCount} subsidiaries`}

@@ -88,7 +88,7 @@ FooterColumn.displayName = "Footer.Column";
  */
 function FooterSectionTitle({ children }: PropsWithChildren) {
   return (
-    <h4 className="type-label-sm text-foreground">
+    <h4 className="type-label text-foreground">
       {children}
     </h4>
   );
@@ -136,7 +136,7 @@ function FooterCopyright({
   children,
 }: PropsWithChildren<FooterCopyrightProps>) {
   return (
-    <p className="type-caption leading-relaxed text-center md:text-left">
+    <p className="type-caption text-center md:text-left">
       © {year} {entity}. All rights reserved. {children}
     </p>
   );
@@ -308,7 +308,7 @@ FooterYouTubeButtonLink.displayName = "Footer.YouTubeButtonLink";
  */
 function FooterWordmark() {
   return (
-    <span className="type-display text-lg font-bold">
+    <span className="type-wordmark text-lg">
       FTM<span className="text-primary">2</span>J
     </span>
   );
@@ -359,12 +359,12 @@ FooterLogoImage.displayName = "Footer.LogoImage";
 type FooterLastUpdatedProps = { date: string };
 
 /**
- * A "Last updated {date}" label with an animated pulse indicator, styled in
+ * A "Last updated {date}" line with an animated pulse indicator, styled in
  * the primary color.
  */
 function FooterLastUpdated({ date }: FooterLastUpdatedProps) {
   return (
-    <span className="inline-flex items-center gap-2 type-label-sm text-primary">
+    <span className="inline-flex items-center gap-2 type-caption text-primary">
       <span className="relative inline-flex size-1.5">
         <span className="absolute inset-0 rounded-full bg-primary opacity-75 animate-ping" />
         <span className="relative inline-flex size-1.5 rounded-full bg-primary" />

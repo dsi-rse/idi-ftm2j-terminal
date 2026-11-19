@@ -203,29 +203,49 @@ Same rule for types and helpers.
 **Composition.** All class strings go through
 [cn()](../web/src/lib/utils.ts). Never concatenate class strings by hand.
 
-**Typography.** The design's rule is that JetBrains Mono is the data and label
-voice, Inter Tight the display voice, and Inter the body voice. Those roles are
-named `@utility` classes in `globals.css`, and a component names the role
-rather than spelling out a stack or a pixel size:
+**Typography.** Two families with separate jobs. DM Sans sets all text, in
+two weights: regular and semibold. Datatype, a monospace, sets figures only: a
+number or a ticker standing on its own. Anything with words in it stays in the
+sans, including a date inside a sentence. Datatype draws its letters and
+digits in one weight, so a weight class does nothing on a figure. Hierarchy
+comes from size, weight and color, never from a third typeface or italics, and
+the only heavier weights are the two roles that own them: the wordmark and
+the headline numbers. The roles are named `@utility` classes in `globals.css`,
+and a component names the role rather than spelling out its properties:
 
 | Utility | Role |
 | --- | --- |
-| `type-label` | micro-label: cell and stat labels, table headers, kickers |
-| `type-label-sm` | dense label one step up: rail title and tabs, counts, uppercase links |
-| `type-caption` | subtitles, citations, empty states |
-| `type-meta` | the muted line under a value or name |
+| `type-label` | the one uppercase, letter-spaced voice, for text that names the thing beside it: cell and stat labels, table headers, kickers, eyebrows. Never content (a value, a sentence) or a control (a tab, a button, a link) |
+| `type-caption` | the muted line: subtitles, citations, empty states, the line under a value or name, and the text of a control; the data's size, told apart by color alone |
 | `type-value` | a datum: cell values, table cells, identifiers, inputs |
-| `type-display` | names and headline numbers; size set at the call site |
+| `type-figure` | a number or a ticker on its own, in the mono: table figures, identifiers, counts; added alongside another role (`type-value type-figure`) |
+| `type-stat` | a headline number, in the mono and emboldened with a stroke; size set at the call site |
+| `type-display` | names and headings, semibold; size set at the call site |
+| `type-wordmark` | the FTM2J wordmark, bold |
 | `type-body` | prose |
-| `type-chip` | ticker badge |
-| `type-source-kicker` | the `SOURCE.` lead-in |
+| `type-chip` | ticker badge, in the mono |
 
 A call site may override one property (`type-label text-primary`); Tailwind
 orders multi-property utilities before single-property ones, so the override
-wins. Sizes below `text-sm` are tokens (`text-label`, `text-micro`,
-`text-caption`, `text-value`, `text-name`), never arbitrary values. `font-mono`
-appears raw only on glyphs (tree guides, the `↳` match marker), with a comment
-saying so.
+wins. Two sizes sit below `text-sm`, both tokens and never arbitrary values:
+`text-value` (13px) for data and captions, and `text-micro` (12px, the floor)
+for uppercase labels and chips only. From `text-sm` up the scale is Tailwind's
+own. `font-mono` and `font-sans` never appear in a component: the mono is
+reached only through `type-figure`, `type-stat` and `type-chip`. The tree branch and the
+subsidiary-match arrow are SVG icons, not characters.
+
+**Spacing.** On the company page, boxes use one step, 16px (`p-4`, `gap-4`):
+a card's padding, a tile's padding, the gap between cards, and the space on
+each side of a rule. A box that bleeds to its card's edge uses the same
+number as a negative margin (`-mx-4`), so the two must change together.
+
+A card's title, search box, table rules and source line share the card's
+content edge. Rows that highlight on hover, in a table or the tree, keep 8px
+of padding at each end (`first:pl-2 last:pr-2` on a table's outer cells), so
+the highlight does not start and end at the text. Lines of text that belong
+together, such as a label over its value or a name over its second
+line, sit 4px apart (`gap-1`). A caption keeps the role's line height, so
+`type-caption` is never paired with a `leading-*` class.
 
 **Radii.** Corners come from three named radii in `globals.css`, stepped by
 element size so a badge and a card look equally rounded: `rounded-chip` (2px —
@@ -233,6 +253,13 @@ ticker badges, inline highlights), `rounded-control` (4px — buttons, inputs,
 icon buttons) and `rounded-card` (6px — section cards, boxes, popovers,
 callouts). Name the role, never Tailwind's raw `rounded-sm` / `rounded-md`;
 `rounded-full` stays for dots, pills and switches.
+
+**Scrollbars.** Scrollbars are styled once, in `globals.css`, to look like a
+text-mode scrollbar: a dotted track and a square block thumb. Chromium and
+Safari get the full drawing through `::-webkit-scrollbar`; Firefox gets a thin
+bar in the same colors. Do not set `scrollbar-width` or `scrollbar-color` on
+an element. In Chromium either one switches the custom drawing off for that
+element.
 
 **Base UI.** Every interactive primitive in `components/` wraps a
 `@base-ui/react` headless component. Base UI is the bottom of the stack — its
@@ -319,10 +346,21 @@ grep -rnE "rounded(-[trblse]{1,2})?-(xs|sm|md|lg|xl|2xl|3xl)\b|[\"' \`]rounded[\
 
 ```bash
 # Typography goes through the role utilities, not pixel values or raw stacks.
-# The first should return nothing; the second only glyph one-offs that carry a
-# "Raw font-mono on purpose" comment.
+# All three should return nothing: no pixel sizes, no family named in a
+# component, and no weight but regular and semibold or any italics.
 grep -rnE "text-\[[0-9.]+px\]|tracking-\[[0-9.]+em\]" web/src --include='*.tsx'
-grep -rnE "font-mono|font-inter" web/src --include='*.tsx' | grep -v app/layout.tsx
+grep -rnE "\bfont-(mono|sans)\b" web/src --include='*.tsx'
+grep -rnE "font-(thin|extralight|light|medium|bold|extrabold|black)\b|\bitalic\b" web/src --include='*.tsx'
+```
+
+```bash
+# Captions keep the role's line height. Should return nothing.
+grep -rnE "type-caption[^\"]*leading-|leading-[a-z]+[^\"]*type-caption" web/src --include='*.tsx'
+```
+
+```bash
+# Scrollbars are styled only in globals.css. Should return nothing.
+grep -rnE "scrollbar-(width|color)|scrollbar-(none|thin|hide)" web/src --include='*.tsx'
 ```
 
 Each of the first two commands should return nothing. The last two should only

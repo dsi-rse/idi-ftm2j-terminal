@@ -11,10 +11,10 @@ type StatisticProps = {
 export function Statistic({ value, description, title }: StatisticProps) {
   return (
     <div className="flex flex-col items-center text-center md:items-start md:text-left gap-0 min-w-0">
-      <h3 className="type-display text-2xl" title={title}>
+      <h3 className="type-stat text-2xl" title={title}>
         {value}
       </h3>
-      <p className="type-label-sm text-primary">
+      <p className="type-label text-primary">
         {description}
       </p>
     </div>

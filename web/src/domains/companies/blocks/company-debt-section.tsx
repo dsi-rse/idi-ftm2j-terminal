@@ -146,9 +146,9 @@ function PartyCell({
   const { parties, unnamedLenders } = instrument;
   const [first, ...others] = parties;
   const note = unnamedLendersNote(parties);
-  // Every branch sets the party in the display face, as holder names are; the
-  // placeholder and the note too, muted, so one column does not switch faces.
-  const name = "type-display text-name";
+  // Every branch is semibold, the muted placeholder and note included, so the
+  // column does not change weight by row.
+  const name = "type-display";
   if (!first)
     return (
       <Table.Cell
@@ -179,7 +179,7 @@ function PartyCell({
         expanded ? (
           // A name with two roles appears once per role, so name and role
           // together are the key; the note gets a key no label can take.
-          <span className={cn(name, "flex flex-col gap-0.5")}>
+          <span className={cn(name, "flex flex-col gap-1")}>
             {parties.map((party) => (
               <span key={partyLabel(party)}>{partyLabel(party)}</span>
             ))}
@@ -199,7 +199,7 @@ function PartyCell({
           onClick={onToggle}
           aria-expanded={expanded}
           className={cn(
-            "type-label-sm cursor-pointer",
+            "type-caption cursor-pointer",
             "hover:text-foreground rounded-control",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           )}
@@ -352,31 +352,37 @@ function DebtTable({
                       // dozens of filings, so the row is where a citation
                       // belongs — a footer listing 38 links cites nothing
                       // usefully.
-                      source ? (
-                        <a
-                          href={source.url}
-                          title={`${source.name} — ${source.url}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className={cn("underline hover:text-foreground")}
-                        >
-                          {instrument.asOf}
-                        </a>
-                      ) : (
-                        instrument.asOf
-                      )
+                      <span className={cn("type-figure")}>
+                        {source ? (
+                          <a
+                            href={source.url}
+                            title={`${source.name} — ${source.url}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={cn("underline hover:text-foreground")}
+                          >
+                            {instrument.asOf}
+                          </a>
+                        ) : (
+                          instrument.asOf
+                        )}
+                      </span>
                     }
                     secondary={source?.name}
                   />
                   <Table.Cell
                     align="right"
                     primary={
-                      instrument.amount === null
-                        ? "Not reported"
-                        : formatAmountShort(
-                          instrument.amount,
-                          instrument.currency,
-                        )
+                      instrument.amount === null ? (
+                        "Not reported"
+                      ) : (
+                        <span className="type-figure">
+                          {formatAmountShort(
+                            instrument.amount,
+                            instrument.currency,
+                          )}
+                        </span>
+                      )
                     }
                     secondary={instrument.currency ?? undefined}
                   />

@@ -92,6 +92,8 @@ type HeaderCellProps = {
   value: string;
   /** Dims the value to mark it as absent rather than reported. */
   muted?: boolean;
+  /** A number or a ticker. Set in the mono unless `muted`. */
+  figure?: boolean;
   /** Popover body explaining the figure; adds a click-to-open info trigger by the label. */
   info?: ReactNode;
   /** Small line under the value, e.g. the as-of date and currency. */
@@ -103,16 +105,18 @@ type HeaderCellProps = {
 };
 
 /**
- * One cell of the header strip: a micro-label over a mono value. The
+ * One cell of the header strip: a micro-label over a value. The
  * categorical cells pass only those; a financial figure adds an info popover
  * and an as-of/currency subline linking the filing it came from. One component
- * rather than two so the cells cannot drift apart — the label row is a fixed
- * height so the 16px info icon never pushes one label below its neighbours.
+ * rather than two so the cells cannot drift apart. The label row has a minimum
+ * height so the info icon does not push a label below its neighbours, and a
+ * label that wraps on a phone grows the row.
  */
 function HeaderCell({
   label,
   value,
   muted,
+  figure,
   info,
   sub,
   href,
@@ -120,7 +124,7 @@ function HeaderCell({
 }: HeaderCellProps) {
   return (
     <div className="flex flex-col gap-1 md:rounded-card md:border md:border-muted/25 md:px-3 md:py-2">
-      <span className="flex h-4 items-center gap-1">
+      <span className="flex min-h-4 items-center gap-1">
         <span className="type-label md:whitespace-nowrap">{label}</span>
         {info ? (
           <Popover>
@@ -134,13 +138,14 @@ function HeaderCell({
       <span
         className={cn(
           "type-value md:whitespace-nowrap",
+          figure && !muted && "type-figure",
           muted ? "text-muted" : "text-foreground",
         )}
       >
         {value}
       </span>
       {sub || href ? (
-        <span className="type-meta whitespace-nowrap">
+        <span className="type-caption whitespace-nowrap">
           {sub}
           {sub && href ? " · " : null}
           {href ? (
@@ -243,12 +248,12 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
   const [companyInfoSource] = company.sources;
 
   return (
-    <header className="w-full flex flex-col gap-3 pb-6 border-b border-muted/25">
+    <header className="w-full flex flex-col gap-3 pb-4 border-b border-muted/25">
       <h1 className="type-display tracking-tight text-3xl md:text-4xl leading-none">
         {company.name}
       </h1>
       {/* At md+ the cells size to their content and wrap, rather than sitting
-          in a fixed grid — mono labels vary enough in width that equal columns
+          in a fixed grid. The labels vary enough in width that equal columns
           either clip or force the longest label onto two lines. On a phone the
           boxes stack four deep and push the tabs below the fold, so the strip
           drops its borders and becomes a two-column list of label/value pairs. */}
@@ -272,12 +277,14 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           label="Ticker"
           value={ticker ?? NOT_REPORTED}
           muted={!ticker}
+          figure
         />
         <HeaderCell
           label="Public Float"
           value={publicFloat.value}
           sub={publicFloat.sub}
           muted={publicFloat.muted}
+          figure
           info={PUBLIC_FLOAT_INFO}
           href={publicFloat.href}
           hrefLabel={publicFloat.hrefLabel}
@@ -287,20 +294,15 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
           value={revenue.value}
           sub={revenue.sub}
           muted={revenue.muted}
+          figure
           info={REVENUE_INFO}
           href={revenue.href}
           hrefLabel={revenue.hrefLabel}
         />
       </div>
       {companyInfoSource ? (
-        <p className={cn("type-caption leading-relaxed")}>
-          <span
-            className={cn(
-              "type-source-kicker",
-            )}
-          >
-            Source.
-          </span>
+        <p className={cn("type-caption")}>
+          <span className={cn("type-label mr-2")}>Source.</span>
           <SourceCitation
             source={companyInfoSource}
             detail={`last accessed ${companyInfoSource.lastAccessed}`}

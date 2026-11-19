@@ -55,7 +55,7 @@ ArticleHeaderRoot.displayName = "Article.Header";
  */
 function ArticleHeaderEyebrow({ children }: PropsWithChildren) {
   return (
-    <p className="type-label-sm text-primary text-center md:text-left">
+    <p className="type-label text-primary text-center md:text-left">
       {children}
     </p>
   );
@@ -142,7 +142,7 @@ function ArticleBulkDownload({
   return (
     <div className="flex flex-col md:flex-row md:items-center gap-6 border border-muted/25 border-l-2 border-l-primary rounded-card p-6 bg-overlay">
       <div className="flex-1 space-y-2">
-        <p className="type-label-sm text-primary">
+        <p className="type-label text-primary">
           {label}
         </p>
         <h2 className="type-display text-xl md:text-2xl">
@@ -151,7 +151,7 @@ function ArticleBulkDownload({
         <p className="type-body md:text-base">
           {description}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-label-sm">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-caption">
           <span>{format}</span>
           <span aria-hidden>·</span>
           <span>{size}</span>
@@ -161,7 +161,7 @@ function ArticleBulkDownload({
       </div>
       <a
         href={href}
-        className="inline-flex items-center justify-center gap-2 rounded-control border border-primary/60 bg-primary/10 px-5 py-3 type-label-sm text-xs tracking-label-tight text-foreground hover:bg-primary/20 hover:border-primary transition-colors self-start md:self-center"
+        className="inline-flex items-center justify-center gap-2 rounded-control border border-primary/60 bg-primary/10 px-5 py-3 type-caption text-foreground hover:bg-primary/20 hover:border-primary transition-colors self-start md:self-center"
       >
         <DownloadIcon className="size-4 text-primary" />
         Download {format}
@@ -213,7 +213,7 @@ function ArticleSectionTitle({
   return (
     <h2 className="type-display text-xl">
       {number && (
-        <span className="type-label-sm text-primary mr-2 align-middle">
+        <span className="type-label text-primary mr-2 align-middle">
           {number}
         </span>
       )}
@@ -247,7 +247,7 @@ function ArticleCallout({ children }: PropsWithChildren) {
       )}
     >
       <CircleAlertIcon className="size-4 text-primary" />
-      <p className="type-body text-xs text-justified md:text-sm md:text-left">
+      <p className="type-body text-value text-justified md:text-sm md:text-left">
         {children}
       </p>
     </div>
@@ -308,7 +308,7 @@ type ArticleDatasetProps = {
 
 /**
  * A row in a dataset download list.
- * Displays the dataset name, description, monospaced metadata, and one
+ * Displays the dataset name, description, metadata, and one
  * outlined button per available download format.
  */
 function ArticleDataset({
@@ -328,7 +328,7 @@ function ArticleDataset({
         <p className="type-body md:text-base">
           {description}
         </p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-label-sm">
+        <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1 type-caption">
           <span>{size}</span>
           {rows && (
             <>
@@ -345,7 +345,7 @@ function ArticleDataset({
           <a
             key={f.label}
             href={f.href}
-            className="inline-flex items-center rounded-control border border-muted/40 px-3 py-1.5 type-label-sm tracking-label-tight text-foreground hover:border-primary hover:text-primary transition-colors"
+            className="inline-flex items-center rounded-control border border-muted/40 px-3 py-1.5 type-caption text-foreground hover:border-primary hover:text-primary transition-colors"
           >
             {f.label}
           </a>
@@ -381,11 +381,11 @@ function ArticleBlockQuote({ quote }: ArticleBlockQuoteProps) {
       <blockquote className="type-display font-normal text-lg leading-snug">
         {quote.text}
       </blockquote>
-      <figcaption className="flex flex-col gap-0.5 mt-2">
-        <span className="type-body text-foreground font-medium leading-normal">
+      <figcaption className="flex flex-col gap-1 mt-2">
+        <span className="type-body text-foreground font-semibold leading-normal">
           {quote.author.name}
         </span>
-        <span className="type-label-sm">
+        <span className="type-caption">
           {quote.author.affiliation}
         </span>
       </figcaption>

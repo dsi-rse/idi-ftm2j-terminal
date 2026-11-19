@@ -1,3 +1,4 @@
+import { CornerDownRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
@@ -26,10 +27,8 @@ const MAX_SUBSIDIARY_LINES = 2;
 type SearchResultProps = {
   index: number;
   /**
-   * Digits to zero-pad the rank to. Pass the width of the highest rank on the
-   * page so every row's rank is the same width and the names line up; a page
-   * can straddle a digit boundary (91-100), which would otherwise leave the
-   * last rows indented past the rest.
+   * Width of the page's highest rank, in digits. Every rank is held to it so
+   * the names line up when a page straddles a digit boundary (91-100).
    */
   rankWidth?: number;
   active?: boolean;
@@ -129,14 +128,10 @@ function Highlighted({
 }
 
 /**
- * The row's one text voice. The reviewer's note on the rail: Modernist
- * typography changes only what communication needs, and the rank, name,
- * sector, and country had three sizes and two families between them. All
- * four now share 12px Inter; the name alone is set semibold, and the muted
- * colour does the rest. The ticker chip keeps its mono, as a badge not a
- * line of text.
+ * The row's one text size. Typography should change only what communication
+ * needs, so weight marks the name and the muted colour marks the rest.
  */
-const ROW_TEXT = "font-sans text-value";
+const ROW_TEXT = "text-value";
 
 /** The matched subsidiary name, with the query's hits marked. */
 function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
@@ -150,13 +145,12 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
         ROW_TEXT,
       )}
     >
-      {/* Fixed-width and non-shrinking, so a long name truncates on its own
-          side rather than squeezing the guide out of the row. Teal stays on the
-          guide alone; the name text is foreground so it clears AA at 12px.
-          Raw font-mono on purpose: a glyph, not a text role. */}
-      <span aria-hidden className={cn("shrink-0 font-mono text-primary")}>
-        ↳
-      </span>
+      {/* The marker does not shrink, so a long name truncates instead. Only
+          the marker takes the accent. The name stays foreground to clear AA. */}
+      <CornerDownRight
+        aria-hidden
+        className={cn("size-3 shrink-0 self-center text-primary")}
+      />
       {/* The visible line is windowed to the match; the full name goes to
           assistive tech unabridged. `pb-0.5` keeps `truncate`'s overflow:hidden
           from clipping the match underline, which sits below the baseline. */}
@@ -224,7 +218,13 @@ export function SearchResult({
         {/* The star centres on the rank's line, which is the name's line too. */}
         <div className={cn("flex flex-row items-center gap-2")}>
           <CompanyBookmark company={company} />
-          <p>{index.toString().padStart(Math.max(2, rankWidth), "0")}</p>
+          <p className={cn("type-figure")}>
+            {/* Invisible zeros pad each rank so the names line up. */}
+            <span aria-hidden className={cn("invisible")}>
+              {"0".repeat(Math.max(0, rankWidth - index.toString().length))}
+            </span>
+            {index}
+          </p>
         </div>
       </div>
       <div className={cn("min-w-0")}>
@@ -280,7 +280,7 @@ export function SearchResult({
                 )}
               </p>
               {matchHint && (
-                <p className={cn(ROW_TEXT, "italic text-muted")}>
+                <p className={cn(ROW_TEXT, "text-muted")}>
                   {matchHint}
                 </p>
               )}
@@ -294,12 +294,9 @@ export function SearchResult({
         </div>
       </div>
       {tickers && tickers.length > 0 && (
-        // Nudged down to the cap line of the text beside it, not the top of
-        // its line box. At 12px/1.4 with Inter's metrics (ascender 0.969em,
-        // descender 0.242em, cap height 0.727em) the content area is 14.5px
-        // inside a 16.8px line, so 1.1px of half-leading sits above it and the
-        // caps start a further 2.9px down: 4px in all. Aligned to the box
-        // instead, the chip reads as floating above the name.
+        // Nudged down to the cap line of the name beside it. At 13px/1.4 in
+        // DM Sans the caps start about 4px below the top of the line box.
+        // Aligned to the box, the chip looks like it floats above the name.
         <div className={cn("justify-self-end leading-none mt-1")}>
           <div className={cn("flex flex-col gap-1")}>
             {tickers.map((ticker, i) => {
@@ -320,7 +317,7 @@ export function SearchResult({
                     // A selected row shows no match cue on its ticker: the solid
                     // accent chip, the row's accent border, and the highlighted
                     // title already explain the hit, and an underline on three
-                    // mono characters inside the filled pill only reads as noise.
+                    // characters inside the filled pill only reads as noise.
                     ticker
                   )}
                 </p>

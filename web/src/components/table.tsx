@@ -100,7 +100,9 @@ function TableHeaderCell({
     <th
       {...props}
       className={cn(
-        "px-3 py-2 type-label",
+        // The outer cells keep a little padding so a row's hover highlight
+        // does not start and end at its text.
+        "px-3 py-2 type-label first:pl-2 last:pr-2",
         alignmentClass,
         className,
       )}
@@ -119,7 +121,8 @@ function TableHeaderCell({
           type="button"
           onClick={onSort}
           className={cn(
-            "inline-flex items-center gap-1",
+            // A button does not inherit text-transform, so restate it.
+            "inline-flex items-center gap-1 uppercase",
             "cursor-pointer hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-control",
             align === "right" && "ml-auto",
           )}
@@ -214,14 +217,14 @@ function TableCell({
     primary !== undefined ? (
       <div
         className={cn(
-          "flex flex-col gap-0.5",
+          "flex flex-col gap-1",
           align === "right" && "items-end",
           align === "center" && "items-center",
         )}
       >
         <span className="text-foreground">{primary}</span>
         {secondary ? (
-          <span className="type-label-sm">
+          <span className="type-caption">
             {secondary}
           </span>
         ) : null}
@@ -232,7 +235,7 @@ function TableCell({
   return (
     <td
       {...props}
-      className={cn("px-3 py-3", alignmentClass, className)}
+      className={cn("px-3 py-3 first:pl-2 last:pr-2", alignmentClass, className)}
     >
       {content}
     </td>
@@ -283,15 +286,9 @@ function TableEmpty({
 }
 TableEmpty.displayName = "Table.Empty";
 
-/**
- * A tiny numeric row-index label, e.g. `01`, `02`. Pass a 1-based index.
- */
+/** A row number. Pass a 1-based index. */
 export function RowIndex({ index }: { index: number }) {
-  return (
-    <span className="type-meta tabular-nums">
-      {String(index).padStart(2, "0")}
-    </span>
-  );
+  return <span className="type-caption type-figure">{index}</span>;
 }
 
 type DeltaCellProps = {
