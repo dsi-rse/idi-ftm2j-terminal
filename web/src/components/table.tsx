@@ -119,8 +119,7 @@ function TableHeaderCell({
           type="button"
           onClick={onSort}
           className={cn(
-            // `uppercase` restated: a button does not inherit text-transform,
-            // so a sortable header would otherwise drop the label's case.
+            // A button does not inherit text-transform, so restate it.
             "inline-flex items-center gap-1 uppercase",
             "cursor-pointer hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-control",
             align === "right" && "ml-auto",
@@ -285,10 +284,7 @@ function TableEmpty({
 }
 TableEmpty.displayName = "Table.Empty";
 
-/**
- * A numeric row-index label. Pass a 1-based index. Set as a plain number, on
- * the same left edge as the column's `#` header.
- */
+/** A row number. Pass a 1-based index. */
 export function RowIndex({ index }: { index: number }) {
   return <span className="type-caption type-figure">{index}</span>;
 }

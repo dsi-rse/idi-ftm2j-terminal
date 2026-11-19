@@ -92,7 +92,7 @@ type HeaderCellProps = {
   value: string;
   /** Dims the value to mark it as absent rather than reported. */
   muted?: boolean;
-  /** The value is a number or a ticker; set in the mono when it is reported. */
+  /** A number or a ticker. Set in the mono unless `muted`. */
   figure?: boolean;
   /** Popover body explaining the figure; adds a click-to-open info trigger by the label. */
   info?: ReactNode;
@@ -108,9 +108,9 @@ type HeaderCellProps = {
  * One cell of the header strip: a micro-label over a value. The
  * categorical cells pass only those; a financial figure adds an info popover
  * and an as-of/currency subline linking the filing it came from. One component
- * rather than two so the cells cannot drift apart — the label row has a minimum
- * height so the 16px info icon never pushes one label below its neighbours,
- * and a label that wraps on a phone grows the row instead of overflowing it.
+ * rather than two so the cells cannot drift apart. The label row has a minimum
+ * height so the info icon does not push a label below its neighbours, and a
+ * label that wraps on a phone grows the row.
  */
 function HeaderCell({
   label,
@@ -253,7 +253,7 @@ export function CompanyHeader({ company }: CompanyHeaderProps) {
         {company.name}
       </h1>
       {/* At md+ the cells size to their content and wrap, rather than sitting
-          in a fixed grid — the labels vary enough in width that equal columns
+          in a fixed grid. The labels vary enough in width that equal columns
           either clip or force the longest label onto two lines. On a phone the
           boxes stack four deep and push the tabs below the fold, so the strip
           drops its borders and becomes a two-column list of label/value pairs. */}

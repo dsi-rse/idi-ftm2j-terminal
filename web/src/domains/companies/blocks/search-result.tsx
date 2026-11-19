@@ -27,10 +27,8 @@ const MAX_SUBSIDIARY_LINES = 2;
 type SearchResultProps = {
   index: number;
   /**
-   * Digits to hold the rank's width to. Pass the width of the highest rank on
-   * the page so every row's rank is the same width and the names line up; a page
-   * can straddle a digit boundary (91-100), which would otherwise leave the
-   * last rows indented past the rest.
+   * Width of the page's highest rank, in digits. Every rank is held to it so
+   * the names line up when a page straddles a digit boundary (91-100).
    */
   rankWidth?: number;
   active?: boolean;
@@ -130,11 +128,8 @@ function Highlighted({
 }
 
 /**
- * The row's one text voice. The reviewer's note on the rail: Modernist
- * typography changes only what communication needs, and the rank, name,
- * sector, and country had three sizes and two families between them. All
- * four now share one 13px size; the name alone is set semibold, the rank is a
- * figure, and the muted colour does the rest.
+ * The row's one text size. Typography should change only what communication
+ * needs, so weight marks the name and the muted colour marks the rest.
  */
 const ROW_TEXT = "text-value";
 
@@ -150,10 +145,8 @@ function SubsidiaryLine({ match }: { match: SubsidiaryMatch }) {
         ROW_TEXT,
       )}
     >
-      {/* Fixed-size and non-shrinking, so a long name truncates on its own
-          side rather than squeezing the marker out of the row. Teal stays on
-          the marker alone; the name text is foreground so it clears AA at
-          13px. */}
+      {/* The marker does not shrink, so a long name truncates instead. Only
+          the marker takes the accent. The name stays foreground to clear AA. */}
       <CornerDownRight
         aria-hidden
         className={cn("size-3 shrink-0 self-center text-primary")}
@@ -226,8 +219,7 @@ export function SearchResult({
         <div className={cn("flex flex-row items-center gap-2")}>
           <CompanyBookmark company={company} />
           <p className={cn("type-figure")}>
-            {/* Invisible figures hold every rank on the page to the widest
-                one's width, so the names line up without a leading zero. */}
+            {/* Invisible zeros pad each rank so the names line up. */}
             <span aria-hidden className={cn("invisible")}>
               {"0".repeat(Math.max(0, rankWidth - index.toString().length))}
             </span>
@@ -302,12 +294,9 @@ export function SearchResult({
         </div>
       </div>
       {tickers && tickers.length > 0 && (
-        // Nudged down to the cap line of the text beside it, not the top of
-        // its line box. At 13px/1.4 with DM Sans's metrics (ascender 0.99em,
-        // descender 0.31em, cap height 0.70em) the content area is 16.9px
-        // inside an 18.2px line, so 0.7px of half-leading sits above it and
-        // the caps start a further 3.8px down: about 4px. Aligned to the box
-        // instead, the chip reads as floating above the name.
+        // Nudged down to the cap line of the name beside it. At 13px/1.4 in
+        // DM Sans the caps start about 4px below the top of the line box.
+        // Aligned to the box, the chip looks like it floats above the name.
         <div className={cn("justify-self-end leading-none mt-1")}>
           <div className={cn("flex flex-col gap-1")}>
             {tickers.map((ticker, i) => {

@@ -5,8 +5,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "./providers";
 
-// Text. The optical-size axis is loaded so labels and data at 12-13px get the
-// cut drawn for small sizes.
+// The optical-size axis gives 12px and 13px text the letterforms drawn for
+// small sizes.
 const dmSans = DM_Sans({
   variable: "--font-dm-sans",
   subsets: ["latin"],
@@ -14,13 +14,12 @@ const dmSans = DM_Sans({
   display: "swap",
 });
 
-// Figures: numbers and tickers only. Self-hosted from `./fonts` (OFL, license
-// alongside) because this version of next/font/google does not list Datatype.
-// The file is variable, but its axes only drive the font's inline charts:
-// letters and digits have one weight and one width.
-// ponytail: Latin subset only. Add the latin-ext file if a currency sign
-// outside Latin-1 has to be set in the mono; until then it falls back to a
-// system font.
+// Numbers and tickers. Self-hosted because this version of next/font/google
+// does not list Datatype. Its axes only affect its inline charts, so letters
+// and digits have one weight. The range is declared so the browser never
+// synthesizes a bold.
+// ponytail: Latin subset only. A currency sign outside Latin-1 falls back to
+// a system font. Add the latin-ext file if that matters.
 const datatype = localFont({
   src: "./fonts/datatype-latin.woff2",
   variable: "--font-datatype",

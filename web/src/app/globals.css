@@ -79,9 +79,8 @@
 	--color-primary: var(--primary);
 	--color-primary-hover: var(--primary-hover);
 	--color-primary-foreground: var(--primary-foreground);
-	/* Two families: DM Sans for text, Datatype for figures. Tailwind's own
-	   `font-sans` and `font-mono` would otherwise resolve to the system
-	   stacks, silently dropping both. */
+	/* Without these, Tailwind's `font-sans` and `font-mono` fall back to the
+	   system stacks. */
 	--font-sans: var(--font-dm-sans);
 	--font-mono: var(--font-datatype);
 
@@ -95,39 +94,30 @@
 	--radius-control: 0.25rem; /* 4px */
 	--radius-card: 0.375rem; /* 6px */
 
-	/* TYPE SCALE — the two sizes below Tailwind's `text-sm`, named so no
-	   component spells a pixel value. 13px is the small text size. 12px is
-	   the floor, and is for uppercase labels and chips only: capitals read a
-	   size larger than the mixed case beside them. Both sit a pixel above
-	   where they did in Inter, because DM Sans has the lower x-height.
-	   Everything from `text-sm` up is Tailwind's own scale. */
-	--text-micro: 0.75rem; /* 12px — uppercase labels, chips */
+	/* TYPE SCALE. The two sizes below Tailwind's `text-sm`, named so no
+	   component spells a pixel value. Uppercase gets the smaller one because
+	   capitals read a size larger than mixed case. DM Sans has a low
+	   x-height, so both run a pixel larger than usual. */
+	--text-micro: 0.75rem; /* 12px, uppercase labels and chips */
 	--text-micro--line-height: 1.4;
-	--text-value: 0.8125rem; /* 13px — data, names, captions */
+	--text-value: 0.8125rem; /* 13px, everything else */
 	--text-value--line-height: 1.4;
 }
 
 /* TYPOGRAPHY ROLES
-   Two families with separate jobs. DM Sans sets all text, in two weights
-   (regular and semibold). Datatype, a monospace, sets figures only: a number
-   or a ticker standing on its own. Datatype draws its letters and digits in
-   one weight, so a weight class has no effect on a figure. Hierarchy comes
-   from size, weight and color. Each role below is one @utility so a
-   component names the role rather than its properties, and a call site can
-   still override a single property (`type-label text-primary`): Tailwind
-   orders multi-property utilities before single-property ones. */
+   DM Sans sets text in regular and semibold. Datatype sets numbers and
+   tickers, and has a single weight. Each role is one @utility so a component
+   names a role, not its properties. A call site can still override one
+   property (`type-label text-primary`) because Tailwind orders
+   multi-property utilities first. */
 @utility type-label {
-	/* The one uppercase voice, and the one place letters are spaced. For text
-	   that names the thing beside it: cell and stat labels, table headers,
-	   kickers, eyebrows, column titles. Never for content (a value, a
-	   sentence) or for a control (a tab, a button, a link).
-	   The weight is stated because a `<th>` is bold by default. */
+	/* Uppercase, for text that names the thing beside it. Not for content or
+	   controls. `font-normal` is stated because a `<th>` defaults to bold. */
 	@apply text-micro font-normal uppercase tracking-wider text-muted;
 }
 @utility type-caption {
-	/* The muted line: subtitles, citations, empty states, the line under a
-	   value or a name, and the text of a control. Set at the data's size and
-	   told apart by color alone: one signal, not two. */
+	/* Secondary text and control text. Same size as data, so color alone
+	   sets it apart. */
 	@apply text-value text-muted;
 }
 @utility type-value {
@@ -135,31 +125,24 @@
 	@apply text-value tabular-nums text-foreground;
 }
 @utility type-figure {
-	/* A number or a ticker standing on its own: table figures, identifiers,
-	   counts. The way into the mono, with `type-stat` and the chip.
-	   Added alongside another role (`type-value type-figure`), and never on
-	   anything with words in it: a date inside a sentence stays in the sans. */
+	/* A number or a ticker on its own. Add it beside another role
+	   (`type-value type-figure`). Text with words in it stays in the sans. */
 	@apply font-mono;
 }
 @utility type-stat {
-	/* A headline number: the Overview tiles and the landing stats. Datatype
-	   has no bold (its weight axis only thickens its inline charts), so the
-	   emphasis is a stroke around each glyph, drawn behind the fill and sized
-	   in em so it holds at any size. */
+	/* A headline number. Datatype has no bold, so a stroke supplies it. The
+	   stroke sits behind the fill and is sized in em to scale with the text. */
 	@apply font-mono text-foreground;
 	-webkit-text-stroke: 0.045em currentColor;
 	paint-order: stroke fill;
 }
 @utility type-wordmark {
-	/* The FTM2J wordmark. A logo rather than text, and the one bold in the
-	   sans. */
+	/* The FTM2J wordmark, the only bold text. */
 	@apply font-bold text-foreground;
 }
 @utility type-display {
-	/* Names and headings: the semibold weight. Size is set at the call site
-	   and defaults to the text around it, so a name in a table row is that
-	   row's size. Only elements of roughly 30px and up add `tracking-tight`:
-	   the company title and the article page titles. */
+	/* Names and headings. Size comes from the call site or the surrounding
+	   text. Add `tracking-tight` only from about 30px up. */
 	@apply font-semibold text-foreground;
 }
 @utility type-body {
@@ -167,7 +150,7 @@
 	@apply text-sm leading-relaxed text-muted;
 }
 @utility type-chip {
-	/* Ticker badge: bordered, in the mono, on the chip radius. */
+	/* Ticker badge. */
 	@apply font-mono text-micro px-1.5 py-0.5 border border-muted/25 bg-muted/25 text-foreground rounded-chip;
 }
 

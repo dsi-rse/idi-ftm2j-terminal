@@ -59,12 +59,9 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
             key={`${row.name}-${i}`}
             className="grid grid-cols-[minmax(0,1fr)_auto] gap-4 py-0.5 hover:bg-overlay"
           >
-            {/* The branch is a fixed-size symbol that does not shrink, so a
-                name long enough to wrap flows under itself rather than under
-                the branch.
-                ponytail: one branch per row, stepped in for each level past
-                the first. Draw ancestor guide lines when a source brings real
-                nesting; today every subsidiary is depth 1. */}
+            {/* The branch does not shrink, so a long name wraps under itself.
+                ponytail: deeper levels are only indented. Draw ancestor guide
+                lines once a source has real nesting. */}
             <span className="flex min-w-0 items-start">
               {row.depth > 0 ? (
                 <TreeBranchIcon

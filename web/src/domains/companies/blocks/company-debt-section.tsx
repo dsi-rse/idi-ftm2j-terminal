@@ -108,8 +108,8 @@ function LenderCell({
   onToggle: () => void;
 }) {
   const [first, ...rest] = instrument.lenders;
-  // Every branch sets the lender in the display weight, as holder names are;
-  // the placeholder too, muted, so one column does not switch weights by row.
+  // Every branch is semibold, the muted placeholder included, so the column
+  // does not change weight by row.
   const name = "type-display";
   if (!first)
     return (

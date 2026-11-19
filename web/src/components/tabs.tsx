@@ -36,10 +36,7 @@ TabsHeader.displayName = "Tabs.Header";
 
 type TabsTriggerProps = ComponentPropsWithoutRef<typeof BaseTabs.Tab>;
 
-/**
- * A single tab button. Muted sentence-case text; the selected tab is
- * underlined with the site's primary color.
- */
+/** A single tab button. The selected tab is underlined in the primary color. */
 function TabsTrigger({ className, ...props }: TabsTriggerProps) {
   return (
     <BaseTabs.Tab
