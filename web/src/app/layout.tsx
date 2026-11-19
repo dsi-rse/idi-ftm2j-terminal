@@ -18,8 +18,6 @@ const dmSans = DM_Sans({
 // does not list Datatype. Its axes only affect its inline charts, so letters
 // and digits have one weight. The range is declared so the browser never
 // synthesizes a bold.
-// ponytail: Latin subset only. A currency sign outside Latin-1 falls back to
-// a system font. Add the latin-ext file if that matters.
 const datatype = localFont({
   src: "./fonts/datatype-latin.woff2",
   variable: "--font-datatype",
