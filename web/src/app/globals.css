@@ -166,19 +166,25 @@ html {
 /* SCROLLBARS. Drawn like a text-mode scrollbar: a dotted track and a solid
    square block for the thumb, which takes the accent color while pointed at. */
 ::-webkit-scrollbar {
-	width: 8px;
-	height: 8px;
+	width: 9px;
+	height: 9px;
 }
 ::-webkit-scrollbar-track {
-	/* One dot in each 2px tile, the light-shade character a terminal draws. */
-	background: conic-gradient(color-mix(in srgb, var(--muted) 70%, transparent) 25%, transparent 0) 0 0 / 2px 2px;
+	/* One dot in each 2px tile, the light-shade character a terminal draws.
+	   At 9px, with the tiles shifted down a pixel, the dots fill the middle
+	   7px and leave one pixel clear on every side. */
+	background: conic-gradient(color-mix(in srgb, var(--muted) 70%, transparent) 25%, transparent 0) 0 1px / 2px 2px;
 }
 ::-webkit-scrollbar-thumb {
-	background: var(--muted);
+	/* The clear border insets the block a pixel, so it is exactly as wide as
+	   the dots it covers. */
+	background-color: var(--muted);
+	background-clip: padding-box;
+	border: 1px solid transparent;
 }
 ::-webkit-scrollbar-thumb:hover,
 ::-webkit-scrollbar-thumb:active {
-	background: var(--primary);
+	background-color: var(--primary);
 }
 ::-webkit-scrollbar-corner {
 	background: transparent;
