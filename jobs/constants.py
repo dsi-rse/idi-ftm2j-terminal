@@ -70,28 +70,117 @@ SHAREHOLDER_INVESTOR_TYPE_INSTITUTIONAL = "INSTITUTIONAL INVESTOR"
 SHAREHOLDER_SOURCE_NAME_13F = "SEC Form 13-F"
 SHAREHOLDER_SOURCE_NAME_FALLBACK = "Shareholder disclosure"
 
-# CDT extracts debt instruments from 8-K material-event filings. 6-Ks are named
-# in the spec as a future source and are not in the data yet.
-CDT_FORM_TYPE = "8-K"
+# CDT extracts debt instruments from 8-K material-event filings and from the
+# 6-Ks foreign private issuers file instead; `items.form_type` says which. An
+# 8-K row's `item` is the item number EDGAR labels it with ("1.01"). A 6-K has
+# no items, and its row's `item` is CDT's internal window id, so a 6-K citation
+# names the form alone.
+CDT_FORM_TYPE_8K = "8-K"
 
-# An instrument whose end date is in the future is Active; one whose filing
-# stated no end date is Undated. There is deliberately no matured or superseded
-# variant -- those are filtered out here and never reach the frontend, so the
-# type in `web/src/types/domain.ts` has two members rather than four.
-DEBT_STATUS_ACTIVE = "Active"
-DEBT_STATUS_UNDATED = "Undated"
+# CDT labels every party cluster with one role (`lender`, `borrower`, `agent`,
+# `trustee`, `underwriter`, `guarantor`, `other`). Every role but the borrower
+# -- the company whose page this is, or its subsidiary -- renders as one of the
+# instrument's parties, with its role; lenders are listed first.
+CDT_LENDER_ROLE = "lender"
+CDT_BORROWER_ROLE = "borrower"
 
-# The three columns of `items` that a citation needs, plus the join key. The file
-# is 26.5 MB of which its unread `text` column -- the full 8-K section body the
-# extraction ran over -- is the bulk, and only ~1,900 of its ~26,000 rows are
-# ever joined, so it is read narrow.
+# The `parties_json` kind of a party the filing actually names. The other kind,
+# `collective`, is a cluster whose every span is a role word or pronoun -- "the
+# lenders party thereto", "Holders" -- which says a party exists but not who.
+# Only named parties are rendered, matching the CDT dashboard's own party lists.
+CDT_NAMED_PARTY_KIND = "named"
+
+# CDT's `lender_disclosure` when some filing describes lenders without naming
+# them ("the other lenders party thereto"). The other values are `complete`
+# (every lender cluster named) and `none_named` (no lender cluster at all). The
+# CDT dashboard appends "other lenders not named" to such an instrument's
+# lenders, and the terminal does the same -- see `unnamedLenders`.
+CDT_LENDER_DISCLOSURE_COLLECTIVE_PRESENT = "collective_present"
+
+# The CDT dashboard's public address. Each instrument row links to its page
+# there, `/debt-instrument/<debt_instrument_id>`, where every mention, filing
+# and extracted field behind the row can be read.
+CDT_DASHBOARD_URL = "https://cdt-demo.uchicago-dsi.org"
+
+# The `lifecycle.py` statuses that mean an instrument is no longer a live
+# obligation. Those instruments never reach the frontend; every other status,
+# including no status at all, renders.
+DEBT_CLOSED_STATUSES = frozenset({"closed", "expected_closed"})
+
+# How each rendered `lifecycle.py` status reads, exactly as the CDT dashboard
+# prints it (`STATUS_LABELS` and `formatStatus` in its `src/lib/`), so a reader
+# moving between the two sites sees the same words. An instrument with no
+# status reads "Unknown"; `active` with the subtype `likely` reads
+# "Active - likely". These strings are the members of the `status` union in
+# `web/src/types/domain.ts`.
+DEBT_STATUS_LABELS = {
+    "announced": "Announced",
+    "active": "Active",
+    "expected_active": "Active - expected",
+}
+DEBT_STATUS_UNKNOWN = "Unknown"
+
+# Every finished label, subtype included -- exactly the `status` union in
+# `web/src/types/domain.ts`. `debt_status_label` checks its output against it,
+# so a subtype a newer `lifecycle.py` adds fails the build instead of shipping
+# a label the frontend type does not know.
+DEBT_STATUS_RENDERED_LABELS = frozenset(
+    {
+        "Announced",
+        "Active",
+        "Active - likely",
+        "Active - expected",
+        DEBT_STATUS_UNKNOWN,
+    }
+)
+
+# The columns of `items` that a citation needs, plus the join key. Most of the
+# file is its unread `text` column -- the full section body the extraction ran
+# over -- so it is read narrow.
 #
 # `item_information` is deliberately absent. It is the human-readable gloss for
 # `item`, but it is lowercase and runs to 135 characters ("triggering events that
 # accelerate or increase a direct financial obligation or an obligation under an
 # off-balance sheet arrangement"), which makes a poor citation name. The item
 # number is the identifier EDGAR itself uses.
-CDT_ITEM_COLUMNS: tuple[str, ...] = ("item_id", "url", "date", "item")
+CDT_ITEM_COLUMNS: tuple[str, ...] = ("item_id", "url", "date", "item", "form_type")
+
+# CDT publishes each generation of its tables atomically: every table goes under
+# an immutable `snapshots/snapshot=<run_id>/` prefix first, then one
+# `latest.json` pointer naming them is replaced as the last step. Reading the
+# per-table `<table>/latest.parquet` copies instead can mix two generations, so
+# the build resolves these tables from the pointer -- see
+# `resolve_snapshot_tables`.
+CDT_POINTER_FILE_NAME = "latest.json"
+CDT_DEBT_INSTRUMENTS_TABLE = "debt-instruments"
+CDT_MENTIONS_TABLE = "debt-instrument-mentions"
+CDT_ITEMS_TABLE = "items"
+CDT_EDGES_TABLE = "mention-cluster-edges"
+CDT_TABLES: tuple[str, ...] = (
+    CDT_DEBT_INSTRUMENTS_TABLE,
+    CDT_MENTIONS_TABLE,
+    CDT_ITEMS_TABLE,
+    CDT_EDGES_TABLE,
+)
+
+# The columns of `mention-cluster-edges` that status needs. A `member` edge
+# says which instrument a mention belongs to, which the mentions table itself
+# does not record; `lifecycle.py` reads an instrument's status off its member
+# mentions, and the CDT dashboard groups them the same way.
+CDT_EDGE_COLUMNS: tuple[str, ...] = (
+    "debt_instrument_mention_id",
+    "debt_instrument_id",
+    "edge_type",
+)
+CDT_MEMBER_EDGE_TYPE = "member"
+
+# The version of CDT's `publish_contract.json` (in CDT's `src/cdt/`) that the
+# readers in `debt.py` and the CDT fixtures are written against. CDT bumps it,
+# and stamps it into `latest.json`, when a change is one a reader must know
+# about -- a renamed column or a reshaped payload, which has already shipped
+# silently empty sections twice. So a mismatch fails the build: port the
+# readers and fixtures to the new contract, then bump this number.
+CDT_CONTRACT_VERSION = 1
 
 # Company-level columns, all read off one winning row. Rows sharing an
 # (input_source, last_processed) partition were built from a single
