@@ -163,6 +163,43 @@ html {
 	scrollbar-gutter: stable;
 }
 
+/* SCROLLBARS. Drawn like a text-mode scrollbar: a dotted track and a solid
+   square block for the thumb, which takes the accent color while pointed at. */
+::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+::-webkit-scrollbar-track {
+	/* One dot in each 2px tile, the light-shade character a terminal draws. */
+	background: conic-gradient(color-mix(in srgb, var(--muted) 70%, transparent) 25%, transparent 0) 0 0 / 2px 2px;
+}
+::-webkit-scrollbar-thumb {
+	background: var(--muted);
+}
+::-webkit-scrollbar-thumb:hover,
+::-webkit-scrollbar-thumb:active {
+	background: var(--primary);
+}
+::-webkit-scrollbar-corner {
+	background: transparent;
+}
+/* Firefox has no scrollbar pseudo-elements, so it gets the width and colors
+   only. These stay inside the @supports because in Chromium they switch the
+   rules above off. */
+@supports not selector(::-webkit-scrollbar) {
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--muted) transparent;
+	}
+}
+/* On the terminal shell the pane scrolls and the document never does, so the
+   gutter reserved above would be an empty strip beside the pane's scrollbar. */
+@media (min-width: 48rem) {
+	html:has([data-scroll-pane]) {
+		scrollbar-gutter: auto;
+	}
+}
+
 body {
 	background: var(--background);
 	color: var(--foreground);

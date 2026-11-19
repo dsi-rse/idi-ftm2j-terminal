@@ -249,6 +249,13 @@ icon buttons) and `rounded-card` (6px — section cards, boxes, popovers,
 callouts). Name the role, never Tailwind's raw `rounded-sm` / `rounded-md`;
 `rounded-full` stays for dots, pills and switches.
 
+**Scrollbars.** Scrollbars are styled once, in `globals.css`, to look like a
+text-mode scrollbar: a dotted track and a square block thumb. Chromium and
+Safari get the full drawing through `::-webkit-scrollbar`; Firefox gets a thin
+bar in the same colors. Do not set `scrollbar-width` or `scrollbar-color` on
+an element. In Chromium either one switches the custom drawing off for that
+element.
+
 **Base UI.** Every interactive primitive in `components/` wraps a
 `@base-ui/react` headless component. Base UI is the bottom of the stack — its
 presence is why `components/` files stay small and never need `forwardRef`
