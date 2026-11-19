@@ -281,7 +281,10 @@ function ShareholdersTable({
               Reported
             </Table.HeaderCell>
             <Table.HeaderCell
-              className={cn("w-28")}
+              // 128px, not 112: in a monospace figure font the largest share
+              // counts (Vanguard's 1.4B in Apple) all but fill 112px, and a
+              // longer one would wrap mid-number.
+              className={cn("w-32")}
               align="right"
               sortable
               sortDirection={sort.key === "shares" ? sort.direction : null}
