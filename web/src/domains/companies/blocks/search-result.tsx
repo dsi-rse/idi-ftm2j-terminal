@@ -31,10 +31,11 @@ type SearchResultProps = {
   /** This row's company page is loading: show a spinner in place of the rank. */
   pending?: boolean;
   /**
-   * Called with the row's PermID when it is picked. The rail owns navigation
-   * so it can track one pending selection across every row and tab.
+   * Called with the row's PermID and name when it is picked. The rail owns
+   * navigation so it can track one pending selection across every row and
+   * tab, and announce it by name.
    */
-  onSelect: (permId: string) => void;
+  onSelect: (permId: string, name: string) => void;
   company: CompanySearchMeta;
   viewedAt?: number;
   /**
@@ -212,8 +213,7 @@ export function SearchResult({
           : "border-l-transparent",
         pending && "cursor-progress",
       )}
-      aria-busy={pending || undefined}
-      onClick={() => onSelect(permId)}
+      onClick={() => onSelect(permId, companyName)}
     >
       <div className={cn(ROW_TEXT, "text-muted tabular-nums")}>
         {/* The star centres on the rank's line, which is the name's line too. */}
@@ -229,17 +229,21 @@ export function SearchResult({
               </span>
               {index}
             </span>
+            {/* Foreground, not the accent: the spinner is the only thing that
+                tells a loading row from the selected one, which shares its
+                surface and edge, and the accent on that surface is 2.84:1 in
+                the light theme, under the 3:1 a state cue needs. Screen
+                readers hear the load from the rail's status line instead. */}
             {pending && (
               <span
                 className={cn(
-                  "absolute inset-0 flex items-center justify-center text-primary",
+                  "absolute inset-0 flex items-center justify-center text-foreground",
                 )}
               >
                 <LoaderCircle
                   aria-hidden
                   className={cn("size-3 motion-safe:animate-spin")}
                 />
-                <span className={cn("sr-only")}>Loading</span>
               </span>
             )}
           </p>

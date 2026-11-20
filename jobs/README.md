@@ -314,7 +314,7 @@ Column mapping (`build_shareholder`):
 | `marketValueUsd` | `security_market_value_amount_usd` (already USD) |
 | `asOf` | `document_report_date` |
 | `sources[].name` | `SEC Form 13-F` for institutions, else the fund's `source` |
-| `sources[].url` | `url` |
+| `sources[].url` | `url`, with EDGAR `CIK`-prefixed paths rewritten to the bare CIK, which is the only form SEC serves (#60) |
 | `sources[].lastAccessed` | `last_accessed_date` |
 
 **No percent-of-outstanding stake is shown.** `stock_percent_ownership` is 0%
@@ -526,8 +526,8 @@ earlier filing; no CIK in the dataset does that. Blank `report_date` (seven
 **`asOf` is the filing date, and `report_date` is deliberately not surfaced.** A
 subsidiary list describes the registrant as of its fiscal period end, so
 `report_date` has a claim to being the truer as-of. Filing date wins anyway: it
-is the date a reader verifies against EDGAR, and it is what the tree's subtitle
-range and the same-day tie-break already sort on. Surfacing both was considered
+is the date a reader verifies against EDGAR, the date the tree's source line
+gives for each document, and what the same-day tie-break already sorts on. Surfacing both was considered
 and dropped as a field the UI would have to explain twice.
 
 That makes the *wording* load-bearing. The gap between the two dates runs 34 to

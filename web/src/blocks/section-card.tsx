@@ -3,7 +3,7 @@
 import { Maximize2 } from "lucide-react";
 import { useState, type PropsWithChildren, type ReactNode } from "react";
 
-import { InfoIcon } from "@/components/icon";
+import { InfoButton } from "@/components/info-button";
 import { Modal } from "@/components/modal";
 import { Popover } from "@/components/popover";
 import { cn } from "@/lib/utils";
@@ -66,20 +66,11 @@ export function SectionCard({
   // trigger is clicked and never opens on a tap. Hover-and-click was tried and
   // dropped (#62): a click on a hover-opened popup toggled it shut, so the
   // reader who hovers and then clicks to keep it open lost it instead.
-  //
-  // The trigger is Base UI's own button rather than `InfoButton`, which lives in
-  // `blocks/` too and so cannot be imported here.
   const infoPopover = info ? (
     <Popover>
       <Popover.Trigger
-        aria-label={infoLabel ?? `About ${title}`}
-        className={cn(
-          "inline-flex text-muted cursor-pointer hover:text-foreground",
-          "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
-        )}
-      >
-        <InfoIcon className={cn("size-4")} />
-      </Popover.Trigger>
+        render={<InfoButton aria-label={infoLabel ?? `About ${title}`} />}
+      />
       <Popover.Content title={title}>{info}</Popover.Content>
     </Popover>
   ) : null;

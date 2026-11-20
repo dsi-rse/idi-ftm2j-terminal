@@ -5,6 +5,7 @@ import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
 import type { Company } from "@/types/domain";
 
+import { NOT_AVAILABLE } from "../not-available";
 import { CompanyFacts } from "./company-facts";
 
 type CompanyOverviewSectionProps = {
@@ -113,7 +114,7 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
             : "type-stat text-3xl md:text-4xl",
         )}
       >
-        {unavailable ? "Not available" : gateway.value}
+        {unavailable ? NOT_AVAILABLE : gateway.value}
       </span>
       <span className="type-value">{gateway.unit}</span>
       {/* "View all", not "View corporate tree": the kicker above already

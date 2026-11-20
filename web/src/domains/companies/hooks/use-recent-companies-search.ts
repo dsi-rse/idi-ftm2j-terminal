@@ -36,7 +36,6 @@ export function useRecentCompaniesSearch(): CompanySearchHookReturn {
     currentPage: recentPage,
     // Sliced synchronously, so the rows and their offset always agree.
     resultsOffset: offset,
-    pageSize: PAGE_SIZE,
     isLoading: false,
     onNextPage: () => setPage("recent", Math.min(recentPage + 1, totalPages)),
     onPreviousPage: () => setPage("recent", Math.max(recentPage - 1, 1)),

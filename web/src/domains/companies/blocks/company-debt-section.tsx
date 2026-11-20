@@ -276,16 +276,17 @@ function DebtTable({
         />
       </Table.Toolbar>
       {/* Widths are set here so sorting cannot reflow the columns (see
-          `Table`). Status and Ends hold short values ("Active - expected", a
-          date over its kind); Instrument and Parties, the long ones, share
-          the rest. The minimum width keeps those two readable once the five
-          fixed columns are taken out. */}
-      <Table className={cn("min-w-3xl")}>
+          `Table`). Status and Ends hold short values (mostly "Active" or
+          "Announced"; a date over its kind); Instrument and Parties, the long
+          ones, share the rest. The fixed columns add up to 560px, so the
+          minimum (896px) leaves those two 168px each; below it the table
+          scrolls sideways rather than squeezing them. */}
+      <Table className={cn("min-w-4xl")}>
         <Table.Head>
           <tr>
             <Table.HeaderCell className={cn("w-16")}>#</Table.HeaderCell>
             <Table.HeaderCell>Instrument</Table.HeaderCell>
-            <Table.HeaderCell className={cn("w-32")}>Status</Table.HeaderCell>
+            <Table.HeaderCell className={cn("w-28")}>Status</Table.HeaderCell>
             <Table.HeaderCell className={cn("w-32")}>Ends</Table.HeaderCell>
             <Table.HeaderCell>Parties</Table.HeaderCell>
             <Table.HeaderCell

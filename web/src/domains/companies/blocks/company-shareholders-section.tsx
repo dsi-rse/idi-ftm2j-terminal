@@ -244,8 +244,11 @@ function ShareholdersTable({
       </Table.Toolbar>
       {/* Widths are set here so sorting cannot reflow the columns (see
           `Table`); Holder takes the rest. The # column fits five digits, as a
-          mega-cap runs to thousands of holdings. */}
-      <Table className={cn("min-w-2xl")}>
+          mega-cap runs to thousands of holdings. The fixed columns add up to
+          672px, so the minimum (896px) is what leaves Holder its 224px: at
+          `min-w-2xl` it got nothing on a phone and broke one letter a line.
+          Below that the table scrolls sideways instead. */}
+      <Table className={cn("min-w-4xl")}>
         <Table.Head>
           <tr>
             <Table.HeaderCell className={cn("w-16")}>#</Table.HeaderCell>

@@ -25,7 +25,8 @@ type TableRootProps = HTMLAttributes<HTMLTableElement>;
  * columns. Give each narrow column a width on its {@link TableHeaderCell}; the
  * columns left without one share what remains. Pass a `min-w-*` too when the
  * columns would otherwise be squeezed on a phone, since the wrapper scrolls
- * sideways instead. Figures are tabular so a column of numbers lines up.
+ * sideways instead. Figures are tabular (the `type-value` role sets it) so a
+ * column of numbers lines up.
  */
 function TableRoot({ className, children, ...props }: TableRootProps) {
   return (
@@ -33,7 +34,7 @@ function TableRoot({ className, children, ...props }: TableRootProps) {
       <table
         {...props}
         className={cn(
-          "w-full table-fixed type-value tabular-nums border-collapse",
+          "w-full table-fixed type-value border-collapse",
           className,
         )}
       >

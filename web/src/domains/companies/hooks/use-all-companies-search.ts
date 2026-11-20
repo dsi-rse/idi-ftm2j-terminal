@@ -115,7 +115,6 @@ export type CompanySearchHookReturn = {
    * `resultsOffset` on `useSiteSearch`.
    */
   resultsOffset: number;
-  pageSize: number;
   isLoading: boolean;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -185,7 +184,6 @@ export function useAllCompaniesSearch(): CompanySearchHookReturn {
     totalPages,
     currentPage: allPage,
     resultsOffset,
-    pageSize: PAGE_SIZE,
     isLoading,
     onNextPage: () => setPage("all", Math.min(allPage + 1, totalPages)),
     onPreviousPage: () => setPage("all", Math.max(allPage - 1, 1)),

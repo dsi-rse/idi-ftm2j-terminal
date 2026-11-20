@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 
-import { InfoButton } from "@/blocks/info-button";
 import { SourceCitation } from "@/blocks/source-citation";
+import { InfoButton } from "@/components/info-button";
 import { Popover } from "@/components/popover";
 import { formatAmountShort } from "@/lib/format-currency";
 import { cn } from "@/lib/utils";
@@ -15,14 +15,7 @@ import type {
   Source,
 } from "@/types/domain";
 
-/**
- * Shown wherever a fact has no value. "Not available" rather than "Not
- * reported": a gap is usually ours, not the company's. Apple reports revenue in
- * every 10-K, but the company-facts processor does not cover it yet, so "not
- * reported" would be false. Company info is sparse too (some companies have no
- * industry or ticker), so this is a normal state, not an error.
- */
-const NOT_AVAILABLE = "Not available";
+import { NOT_AVAILABLE } from "../not-available";
 
 /**
  * Google Finance's exchange codes, keyed by ISO 10383 MIC. These are the codes
@@ -83,6 +76,12 @@ type FactProps = {
   figure?: boolean;
   /** Popover body explaining the fact; adds a click-to-open info trigger by the label. */
   info?: ReactNode;
+  /**
+   * Grid placement for the fact's own wrapper. Set here rather than on an
+   * extra wrapping `div`: a `dl` allows one `div` between it and each
+   * `dt`/`dd`, and a second fails axe's `definition-list` and `dlitem`.
+   */
+  className?: string;
 };
 
 /**
@@ -93,9 +92,9 @@ type FactProps = {
  * The label row has a minimum height so an info icon does not push a label
  * below its neighbours.
  */
-function Fact({ label, value, muted, figure, info }: FactProps) {
+function Fact({ label, value, muted, figure, info, className }: FactProps) {
   return (
-    <div className={cn("flex flex-col gap-1 min-w-0")}>
+    <div className={cn("flex flex-col gap-1 min-w-0", className)}>
       <dt className={cn("flex min-h-4 items-center gap-1")}>
         <span className={cn("type-label")}>{label}</span>
         {info ? (
@@ -152,6 +151,10 @@ const REVENUE_INFO =
  * Formats a company-facts figure with its currency symbol and ISO code -- `$53.60B
  * USD` -- or "Not available" when no filing carried a value. The code rides
  * with the value so a non-USD figure is never mistaken for dollars at a glance.
+ *
+ * A currency with no symbol of its own (SGD, MYR, ARS, CHF) already leads with
+ * its code, since `Intl` falls back to it ("SGD 19.1M"), so the code is added
+ * only when the amount does not start with it.
  */
 function formatStat(figure: CitedFigure | null): {
   value: string;
@@ -160,7 +163,10 @@ function formatStat(figure: CitedFigure | null): {
   if (figure === null) return { value: NOT_AVAILABLE, muted: true };
   const amount = formatAmountShort(figure.value, figure.currency);
   return {
-    value: figure.currency ? `${amount} ${figure.currency}` : amount,
+    value:
+      figure.currency && !amount.startsWith(figure.currency)
+        ? `${amount} ${figure.currency}`
+        : amount,
     muted: false,
   };
 }
@@ -268,10 +274,14 @@ export function CompanyFacts({ company }: { company: Company }) {
     <div className={cn("flex flex-col gap-4")}>
       {/* Industry goes last. The four short facts keep their natural width
           with one fixed gap between each, and industry, the one long value,
-          takes whatever width is left (`minmax(0,1fr)`) and wraps inside it.
-          So every gap is the same and the row still fills the card, without
-          pinning the last fact to the card's right edge, which is what
-          sharing the leftover space between columns did.
+          takes whatever width is left and wraps inside it. So every gap is
+          the same and the row still fills the card, without pinning the last
+          fact to the card's right edge, which is what sharing the leftover
+          space between columns did. Industry's floor is 10rem, not 0: the
+          `auto` columns otherwise grow to their full width first, and one
+          long country name ("Macedonia (the former Yugoslav Republic of)")
+          left industry 52px and pushed it past the card. With the floor,
+          headquarters wraps instead.
 
           Steps follow the card's own width (a container query), not the
           window's, since the search rail takes a variable share of the
@@ -284,7 +294,7 @@ export function CompanyFacts({ company }: { company: Company }) {
           className={cn(
             "m-0 grid grid-cols-2 gap-x-8 gap-y-4",
             "@xl:grid-cols-[repeat(4,auto)] @xl:gap-x-12",
-            "@3xl:grid-cols-[repeat(4,auto)_minmax(0,1fr)]",
+            "@3xl:grid-cols-[repeat(4,auto)_minmax(10rem,1fr)]",
           )}
           aria-label="Company facts"
         >
@@ -313,15 +323,12 @@ export function CompanyFacts({ company }: { company: Company }) {
             figure
             info={publicFloatInfo(facts?.publicFloat?.asOf ?? null)}
           />
-          <div
-            className={cn("col-span-2 @xl:col-span-4 @3xl:col-span-1 min-w-0")}
-          >
-            <Fact
-              label="Industry"
-              value={industry ?? NOT_AVAILABLE}
-              muted={!industry}
-            />
-          </div>
+          <Fact
+            label="Industry"
+            value={industry ?? NOT_AVAILABLE}
+            muted={!industry}
+            className={cn("col-span-2 @xl:col-span-4 @3xl:col-span-1")}
+          />
         </dl>
       </div>
       <FactSources company={company} facts={facts} />

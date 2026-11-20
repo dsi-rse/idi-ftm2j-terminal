@@ -4,8 +4,7 @@ import { SectionCard } from "@/blocks/section-card";
 import { cn } from "@/lib/utils";
 import type { Company } from "@/types/domain";
 
-/** Shown when the company has no SEC registrant CIK in our data. */
-const NOT_AVAILABLE = "Not available";
+import { NOT_AVAILABLE } from "../not-available";
 
 const identifierLinkClassName =
   "type-figure underline decoration-dotted underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";

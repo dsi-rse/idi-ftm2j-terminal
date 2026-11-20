@@ -38,7 +38,9 @@ export function BookmarkButton({
         // A 24x24 hit area (WCAG 2.2 SC 2.5.8) around the 12px star. The
         // negative margin takes back the padding, so the button still lays out
         // at the icon's size and the row around it does not grow.
-        "inline-flex size-6 -m-1.5 shrink-0 items-center justify-center",
+        // `group`, so hovering anywhere in that area fills the star, not
+        // only the 12px icon itself.
+        "group inline-flex size-6 -m-1.5 shrink-0 items-center justify-center",
         "rounded-control bg-transparent border-0 cursor-pointer",
       )}
       onClick={(event) => {
@@ -53,7 +55,7 @@ export function BookmarkButton({
           "h-3 w-3 stroke-1",
           isSelected
             ? "fill-primary text-primary"
-            : "text-muted hover:fill-primary stroke-muted",
+            : "text-muted group-hover:fill-primary stroke-muted",
         )}
       />
     </Button>

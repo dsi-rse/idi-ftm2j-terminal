@@ -69,7 +69,7 @@ type PanelBodyProps = {
   activeCompanyId?: string;
   /** The company whose page is loading, if any. */
   pendingCompanyId?: string | null;
-  onSelect: (permId: string) => void;
+  onSelect: (permId: string, name: string) => void;
 };
 
 function PanelBody({
@@ -323,19 +323,30 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
   // moves the cue to it, rather than leaving two rows spinning.
   const router = useRouter();
   const [isNavigating, startNavigation] = useTransition();
-  const [targetCompanyId, setTargetCompanyId] = useState<string | null>(null);
-  const pendingCompanyId = isNavigating ? targetCompanyId : null;
-  const selectCompany = (permId: string) => {
+  const [target, setTarget] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const pendingCompanyId = isNavigating ? (target?.id ?? null) : null;
+  const pendingCompanyName = isNavigating ? (target?.name ?? null) : null;
+  const selectCompany = (permId: string, name: string) => {
     if (permId === activeCompanyId) {
-      // Already open: no request. The phone sheet still closes, since picking
-      // the company on screen changes no route and would leave the sheet up
-      // with no visible way past it.
+      // The phone sheet closes either way, since picking the company on
+      // screen changes no route and would leave the sheet up with no visible
+      // way past it.
       setMobileInspectorOpen(false);
+      // Already open and nothing loading: no request.
+      if (!isNavigating) return;
+      // Back to the open company while another loads: the reader has changed
+      // their mind, so the other load must not land a few seconds later.
+      // Navigating to this page supersedes it (Next discards a navigation a
+      // newer one replaces), and a same-URL push adds no history entry.
+      setTarget(null);
+      startNavigation(() => router.push(`/companies/${permId}`));
       return;
     }
     // Already loading: a repeat click would only start the same fetch again.
     if (permId === pendingCompanyId) return;
-    setTargetCompanyId(permId);
+    setTarget({ id: permId, name });
     // The sheet is left open until the route changes (the effect below), so a
     // phone reader sees the spinner too rather than a page that has not moved.
     startNavigation(() => router.push(`/companies/${permId}`));
@@ -453,6 +464,13 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
           content edge, so padding here would leave a strip above it that
           results scroll through. */}
       <Drawer.Body className={cn("pt-0")}>
+        {/* One live region for the whole rail, always mounted so a screen
+            reader is already watching it when the text changes: the spinner
+            on a row is visual only, and a 2-3 second load (#64) would
+            otherwise pass in silence (WCAG 4.1.3). */}
+        <p role="status" className={cn("sr-only")}>
+          {pendingCompanyName ? `Loading ${pendingCompanyName}…` : ""}
+        </p>
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as "all" | "recent" | "saved")}
