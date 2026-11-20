@@ -83,7 +83,7 @@ function Header({ stats }: LandingProps) {
           Follow the Money to Justice
         </Article.Header.Eyebrow>
         <Article.Header.Title>
-          Supercharge your investigative reporting.
+          Investigate corporate power through public records.
         </Article.Header.Title>
         <Article.Header.Lead>
           FTM2J is an open research database that traces the shareholdings,

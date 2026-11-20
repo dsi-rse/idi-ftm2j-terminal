@@ -2,14 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import {
-  CalendarClock,
-  LayoutGrid,
-  Network,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
-
 import { SCROLL_PANE_ATTR } from "@/layouts";
 import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
@@ -17,14 +9,15 @@ import { cn } from "@/lib/utils";
 type SectionTab = {
   id: string;
   label: string;
-  Icon: LucideIcon;
 };
 
+// Labels only. The labels already say everything, and the icons beside them
+// were decoration that could mislead: Debt's was a calendar-clock.
 const TABS: SectionTab[] = [
-  { id: "overview", label: "Overview", Icon: LayoutGrid },
-  { id: "tree", label: "Tree", Icon: Network },
-  { id: "holders", label: "Holders", Icon: Users },
-  { id: "debt", label: "Debt", Icon: CalendarClock },
+  { id: "overview", label: "Overview" },
+  { id: "tree", label: "Tree" },
+  { id: "holders", label: "Holders" },
+  { id: "debt", label: "Debt" },
 ];
 
 /**
@@ -190,7 +183,6 @@ export function CompanyTabs({ companyName }: CompanyTabsProps) {
                     )}
                     aria-current={isActive ? "true" : undefined}
                   >
-                    <tab.Icon aria-hidden className="mr-1.5 size-3.5" />
                     {tab.label}
                   </a>
                 </li>

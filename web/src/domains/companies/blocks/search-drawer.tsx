@@ -1,7 +1,7 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Drawer } from "@/components/drawer";
 import { Pagination } from "@/components/pagination";
@@ -67,6 +67,9 @@ type PanelBodyProps = {
   loadingMessage?: string;
   data: CompanySearchHookReturn;
   activeCompanyId?: string;
+  /** The company whose page is loading, if any. */
+  pendingCompanyId?: string | null;
+  onSelect: (permId: string, name: string) => void;
 };
 
 function PanelBody({
@@ -74,12 +77,14 @@ function PanelBody({
   loadingMessage,
   data,
   activeCompanyId,
+  pendingCompanyId,
+  onSelect,
 }: PanelBodyProps) {
   const {
     results,
     totalPages,
     currentPage,
-    pageSize,
+    resultsOffset,
     isLoading,
     onPageChange,
   } = data;
@@ -96,7 +101,9 @@ function PanelBody({
     return <p className="px-4 py-3 type-caption">{emptyMessage}</p>;
   }
 
-  const startIndex = (currentPage - 1) * pageSize;
+  // Numbered from the rows actually on screen, not the page just requested:
+  // the All tab keeps the previous page's rows until the next page loads.
+  const startIndex = resultsOffset;
   const start = startIndex + 1;
   const end = startIndex + results.length;
   const rangeText = start === end ? `${start}` : `${start}-${end}`;
@@ -130,6 +137,8 @@ function PanelBody({
           permIdSegments={company.permIdSegments}
           matchHint={company.matchHint}
           active={company.permId === activeCompanyId}
+          pending={company.permId === pendingCompanyId}
+          onSelect={onSelect}
         />
       ))}
       {totalPages > 1 && (
@@ -307,6 +316,42 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
   const params = useParams<{ id?: string }>();
   const activeCompanyId = params?.id;
 
+  // A company page's payload can run to megabytes (#64), so picking a row can
+  // take seconds. The navigation runs in a transition, so `isPending` holds
+  // until the new page is on screen; the row shows a spinner meanwhile. One
+  // pending id for the whole rail: picking a second row while the first loads
+  // moves the cue to it, rather than leaving two rows spinning.
+  const router = useRouter();
+  const [isNavigating, startNavigation] = useTransition();
+  const [target, setTarget] = useState<{ id: string; name: string } | null>(
+    null,
+  );
+  const pendingCompanyId = isNavigating ? (target?.id ?? null) : null;
+  const pendingCompanyName = isNavigating ? (target?.name ?? null) : null;
+  const selectCompany = (permId: string, name: string) => {
+    if (permId === activeCompanyId) {
+      // The phone sheet closes either way, since picking the company on
+      // screen changes no route and would leave the sheet up with no visible
+      // way past it.
+      setMobileInspectorOpen(false);
+      // Already open and nothing loading: no request.
+      if (!isNavigating) return;
+      // Back to the open company while another loads: the reader has changed
+      // their mind, so the other load must not land a few seconds later.
+      // Navigating to this page supersedes it (Next discards a navigation a
+      // newer one replaces), and a same-URL push adds no history entry.
+      setTarget(null);
+      startNavigation(() => router.push(`/companies/${permId}`));
+      return;
+    }
+    // Already loading: a repeat click would only start the same fetch again.
+    if (permId === pendingCompanyId) return;
+    setTarget({ id: permId, name });
+    // The sheet is left open until the route changes (the effect below), so a
+    // phone reader sees the spinner too rather than a page that has not moved.
+    startNavigation(() => router.push(`/companies/${permId}`));
+  };
+
   // Follow the selected company: when the reader lands on a page with no
   // query typed, show the browse page that holds it. A typed query is the
   // reader's own view of the list and is left alone.
@@ -419,6 +464,13 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
           content edge, so padding here would leave a strip above it that
           results scroll through. */}
       <Drawer.Body className={cn("pt-0")}>
+        {/* One live region for the whole rail, always mounted so a screen
+            reader is already watching it when the text changes: the spinner
+            on a row is visual only, and a 2-3 second load (#64) would
+            otherwise pass in silence (WCAG 4.1.3). */}
+        <p role="status" className={cn("sr-only")}>
+          {pendingCompanyName ? `Loading ${pendingCompanyName}…` : ""}
+        </p>
         <Tabs
           value={activeTab}
           onValueChange={(v) => setActiveTab(v as "all" | "recent" | "saved")}
@@ -453,6 +505,8 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               <PanelBody
                 data={allData}
                 activeCompanyId={activeCompanyId}
+                pendingCompanyId={pendingCompanyId}
+                onSelect={selectCompany}
                 emptyMessage={
                   searchQuery ? "No matches." : "No companies indexed."
                 }
@@ -463,6 +517,8 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               <PanelBody
                 data={recentData}
                 activeCompanyId={activeCompanyId}
+                pendingCompanyId={pendingCompanyId}
+                onSelect={selectCompany}
                 emptyMessage={
                   hasQuery && hasRecent
                     ? "No matches in Recent."
@@ -474,6 +530,8 @@ export function CompanySearchDrawer({ activeRank }: CompanySearchDrawerProps) {
               <PanelBody
                 data={savedData}
                 activeCompanyId={activeCompanyId}
+                pendingCompanyId={pendingCompanyId}
+                onSelect={selectCompany}
                 emptyMessage={
                   hasQuery && hasSaved
                     ? "No matches in Saved."

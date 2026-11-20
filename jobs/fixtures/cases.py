@@ -2030,6 +2030,33 @@ def shareholders_smoke_one_holding() -> None:
     assert source["lastAccessed"] == "2025-12-18", source["lastAccessed"]
 
 
+def shareholders_edgar_url_drops_cik_prefix() -> None:
+    """An EDGAR link loses its `CIK`-prefixed, zero-padded path segment.
+
+    SEC serves "Access Denied" for `/edgar/data/CIK0002012383/...` and accepts
+    only the bare number (#60). A non-SEC citation URL passes through untouched,
+    even one that happens to contain `CIK0` in its path.
+    """
+    broken = (
+        "https://www.sec.gov/Archives/edgar/data/CIK0002012383/"
+        "000201238326003238/0002012383-26-003238-index.htm"
+    )
+    fixed = (
+        "https://www.sec.gov/Archives/edgar/data/2012383/"
+        "000201238326003238/0002012383-26-003238-index.htm"
+    )
+    pension = "https://www.example-pension.nl/data/CIK0001/holdings.pdf"
+    result = run_shareholder_build(
+        shareholders=shareholder_rows(
+            {"investor_name": "Sec LLC", "url": broken},
+            {"investor_name": "Pension LLC", "url": pension},
+        ),
+    )
+    holders = result.by_permid("5000000001")["currentShareholders"]
+    urls = {h["investor"]["name"]: h["sources"][0]["url"] for h in holders}
+    assert urls == {"Sec LLC": fixed, "Pension LLC": pension}, urls
+
+
 def shareholders_unmatched_cusip_fails_the_build() -> None:
     """A shareholders frame that resolves to no issuer must fail, not render empty.
 
@@ -2197,6 +2224,7 @@ CASES = [
     debt_unrenderable_instrument_does_not_fail_the_build,
     debt_every_rendered_instrument_carries_a_date,
     shareholders_smoke_one_holding,
+    shareholders_edgar_url_drops_cik_prefix,
     shareholders_unmatched_cusip_fails_the_build,
     shareholders_unresolved_cusip_is_dropped_not_failed,
     shareholders_cusip_conflict_resolves_by_recency,

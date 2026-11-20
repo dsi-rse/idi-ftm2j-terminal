@@ -3,9 +3,10 @@
 import { SectionCard } from "@/blocks/section-card";
 import { scrollToSection } from "@/lib/scroll-to-section";
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import type { Company } from "@/types/domain";
 
-import type { Company, CurrentCorporateRelationship } from "@/types/domain";
+import { NOT_AVAILABLE } from "../not-available";
+import { CompanyFacts } from "./company-facts";
 
 type CompanyOverviewSectionProps = {
   company: Company;
@@ -15,6 +16,11 @@ type CompanyOverviewSectionProps = {
  * One headline stat, linking to the section that carries the detail. `value` is
  * null when the fact has no processor yet — those render an explicit unavailable
  * state rather than a fabricated figure.
+ *
+ * A count, its unit, and a "View all" link, and nothing else. Each box used
+ * to carry a detail line too (jurisdictions, citation, latest filing date),
+ * which is exactly what the section it links to opens with; the box is the way
+ * in, not a second copy of the section's header.
  */
 type Gateway = {
   /** Target section id, without the `#`. */
@@ -22,91 +28,20 @@ type Gateway = {
   kicker: string;
   value: string | null;
   unit: string;
-  meta: string;
-  link: string;
 };
 
-function plural(count: number, word: string): string {
-  return `${count} ${word}${count === 1 ? "" : "s"}`;
-}
-
 /**
- * How many distinct jurisdictions a company's subsidiaries are incorporated in.
- *
- * Case-folded, because the source is inconsistent about it — "Delaware" and
- * "DELAWARE" are one jurisdiction, not two. Blanks are excluded rather than
- * counted as an unknown jurisdiction. This is still an overcount: "DE" and
- * "Delaware" remain separate values, and merging those needs a state
- * abbreviation crosswalk that does not exist here. Hence "jurisdictions" rather
- * than "countries" — the looser word is the true one, and `location` genuinely
- * mixes states with countries.
- */
-function countJurisdictions(
-  relationships: CurrentCorporateRelationship[],
-): number {
-  const seen = new Set<string>();
-  for (const relationship of relationships) {
-    const jurisdiction = relationship.childJurisdiction?.trim();
-    if (jurisdiction) seen.add(jurisdiction.toLowerCase());
-  }
-  return seen.size;
-}
-
-/**
- * The Corporate Tree stat. This is the only gateway with real data behind it.
- *
- * The count is subsidiaries, excluding the registrant — deliberately one less
- * than the Corporate Tree section's own "N entities" subtitle, which includes
- * it. The two numbers sit a few inches apart on the page and look like they
- * should match; they should not.
+ * The Corporate Tree stat: subsidiaries, excluding the registrant, the same
+ * count the Corporate Tree section's subtitle gives.
  */
 function treeGateway(company: Company): Gateway {
   const relationships = company.currentCorporateRelationships;
-  const base = {
+  return {
     section: "tree",
     kicker: "Corporate Tree",
     unit: "Subsidiaries traced",
-    link: "View corporate tree",
-  };
-
-  if (relationships.length === 0) {
-    return {
-      ...base,
-      value: "0",
-      meta: "No Exhibit 21 or Exhibit 8 subsidiary list in scope",
-    };
-  }
-
-  // A multi-registrant company unions each registrant's most recent filing, so
-  // the list can span several filing dates and documents. This caption is a
-  // one-line summary, not the tree subtitle's full range, so it reports the
-  // most recent filing — its date and its citation together — rather than
-  // whichever subsidiary happens to sort first alphabetically. ISO-8601 dates
-  // compare lexicographically, which is why `asOf` can be `max`'d as a string.
-  const latest = relationships.reduce((a, b) => (b.asOf > a.asOf ? b : a));
-  const jurisdictions = countJurisdictions(relationships);
-  const citation = latest.sources[0]?.name ?? "SEC filing";
-  return {
-    ...base,
     value: relationships.length.toLocaleString("en-US"),
-    meta: `${plural(jurisdictions, "jurisdiction")} · ${citation} · filed on ${latest.asOf}`,
   };
-}
-
-/**
- * The SEC forms a company's debt was disclosed in, as the card names them. CDT
- * reads 8-Ks and the 6-Ks foreign private issuers file instead, and each
- * citation's name leads with its form ("SEC 8-K Item 1.01", "SEC 6-K").
- */
-function debtForms(debt: Company["currentCommercialDebt"]): string {
-  const forms = new Set(
-    debt.flatMap((instrument) =>
-      instrument.sources.flatMap(
-        (source) => source.name.match(/^SEC (\S+)/)?.[1] ?? [],
-      ),
-    ),
-  );
-  return forms.size ? `SEC ${[...forms].sort().reverse().join(" / ")}` : "SEC";
 }
 
 /**
@@ -120,36 +55,11 @@ function debtForms(debt: Company["currentCommercialDebt"]): string {
  */
 function debtGateway(company: Company): Gateway {
   const debt = company.currentCommercialDebt;
-  const base = {
+  return {
     section: "debt",
     kicker: "Commercial Debt",
     unit: debt.length === 1 ? "Instrument disclosed" : "Instruments disclosed",
-    link: "View commercial debt",
-  };
-
-  if (debt.length === 0) {
-    return {
-      ...base,
-      value: "0",
-      meta: "No 8-K or 6-K debt disclosure in scope for this company",
-    };
-  }
-
-  const withLender = debt.filter((instrument) =>
-    instrument.parties.some((party) => party.role === "lender"),
-  ).length;
-  // ISO-8601 dates compare lexicographically. A company's debt is assembled from
-  // every filing that disclosed an instrument, so unlike the tree there is no single
-  // filing date for the section — the most recent is what dates the card.
-  const latest = debt.reduce(
-    (newest, instrument) =>
-      instrument.asOf > newest ? instrument.asOf : newest,
-    "",
-  );
-  return {
-    ...base,
     value: debt.length.toLocaleString("en-US"),
-    meta: `${withLender} with a disclosed lender · ${debtForms(debt)} · latest filed on ${latest}`,
   };
 }
 
@@ -164,123 +74,14 @@ function debtGateway(company: Company): Gateway {
  */
 function shareholdersGateway(company: Company): Gateway {
   const holdings = company.currentShareholders;
-  const base = {
+  return {
     section: "holders",
     kicker: "Shareholders",
     // Holdings, not holders: share classes are not collapsed, so one investor
     // can be several rows. Counting them "holders" would overstate the roster.
     unit: holdings.length === 1 ? "Holding disclosed" : "Holdings disclosed",
-    link: "View shareholders",
-  };
-
-  if (holdings.length === 0) {
-    return {
-      ...base,
-      value: "0",
-      meta: "No holdings resolved to this company",
-    };
-  }
-
-  // ISO-8601 dates compare lexicographically. Holdings come from many filings,
-  // so the most recent report date is what dates the card.
-  const latest = holdings.reduce(
-    (newest, holding) => (holding.asOf > newest ? holding.asOf : newest),
-    "",
-  );
-  return {
-    ...base,
     value: holdings.length.toLocaleString("en-US"),
-    meta: `SEC 13-F & pension disclosures · reported ${latest}`,
   };
-}
-
-const NOT_REPORTED = "Not reported";
-
-const identifierLinkClassName =
-  "type-figure underline decoration-dotted underline-offset-2 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
-
-/** One labelled identifier: a micro-label over one or more values. */
-function Identifier({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={cn("flex flex-col gap-1 min-w-0")}>
-      <dt className={cn("type-label whitespace-nowrap")}>{label}</dt>
-      <dd className={cn("m-0 flex flex-wrap gap-x-3 gap-y-1 type-value")}>
-        {children}
-      </dd>
-    </div>
-  );
-}
-
-/**
- * The company's stable identifiers. A reader following the money needs the
- * keys other registries use: the PermID this record is built on, every SEC
- * registrant CIK (linked to its EDGAR filing index), and the CUSIPs its
- * securities trade under. CIK absence is a data gap and is said so; CUSIP
- * absence is the norm (most issuers' securities are unresolved) and the pair
- * is simply omitted.
- */
-function IdentifiersRow({ company }: { company: Company }) {
-  const permIdUrl =
-    company.sources[0]?.url ?? `https://permid.org/1-${company.permId}`;
-  const several = company.registrants.length > 1;
-  return (
-    // A description list, so a screen reader announces each label with its
-    // value and the group's name. An aria-label on a plain div is inert.
-    <dl
-      className={cn("m-0 flex flex-wrap gap-x-8 gap-y-3 pb-4")}
-      aria-label="Identifiers"
-    >
-      <Identifier label="PermID">
-        <a
-          href={permIdUrl}
-          target="_blank"
-          rel="noreferrer"
-          className={cn(identifierLinkClassName)}
-        >
-          {company.permId}
-        </a>
-      </Identifier>
-      <Identifier label={several ? "CIKs" : "CIK"}>
-        {company.registrants.length === 0 ? (
-          <span className={cn("text-muted")}>{NOT_REPORTED}</span>
-        ) : (
-          company.registrants.map((registrant) => (
-            <span key={registrant.cik} className={cn("whitespace-nowrap")}>
-              <a
-                href={`https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&CIK=${registrant.cik}`}
-                target="_blank"
-                rel="noreferrer"
-                className={cn(identifierLinkClassName)}
-              >
-                {registrant.cik}
-              </a>
-              {several && registrant.registrantName ? (
-                <span className={cn("text-muted")}>
-                  {" "}
-                  {registrant.registrantName}
-                </span>
-              ) : null}
-            </span>
-          ))
-        )}
-      </Identifier>
-      {company.cusips.length > 0 ? (
-        <Identifier label={company.cusips.length > 1 ? "CUSIPs" : "CUSIP"}>
-          {company.cusips.map((cusip) => (
-            <span key={cusip} className={cn("type-figure")}>
-              {cusip}
-            </span>
-          ))}
-        </Identifier>
-      ) : null}
-    </dl>
-  );
 }
 
 function GatewayCard({ gateway }: { gateway: Gateway }) {
@@ -313,15 +114,13 @@ function GatewayCard({ gateway }: { gateway: Gateway }) {
             : "type-stat text-3xl md:text-4xl",
         )}
       >
-        {unavailable ? "Not available" : gateway.value}
+        {unavailable ? NOT_AVAILABLE : gateway.value}
       </span>
       <span className="type-value">{gateway.unit}</span>
-      <span className="type-caption">
-        {gateway.meta}
-      </span>
-      <span className="mt-2 type-caption text-primary">
-        {gateway.link} →
-      </span>
+      {/* "View all", not "View corporate tree": the kicker above already
+          names the section, and repeating it made the gold link the loudest
+          text on the card. The whole tile is the link, so this is the cue. */}
+      <span className="mt-2 type-caption text-primary">View all →</span>
     </a>
   );
 }
@@ -337,20 +136,19 @@ function Gateways({ gateways }: { gateways: Gateway[] }) {
 }
 
 /**
- * The "Overview" section of the company detail page — headline counts that
- * gateway into the sections below.
+ * The "Overview" section of the company detail page: the company's headline
+ * facts, then the counts that gateway into the sections below.
  *
- * All three stats — Corporate Tree, Shareholders, and Commercial Debt — now have
- * processors behind them and carry real counts.
+ * The facts (industry, HQ country, listing, ticker, public float, revenue) were
+ * bordered cells in the page header until #67; here they are a plain list, so
+ * the card holds one level of boxes, the gateway tiles. The identifiers that
+ * used to open this card moved to their own section at the end of the page.
  *
- * There is no section-level date: the three stats draw on datasets with
- * genuinely different vintages — corporate structure is 2016–2018, commercial
- * debt runs to the present, company info is current — so each card carries its
- * own instead of one date that would be wrong for at least one of them. Nor a
- * section-level source: none of the three counts draws on the LSEG record
- * (they are Exhibit 21, 13-F, and 8-K data), so each card names its own SEC
- * source in its meta line and the LSEG citation sits under the header, with
- * the fields it actually covers.
+ * There is no section-level date or source: the facts and the three counts draw
+ * on datasets with genuinely different vintages and sources (the LSEG record,
+ * 10-K/20-F figures, Exhibit 21, 13-F, and 8-K data). The LSEG citation sits
+ * under the facts it covers, each figure cites its own filing, and each count
+ * is dated and cited in the section it links to.
  */
 export function CompanyOverviewSection({
   company,
@@ -365,11 +163,15 @@ export function CompanyOverviewSection({
     <SectionCard
       id="overview"
       title="Overview"
-      // Three counts and an identifier row fit inline in full; a modal would
-      // show the same thing larger.
+      // The facts and three counts fit inline in full; a modal would show the
+      // same thing larger.
       expandable={false}
     >
-      <IdentifiersRow company={company} />
+      {/* pb-4 is the gap above the gateway tiles' rule, as the card's padding
+          is below it. */}
+      <div className={cn("pb-4")}>
+        <CompanyFacts company={company} />
+      </div>
       <Gateways gateways={gateways} />
     </SectionCard>
   );

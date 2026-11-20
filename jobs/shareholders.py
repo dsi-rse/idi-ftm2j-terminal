@@ -2,6 +2,7 @@
 
 # Standard library imports
 import logging
+import re
 
 # Third-party imports
 import pandas as pd
@@ -143,6 +144,27 @@ def _stripped_column(values: pd.Series) -> list[str | None]:
     return [text or None for text in stripped.tolist()]
 
 
+# The shareholder-tracker writes EDGAR filing links with a `CIK`-prefixed,
+# zero-padded CIK in the path (`/edgar/data/CIK0002012383/...`). SEC serves an
+# "Access Denied" page for that path; it accepts only the bare number
+# (`/edgar/data/2012383/...`), which is what the Exhibit 21 links already use.
+# Anchored on the EDGAR archive prefix so non-SEC citation URLs (pension-fund
+# disclosures) are never rewritten.
+_EDGAR_PREFIXED_CIK = re.compile(
+    r"^(https?://www\.sec\.gov/Archives/edgar/data/)CIK0*(\d+)/", re.IGNORECASE
+)
+
+
+def _edgar_url_column(values: pd.Series) -> list[str | None]:
+    """`_stripped_column` that also rewrites EDGAR paths to the bare CIK.
+
+    Vectorized for the same reason as `_stripped_column`: ~1.7M resolved rows.
+    """
+    stripped = values.fillna("").astype(str).str.strip()
+    fixed = stripped.str.replace(_EDGAR_PREFIXED_CIK, r"\1\2/", regex=True)
+    return [text or None for text in fixed.tolist()]
+
+
 def attach_shareholders(
     companies: list[dict],
     shareholders_df: pd.DataFrame,
@@ -207,7 +229,7 @@ def attach_shareholders(
     types = _stripped_column(holdings_df["investor_type"])
     countries = _stripped_column(holdings_df["investor_country_name"])
     security_types = _stripped_column(holdings_df["security_type"])
-    urls = _stripped_column(holdings_df["url"])
+    urls = _edgar_url_column(holdings_df["url"])
     sources = _stripped_column(holdings_df["source"])
     as_of_dates = _iso_date_column(holdings_df["document_report_date"])
     accessed_dates = _iso_date_column(holdings_df["last_accessed_date"])

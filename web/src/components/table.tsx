@@ -19,6 +19,14 @@ type TableRootProps = HTMLAttributes<HTMLTableElement>;
  * The root of the {@link Table} compound component. Renders a plain `<table>`
  * with full-width layout and small-body typography. Callers wrap it in a
  * scrolling container as needed.
+ *
+ * Fixed layout: column widths come from the header cells, not from whatever
+ * rows are on the current page, so sorting or paging never reflows the
+ * columns. Give each narrow column a width on its {@link TableHeaderCell}; the
+ * columns left without one share what remains. Pass a `min-w-*` too when the
+ * columns would otherwise be squeezed on a phone, since the wrapper scrolls
+ * sideways instead. Figures are tabular (the `type-value` role sets it) so a
+ * column of numbers lines up.
  */
 function TableRoot({ className, children, ...props }: TableRootProps) {
   return (
@@ -26,7 +34,7 @@ function TableRoot({ className, children, ...props }: TableRootProps) {
       <table
         {...props}
         className={cn(
-          "w-full type-value border-collapse",
+          "w-full table-fixed type-value border-collapse",
           className,
         )}
       >
@@ -235,7 +243,13 @@ function TableCell({
   return (
     <td
       {...props}
-      className={cn("px-3 py-3 first:pl-2 last:pr-2", alignmentClass, className)}
+      // `break-words`: with fixed widths, an unbroken string (a long URL-like
+      // holder name) would otherwise spill into the next column.
+      className={cn(
+        "px-3 py-3 first:pl-2 last:pr-2 break-words",
+        alignmentClass,
+        className,
+      )}
     >
       {content}
     </td>

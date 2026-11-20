@@ -2,6 +2,7 @@ import { Metadata } from "next";
 
 import { CompanyDebtSection } from "@/domains/companies/blocks/company-debt-section";
 import { CompanyHeader } from "@/domains/companies/blocks/company-header";
+import { CompanyIdentifiersSection } from "@/domains/companies/blocks/company-identifiers-section";
 import { CompanyOverviewSection } from "@/domains/companies/blocks/company-overview-section";
 import { CompanyShareholdersSection } from "@/domains/companies/blocks/company-shareholders-section";
 import { CompanyTabs } from "@/domains/companies/blocks/company-tabs";
@@ -192,6 +193,7 @@ const CompanyPage = async ({ params }: CompanyPageParams) => {
             <CompanyTreeSection company={company} />
             <CompanyShareholdersSection company={company} />
             <CompanyDebtSection company={company} />
+            <CompanyIdentifiersSection company={company} />
           </div>
         </main>
         <PagefindIndex company={company} />

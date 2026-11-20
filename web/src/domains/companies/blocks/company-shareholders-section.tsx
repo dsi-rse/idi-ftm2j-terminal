@@ -242,10 +242,16 @@ function ShareholdersTable({
           placeholder="Search holders by name, type, or country…"
         />
       </Table.Toolbar>
-      <Table>
+      {/* Widths are set here so sorting cannot reflow the columns (see
+          `Table`); Holder takes the rest. The # column fits five digits, as a
+          mega-cap runs to thousands of holdings. The fixed columns add up to
+          672px, so the minimum (896px) is what leaves Holder its 224px: at
+          `min-w-2xl` it got nothing on a phone and broke one letter a line.
+          Below that the table scrolls sideways instead. */}
+      <Table className={cn("min-w-4xl")}>
         <Table.Head>
           <tr>
-            <Table.HeaderCell className="w-10">#</Table.HeaderCell>
+            <Table.HeaderCell className={cn("w-16")}>#</Table.HeaderCell>
             <Table.HeaderCell
               sortable
               sortDirection={sort.key === "holder" ? sort.direction : null}
@@ -254,6 +260,7 @@ function ShareholdersTable({
               Holder
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-32")}
               sortable
               sortDirection={sort.key === "country" ? sort.direction : null}
               onSort={() => toggleSort("country")}
@@ -261,6 +268,7 @@ function ShareholdersTable({
               Country
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-24")}
               sortable
               sortDirection={sort.key === "security" ? sort.direction : null}
               onSort={() => toggleSort("security")}
@@ -268,6 +276,7 @@ function ShareholdersTable({
               Security
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-36")}
               sortable
               sortDirection={sort.key === "reported" ? sort.direction : null}
               onSort={() => toggleSort("reported")}
@@ -275,6 +284,10 @@ function ShareholdersTable({
               Reported
             </Table.HeaderCell>
             <Table.HeaderCell
+              // 128px, not 112: in a monospace figure font the largest share
+              // counts (Vanguard's 1.4B in Apple) all but fill 112px, and a
+              // longer one would wrap mid-number.
+              className={cn("w-32")}
               align="right"
               sortable
               sortDirection={sort.key === "shares" ? sort.direction : null}
@@ -283,6 +296,7 @@ function ShareholdersTable({
               Shares
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-28")}
               align="right"
               sortable
               sortDirection={sort.key === "value" ? sort.direction : null}

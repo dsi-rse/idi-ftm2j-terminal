@@ -79,24 +79,9 @@ function TreeLines({ rows }: { rows: TreeRow[] }) {
   );
 }
 
-/**
- * The span of filing dates a tree draws on.
- *
- * A single-registrant company has exactly one distinct `asOf`, because its rows
- * all come from one document. A company with several registrants can be built
- * from filings made on different days, so the section reports a range rather
- * than claiming a date it does not have.
- */
-function filingRange(relationships: CurrentCorporateRelationship[]) {
-  // ISO-8601 dates sort lexicographically, which is why these are plain strings
-  // throughout the domain model.
-  const dates = relationships
-    .map((relationship) => relationship.asOf)
-    .filter(Boolean)
-    .sort();
-  const earliest = dates[0];
-  const latest = dates[dates.length - 1];
-  return { earliest, latest, spansFilings: Boolean(earliest && latest && earliest !== latest) };
+/** "1 subsidiary", "297 subsidiaries". */
+function plural(count: number, one: string, many: string): string {
+  return `${count.toLocaleString("en-US")} ${count === 1 ? one : many}`;
 }
 
 /**
@@ -105,8 +90,7 @@ function filingRange(relationships: CurrentCorporateRelationship[]) {
  * Rows from one registrant share one filing, so a single-registrant company has
  * exactly one document here. A company with several registrants unions each
  * registrant's most recent filing, so the section can be built from two exhibits
- * — and citing only the first left the footer disagreeing with the subtitle's
- * filing range.
+ * — and citing only the first left one of them, and its filing date, uncited.
  */
 function distinctDocuments(relationships: CurrentCorporateRelationship[]) {
   const byUrl = new Map<
@@ -212,8 +196,6 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
     );
   }
 
-  const { earliest, latest, spansFilings } = filingRange(relationships);
-
   // The registrant is the tree's root, not a subsidiary: it stays at the top
   // whatever the filter says, and only the rows beneath it are searched.
   const [registrant, ...subsidiaries] = rows;
@@ -259,21 +241,11 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
     <SectionCard
       id="tree"
       title="Corporate Tree"
-      subtitle={
-        // "filed on" names the kind of date: an Exhibit 21 reaches EDGAR
-        // months after the fiscal period it describes, so a bare date reads as
-        // whichever the reader assumes. The range branch says "filings from"
-        // rather than gluing the endpoints together with "and" — a company with
-        // more than two registrants has dates between them. The no-date branch
-        // cannot arise from current data (the build fails on a null `asOf`), but
-        // the subtitle degrades to the count rather than render "filed on
-        // undefined" if it is ever fed a relationship without one.
-        !earliest
-          ? `${rows.length} entities`
-          : spansFilings
-            ? `${rows.length} entities · filings from ${earliest} to ${latest}`
-            : `${rows.length} entities · filed on ${earliest}`
-      }
+      // The count only. The filing date is in the source line at the foot of
+      // the card, one per document, and saying it twice put the same metadata
+      // at both ends of the section. Subsidiaries, not entities, so it matches
+      // the Overview's count: the registrant heads the tree but is not one.
+      subtitle={plural(subsidiaryCount, "subsidiary", "subsidiaries")}
       info="Subsidiaries listed in this company's most recent Exhibit 21 (10-K) or Exhibit 8 (20-F) in our data, as of the filing date shown. Subsidiary names and jurisdictions are reproduced as filed."
       source={<TreeSources company={company} relationships={relationships} />}
       expanded={
@@ -307,12 +279,13 @@ export function CompanyTreeSection({ company }: CompanyTreeSectionProps) {
       {noMatches}
       {totalPages > 1 || filtering ? (
         // Wraps so the pager drops to its own line on a phone: the count and a
-        // six-page list side by side are wider than the card there.
+        // six-page list side by side are wider than the card there. The count
+        // shows only while filtering; otherwise the subtitle already says it.
         <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
           <p className="type-caption m-0">
             {filtering
               ? `${filtered.length} of ${subsidiaryCount} subsidiaries`
-              : `${subsidiaryCount} subsidiaries`}
+              : null}
           </p>
           {totalPages > 1 ? (
             <Pagination

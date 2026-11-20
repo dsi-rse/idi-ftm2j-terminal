@@ -106,28 +106,6 @@ export function InstagramIcon(props: SVGProps<SVGSVGElement>) {
 }
 
 /**
- * An SVG icon of a lowercase "i" enclosed in a circle.
- */
-export function InfoIcon(props: SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      {...props}
-    >
-      <circle cx="12" cy="12" r="10" />
-      <line x1="12" y1="11" x2="12" y2="16" />
-      <line x1="12" y1="8" x2="12" y2="8" />
-    </svg>
-  );
-}
-
-/**
  * An SVG icon of a control panel — three horizontal sliders with knobs at
  * varying positions.
  */

@@ -1,6 +1,6 @@
+import { Info } from "lucide-react";
 import { forwardRef, type ButtonHTMLAttributes } from "react";
 
-import { InfoIcon } from "@/components/icon";
 import { cn } from "@/lib/utils";
 
 type InfoButtonProps = Omit<
@@ -11,9 +11,14 @@ type InfoButtonProps = Omit<
 };
 
 /**
- * An icon-only info button — visually just the {@link InfoIcon}, with no
- * border, background, extra padding, or hover recoloring. Commonly composed
- * as a {@link Popover.Trigger} to reveal supplemental info on click or tap.
+ * An icon-only info button: a circled "i", with no border, background or extra
+ * padding, muted until hovered. Composed as a {@link Popover.Trigger} to reveal
+ * supplemental info on click or tap; the section cards' titles and the company
+ * facts both use it, so every (i) on a page looks and behaves the same.
+ *
+ * A component rather than a block because it is one control, and so both
+ * blocks and domain blocks can import it. The icon is lucide's, not
+ * `components/icon`'s, since a component cannot import another component.
  *
  * Forwards its ref so Base UI's `Popover.Trigger` (which uses a render prop)
  * can attach event handlers.
@@ -26,12 +31,12 @@ export const InfoButton = forwardRef<HTMLButtonElement, InfoButtonProps>(
         type={type}
         {...props}
         className={cn(
-          "text-muted cursor-pointer",
+          "inline-flex text-muted cursor-pointer hover:text-foreground",
           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
           className,
         )}
       >
-        <InfoIcon className="size-4" />
+        <Info aria-hidden className={cn("size-4")} />
       </button>
     );
   },

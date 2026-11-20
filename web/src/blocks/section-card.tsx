@@ -3,7 +3,7 @@
 import { Maximize2 } from "lucide-react";
 import { useState, type PropsWithChildren, type ReactNode } from "react";
 
-import { InfoButton } from "@/blocks/info-button";
+import { InfoButton } from "@/components/info-button";
 import { Modal } from "@/components/modal";
 import { Popover } from "@/components/popover";
 import { cn } from "@/lib/utils";
@@ -13,8 +13,9 @@ type SectionCardProps = {
   title: string;
   subtitle?: string;
   /**
-   * Body of the info popover that opens from the (i) button on click. Omit it
-   * for a section whose contents explain themselves; the button is not shown.
+   * Body of the info popover that opens from the (i) beside the title on click
+   * or tap. Omit it for a section whose contents explain themselves; the button
+   * is not shown.
    */
   info?: ReactNode;
   /** Aria-label for the info button. Defaults to "About {title}". */
@@ -56,6 +57,23 @@ export function SectionCard({
   children,
 }: PropsWithChildren<SectionCardProps>) {
   const [isExpanded, setIsExpanded] = useState(false);
+  // The (i) explains the section, so it sits with the title; expand acts on the
+  // whole card, so it keeps the far corner.
+  //
+  // Click to open, click to close, and nothing on hover: the toggletip pattern
+  // (Carbon's Toggletip, Spectrum's ContextualHelp) for an info icon whose
+  // content is a few sentences rather than a label. A Tooltip closes when its
+  // trigger is clicked and never opens on a tap. Hover-and-click was tried and
+  // dropped (#62): a click on a hover-opened popup toggled it shut, so the
+  // reader who hovers and then clicks to keep it open lost it instead.
+  const infoPopover = info ? (
+    <Popover>
+      <Popover.Trigger
+        render={<InfoButton aria-label={infoLabel ?? `About ${title}`} />}
+      />
+      <Popover.Content title={title}>{info}</Popover.Content>
+    </Popover>
+  ) : null;
   return (
     <section
       id={id}
@@ -65,20 +83,12 @@ export function SectionCard({
       )}
     >
       <header className="flex items-start justify-between gap-4 mb-4">
-        <Modal.Heading title={title} subtitle={subtitle} />
+        <Modal.Heading
+          title={title}
+          subtitle={subtitle}
+          titleAddon={infoPopover}
+        />
         <div className="flex items-center gap-1 shrink-0">
-          {/* A Popover, not a Tooltip. The tooltip opens on hover only, after
-              a 600ms delay, and closes when its trigger is clicked -- so the
-              one thing a reader does with an (i) icon dismissed it, and a tap
-              never opened it. Same fix as the header's Public Float. */}
-          {info ? (
-            <Popover>
-              <Popover.Trigger
-                render={<InfoButton aria-label={infoLabel ?? `About ${title}`} />}
-              />
-              <Popover.Content title={title}>{info}</Popover.Content>
-            </Popover>
-          ) : null}
           {expandable ? (
             <Modal open={isExpanded} onOpenChange={setIsExpanded}>
               <Modal.Trigger

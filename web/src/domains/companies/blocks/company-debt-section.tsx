@@ -275,15 +275,22 @@ function DebtTable({
           placeholder="Search debt by instrument or party…"
         />
       </Table.Toolbar>
-      <Table>
+      {/* Widths are set here so sorting cannot reflow the columns (see
+          `Table`). Status and Ends hold short values (mostly "Active" or
+          "Announced"; a date over its kind); Instrument and Parties, the long
+          ones, share the rest. The fixed columns add up to 560px, so the
+          minimum (896px) leaves those two 168px each; below it the table
+          scrolls sideways rather than squeezing them. */}
+      <Table className={cn("min-w-4xl")}>
         <Table.Head>
           <tr>
-            <Table.HeaderCell className={cn("w-10")}>#</Table.HeaderCell>
+            <Table.HeaderCell className={cn("w-16")}>#</Table.HeaderCell>
             <Table.HeaderCell>Instrument</Table.HeaderCell>
-            <Table.HeaderCell>Status</Table.HeaderCell>
-            <Table.HeaderCell>Ends</Table.HeaderCell>
+            <Table.HeaderCell className={cn("w-28")}>Status</Table.HeaderCell>
+            <Table.HeaderCell className={cn("w-32")}>Ends</Table.HeaderCell>
             <Table.HeaderCell>Parties</Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-32")}
               sortable
               sortDirection={sort.key === "filedOn" ? sort.direction : undefined}
               onSort={() => toggle("filedOn")}
@@ -291,6 +298,7 @@ function DebtTable({
               Filed on
             </Table.HeaderCell>
             <Table.HeaderCell
+              className={cn("w-32")}
               align="right"
               sortable
               sortDirection={sort.key === "amount" ? sort.direction : undefined}

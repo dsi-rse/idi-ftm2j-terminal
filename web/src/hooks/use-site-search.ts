@@ -75,6 +75,13 @@ function dedupe<T>(
 type UseSiteSearchReturn<T> = {
   handleSearch: (query: string) => Promise<void>;
   results: SiteSearchResult<T>[];
+  /**
+   * The `offset` that `results` were loaded at. It trails the `offset` option
+   * while the next page's fragments load, because `results` still holds the
+   * previous page until they arrive. Number rows from this, not from the
+   * requested offset, or the old rows briefly show the new page's ranks.
+   */
+  resultsOffset: number;
   totalCount: number;
   isLoading: boolean;
 };
@@ -93,6 +100,7 @@ export const useSiteSearch = <T>(
   const stubCacheRef = useRef<Map<string, PagefindSearchResult[]>>(new Map());
   const [currentQuery, setCurrentQuery] = useState("");
   const [results, setResults] = useState<SiteSearchResult<T>[]>([]);
+  const [resultsOffset, setResultsOffset] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -113,6 +121,7 @@ export const useSiteSearch = <T>(
       const showAll = currentQuery === "" && emptyQueryBehavior === "all";
       if (currentQuery === "" && !showAll) {
         setResults([]);
+        setResultsOffset(0);
         setTotalCount(0);
         setIsLoading(false);
         return;
@@ -152,6 +161,7 @@ export const useSiteSearch = <T>(
         weightedLocations: r.weighted_locations,
       }));
       setResults(identify ? dedupe(hits, identify) : hits);
+      setResultsOffset(offset);
       setIsLoading(false);
     }
 
@@ -173,5 +183,5 @@ export const useSiteSearch = <T>(
     setCurrentQuery(query);
   }, []);
 
-  return { handleSearch, results, totalCount, isLoading };
+  return { handleSearch, results, resultsOffset, totalCount, isLoading };
 };
